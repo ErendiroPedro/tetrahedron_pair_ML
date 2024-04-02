@@ -6,7 +6,7 @@ from src.model_architecture import GraphPairClassifier
 from src.data_processor import DataProcessor
 
 class ModelTrainer():
-    def __init__(self, raw_data_root, batch_size=64, lr=0.01, epochs=50):
+    def __init__(self, raw_data_root, batch_size=8, lr=0.001, epochs=20):
         self.batch_size = batch_size
         self.lr = lr
         self.epochs = epochs
