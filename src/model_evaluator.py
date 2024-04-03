@@ -4,19 +4,19 @@ from sklearn.metrics import confusion_matrix, accuracy_score
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
-from src.model_architecture import GraphPairClassifier
-from src.data_processor import DataProcessor
+from src.model_architecture import GraphPairClassifier, MLPClassifier
+from src.data_processor import GraphDataProcessor, TabularDataProcessor
 
 class ModelEvaluator:
     def __init__(self, raw_data_root, model_path, batch_size=10000):
         self.batch_size = batch_size
         self.raw_data_root = raw_data_root
         self.model_path = model_path
-        self.data_processor = DataProcessor(raw_data_root)
+        self.data_processor = TabularDataProcessor(raw_data_root)
         self.model = self.load_model()
 
     def load_model(self):
-        model = GraphPairClassifier(num_input_features=3)
+        model = MLPClassifier(num_input_features=24,num_output_features=1)
         model.load_state_dict(torch.load(self.model_path))
         model.eval()
         return model
