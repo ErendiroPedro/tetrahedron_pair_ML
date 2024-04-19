@@ -3,9 +3,12 @@ import json
 import torch
 from torch_geometric.data import Data, Dataset
 
-class GraphDataProcessor(Dataset):
+class MeshProcessor(Dataset):
+    pass
+
+class GraphProcessor(Dataset):
     def __init__(self, root, transform=None, pre_transform=None):
-        super(GraphDataProcessor, self).__init__(root, transform, pre_transform)
+        super(GraphProcessor, self).__init__(root, transform, pre_transform)
         self.last_processed_index_train = None
         self.last_processed_index_val = None
 
@@ -42,8 +45,8 @@ class GraphDataProcessor(Dataset):
 
     def _process_item(self, item):    
 
-        tetra1 = item['tetra1']
-        tetra2 = item['tetra2']
+        tetra1 = item['tetrahedron_1']
+        tetra2 = item['tetrahedron_2']
         intersection_status = item['intersection_status']
 
         data1 = self._tetrahedron_to_graph(tetra1)
@@ -60,9 +63,9 @@ class GraphDataProcessor(Dataset):
         edge_index = torch.tensor(tetrahedron['edges'], dtype=torch.long).t().contiguous()
         return Data(x=x, edge_index=edge_index)
 
-class TabularDataProcessor(Dataset):
+class TabularProcessor(Dataset):
     def __init__(self, root, transform=None, pre_transform=None):
-        super(TabularDataProcessor, self).__init__(root, transform, pre_transform)
+        super(TabularProcessor, self).__init__(root, transform, pre_transform)
         self.last_processed_index_train = None
         self.last_processed_index_val = None
 
@@ -98,8 +101,8 @@ class TabularDataProcessor(Dataset):
 
     def _process_item(self, item):    
 
-        tetra1 = item['tetra1']
-        tetra2 = item['tetra2']
+        tetra1 = item['tetrahedron_1']
+        tetra2 = item['tetrahedron_2']
         intersection_status = item['intersection_status']
 
         data1 = self._tetrahedron_to_vector(tetra1)

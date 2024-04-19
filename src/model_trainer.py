@@ -2,12 +2,10 @@ from torch_geometric.loader import DataLoader
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-from src.model_architecture import GraphPairClassifier, MLPClassifier
-from src.data_processor import GraphDataProcessor, TabularDataProcessor
 from abc import ABC, abstractmethod
 
 class BaseTrainer(ABC):
-    def __init__(self, model, optimizer, data_processor, batch_size=8, epochs=20):
+    def __init__(self, model, optimizer, data_processor, batch_size=32, epochs=50):
         self.model = model
         self.optimizer = optimizer
         self.batch_size = batch_size
@@ -22,26 +20,30 @@ class BaseTrainer(ABC):
     def _validate_epoch(self, val_loader):
         pass
 
+    @abstractmethod
+    def _get_loaders(self):
+        pass
+
     def train_and_validate(self):
         loss_values = []
         val_loss_values = []
 
         for epoch in range(self.epochs):
-            train_data_list = self.data_processor.process_entries(subset='train', batch_size=self.batch_size)
-            val_data_list = self.data_processor.process_entries(subset='val', batch_size=self.batch_size)
 
-            train_loader = DataLoader(train_data_list, batch_size=self.batch_size, shuffle=True)
-            val_loader = DataLoader(val_data_list, batch_size=self.batch_size, shuffle=True)
+            train_loader, val_loader = self._get_loaders()
 
             epoch_loss = self._train_epoch(train_loader)
             print(f'Epoch {epoch+1}, Training Loss: {epoch_loss}')
-            loss_values.append(epoch_loss)
+            if epoch_loss <= 3:
+                loss_values.append(epoch_loss)
 
             epoch_val_loss = self._validate_epoch(val_loader)
             print(f'Epoch {epoch+1}, Validation Loss: {epoch_val_loss}')
-            val_loss_values.append(epoch_val_loss)
+            if epoch_val_loss <= 3:
+                val_loss_values.append(epoch_val_loss)
 
-        torch.save(self.model.state_dict(), 'model_state_dict.pt')
+        torch.save(self.model.state_dict(), 'model.pt')
+        torch.save(self.optimizer.state_dict(), 'optimizer.pt')
         self._plot_loss_curve(loss_values, val_loss_values)
   
     def _plot_loss_curve(self, loss_values, val_loss_values):
@@ -54,6 +56,47 @@ class BaseTrainer(ABC):
         plt.title('Loss Curve')
         plt.legend()
         plt.savefig('loss_curve.png')
+
+class MeshTrainer(BaseTrainer):
+    pass
+
+class GraphTrainer(BaseTrainer):
+    def _train_epoch(self, train_loader):
+        self.model.train()
+        total_loss = 0
+
+        for data in train_loader:
+            self.optimizer.zero_grad()
+            output = self.model(data)
+            loss = F.binary_cross_entropy(output, data.y.float().unsqueeze(1))
+            loss.backward()
+            self.optimizer.step()
+            total_loss += loss.item()
+
+        epoch_loss = total_loss / len(train_loader)
+        return epoch_loss
+
+    def _validate_epoch(self, val_loader):
+        self.model.eval()
+        total_val_loss = 0
+
+        with torch.no_grad():
+            for data in val_loader:
+                output = self.model(data)
+                val_loss = F.binary_cross_entropy(output, data.y.float().unsqueeze(1))
+                total_val_loss += val_loss.item()
+
+        epoch_val_loss = total_val_loss / len(val_loader)
+        return epoch_val_loss
+    
+    def _get_loaders(self):
+        train_data_list = self.data_processor.process_entries(subset='train', batch_size=self.batch_size)
+        val_data_list = self.data_processor.process_entries(subset='val', batch_size=self.batch_size)
+
+        train_loader = DataLoader(train_data_list, batch_size=self.batch_size, shuffle=True, follow_batch=['x_1', 'x_2'])
+        val_loader = DataLoader(val_data_list, batch_size=self.batch_size, shuffle=True,  follow_batch=['x_1', 'x_2'])
+
+        return train_loader, val_loader
 
 class TabularTrainer(BaseTrainer):
     def _train_epoch(self, train_loader):
@@ -91,31 +134,11 @@ class TabularTrainer(BaseTrainer):
         epoch_val_loss = total_val_loss / len(val_loader)
         return epoch_val_loss
 
-class GraphTrainer(BaseTrainer):
-    def _train_epoch(self, train_loader):
-        self.model.train()
-        total_loss = 0
+    def _get_loaders(self):
+        train_data_list = self.data_processor.process_entries(subset='train', batch_size=self.batch_size)
+        val_data_list = self.data_processor.process_entries(subset='val', batch_size=self.batch_size)
 
-        for data in train_loader:
-            self.optimizer.zero_grad()
-            output = self.model(data)
-            loss = F.binary_cross_entropy(output, data.y.float().unsqueeze(1))
-            loss.backward()
-            self.optimizer.step()
-            total_loss += loss.item()
+        train_loader = DataLoader(train_data_list, batch_size=self.batch_size, shuffle=True)
+        val_loader = DataLoader(val_data_list, batch_size=self.batch_size, shuffle=True)
 
-        epoch_loss = total_loss / len(train_loader)
-        return epoch_loss
-
-    def _validate_epoch(self, val_loader):
-        self.model.eval()
-        total_val_loss = 0
-
-        with torch.no_grad():
-            for data in val_loader:
-                output = self.model(data)
-                val_loss = F.binary_cross_entropy(output, data.y.float().unsqueeze(1))
-                total_val_loss += val_loss.item()
-
-        epoch_val_loss = total_val_loss / len(val_loader)
-        return epoch_val_loss
+        return train_loader, val_loader

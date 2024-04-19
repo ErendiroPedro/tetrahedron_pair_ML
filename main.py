@@ -1,9 +1,9 @@
 import os
 import argparse
 import logging
-from src.model_trainer import TabularTrainer
-from src.data_processor import TabularDataProcessor
-from src.model_architecture import TabularClassifier, MLPClassifier
+from src.model_trainer import TabularTrainer, GraphTrainer
+from src.data_processor import TabularProcessor, GraphProcessor
+from src.model_architecture import TabularClassifier, GraphPairClassifier
 from src.model_evaluator import ModelEvaluator
 import torch
 
@@ -17,18 +17,22 @@ class MLWorkflowManager:
     def __init__(self, dataset_root, model_path):
         self.dataset_dir = dataset_root
         self.model_path = model_path
-
+        self.batch_size = 750
+        self.model = GraphPairClassifier()
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.01)
+        self.data_processor = GraphProcessor(dataset_root)
+        
+        
     def run(self):
+        print("Running ML Workflow Manager")
 
-        model = MLPClassifier(num_input_features=24, num_output_features=1)
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-        data_processor = TabularDataProcessor(self.dataset_dir)
+        torch.manual_seed(12345)
 
-        trainer = TabularTrainer(model, optimizer, data_processor, batch_size=8, epochs=50)
-        trainer.train_and_validate()
+        # trainer = GraphTrainer(self.model, self.optimizer, self.data_processor, batch_size=self.batch_size, epochs=200)
+        # trainer.train_and_validate()
 
-        # evaluator = ModelEvaluator(self.dataset_dir, self.model_path)
-        # evaluator.evaluate()
+        evaluator = ModelEvaluator(raw_data_root=self.dataset_dir, model_path=self.model_path, batch_size=self.batch_size)
+        evaluator.evaluate()
 
 
 if __name__ == "__main__":
