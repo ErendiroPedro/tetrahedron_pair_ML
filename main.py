@@ -18,20 +18,23 @@ class MLWorkflowManager:
         self.dataset_dir = dataset_root
         self.model_path = model_path
         self.batch_size = 750
+        self.epochs = 200
         self.model = GraphPairClassifier()
+        self.trainer = GraphTrainer(self.model, self.optimizer, self.data_processor, batch_size=self.batch_size, epochs=self.epochs)
+        self.evaluator = ModelEvaluator(raw_data_root=self.dataset_dir, model_path=self.model_path, batch_size=self.batch_size, epochs = self.epochs)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.01)
         self.data_processor = GraphProcessor(dataset_root)
         
         
     def run(self):
         print("Running ML Workflow Manager")
+        # print(torch.cuda.is_available())
+        torch.manual_seed(13) # Deterministic
 
-        torch.manual_seed(12345)
+        trainer = self.trainer
+        trainer.train_and_validate()
 
-        # trainer = GraphTrainer(self.model, self.optimizer, self.data_processor, batch_size=self.batch_size, epochs=200)
-        # trainer.train_and_validate()
-
-        evaluator = ModelEvaluator(raw_data_root=self.dataset_dir, model_path=self.model_path, batch_size=self.batch_size)
+        evaluator = self.evaluator
         evaluator.evaluate()
 
 

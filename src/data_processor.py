@@ -2,117 +2,125 @@ import os
 import json
 import torch
 from torch_geometric.data import Data, Dataset
+from abc import ABC, abstractmethod
 
-class MeshProcessor(Dataset):
-    pass
+# class MeshProcessor(Dataset):
+#     def __init__(self, root, transform=None, pre_transform=None):
+#         super(MeshProcessor, self).__init__(root, transform, pre_transform)
+#         self.last_processed_index_train = None
+#         self.last_processed_index_val = None
 
-class GraphProcessor(Dataset):
-    def __init__(self, root, transform=None, pre_transform=None):
-        super(GraphProcessor, self).__init__(root, transform, pre_transform)
+#     @property
+#     def raw_file_names(self):
+#         return os.listdir(os.path.join(self.raw_dir))
+
+class BaseProcessor(ABC, Dataset):
+    def __init__(self, root_dir, transform=None, pre_transform=None):
+        Dataset.__init__(self, root_dir, transform, pre_transform)
+        self.root_dir = root_dir
         self.last_processed_index_train = None
         self.last_processed_index_val = None
 
-    @property
-    def raw_file_names(self):
-        return os.listdir(os.path.join(self.raw_dir))
+    @abstractmethod
+    def __len__(self):
+        pass
 
-    def process_entries(self, subset, batch_size):
+    @abstractmethod
+    def _load_data(self, file_path):
+        pass
+    
+    @abstractmethod
+    def _process_item(self, item):
+        pass
+
+    def _get_file_paths(self, subset):
+        return [os.path.join(self.raw_dir, subset, f) for f in os.listdir(os.path.join(self.raw_dir, subset))]
+    
+    def process_n_entries(self, subset, n):
+        file_paths = self._get_file_paths(subset)
+        if not file_paths:
+            return []
+
+        data = self._load_data(file_paths[0])  # Assumes processing from one file, enhance to handle multiple files
 
         last_index = self.last_processed_index_train if subset == 'train' else self.last_processed_index_val
-        data_list = []
-        all_files = os.listdir(os.path.join(self.raw_dir, subset))
-        file_path = os.path.join(self.raw_dir, subset, all_files[0]) # ToDo: support for more than one file
-
-        with open(file_path, 'r') as f:
-            json_data = json.load(f)
-
         start_index = 0 if last_index is None else last_index + 1
-        end_index = min(start_index + batch_size, len(json_data))
+        end_index = min(start_index + n, len(data))
+        data_list = []
 
         for i in range(start_index, end_index):
-            item = json_data[i]
+            item = data[i]
             processed_item = self._process_item(item)
             data_list.append(processed_item)
 
-        if data_list:
-            if subset == 'train':
-                self.last_processed_index_train = end_index - 1
-            else:
-                self.last_processed_index_val = end_index - 1
-
+        if subset == 'train':
+            self.last_processed_index_train = end_index - 1
+        else:
+            self.last_processed_index_val = end_index - 1
 
         return data_list
 
-    def _process_item(self, item):    
+class GraphProcessor(BaseProcessor, Dataset):
+    def __init__(self, root_dir, transform=None, pre_transform=None):
+        super().__init__(root_dir, transform, pre_transform)
+        self.data_length = 0
 
+    def _load_data(self, file_path):
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+        self.data_length = len(data)
+        return data
+    
+    def _process_item(self, item):
         tetra1 = item['tetrahedron_1']
         tetra2 = item['tetrahedron_2']
         intersection_status = item['intersection_status']
 
-        data1 = self._tetrahedron_to_graph(tetra1)
-        data2 = self._tetrahedron_to_graph(tetra2)
+        data1 = self._json_to_graph(tetra1)
+        data2 = self._json_to_graph(tetra2)
         label = torch.tensor(intersection_status, dtype=torch.float)
 
         combined_data = TetrahedronPairGraph(x_1=data1.x, edge_index_1=data1.edge_index,
-                                            x_2=data2.x, edge_index_2=data2.edge_index,
-                                            y=label)
+                                             x_2=data2.x, edge_index_2=data2.edge_index,
+                                             y=label)
         return combined_data
 
-    def _tetrahedron_to_graph(self, tetrahedron):
+    def _json_to_graph(self, tetrahedron):
         x = torch.tensor(tetrahedron['vertices'], dtype=torch.float)
         edge_index = torch.tensor(tetrahedron['edges'], dtype=torch.long).t().contiguous()
         return Data(x=x, edge_index=edge_index)
 
+    def __len__(self):
+        return self.data_length
+    
 class TabularProcessor(Dataset):
-    def __init__(self, root, transform=None, pre_transform=None):
-        super(TabularProcessor, self).__init__(root, transform, pre_transform)
-        self.last_processed_index_train = None
-        self.last_processed_index_val = None
+    def __init__(self, root_dir, transform=None, pre_transform=None):
+        BaseProcessor.__init__(self, root_dir)
+        Dataset.__init__(self, root_dir, transform, pre_transform)
+        self.data_length = 0
 
-    @property
-    def raw_file_names(self):
-        return os.listdir(os.path.join(self.raw_dir))
-
-    def process_entries(self, subset, batch_size):
-
-        last_index = self.last_processed_index_train if subset == 'train' else self.last_processed_index_val
-        data_list = []
-        all_files = os.listdir(os.path.join(self.raw_dir, subset))
-        file_path = os.path.join(self.raw_dir, subset, all_files[0]) # ToDo: support for more than one file
-
+    def _load_data(self, file_path):
         with open(file_path, 'r') as f:
-            json_data = json.load(f)
+            data = json.load(f)
+        self.data_length = len(data)
+        return data
 
-        start_index = 0 if last_index is None else last_index + 1
-        end_index = min(start_index + batch_size, len(json_data))
-
-        for i in range(start_index, end_index):
-            item = json_data[i]
-            processed_item = self._process_item(item)
-            data_list.append(processed_item)
-
-        if data_list:
-            if subset == 'train':
-                self.last_processed_index_train = end_index - 1
-            else:
-                self.last_processed_index_val = end_index - 1
-
-        return data_list
-
-    def _process_item(self, item):    
-
+    def __len__(self):
+        return self.data_length
+    
+    def _process_item(self, item):
         tetra1 = item['tetrahedron_1']
         tetra2 = item['tetrahedron_2']
         intersection_status = item['intersection_status']
 
-        data1 = self._tetrahedron_to_vector(tetra1)
-        data2 = self._tetrahedron_to_vector(tetra2)
+        data1 = self._json_to_tabular(tetra1)
+        data2 = self._json_to_tabular(tetra2)
         label = torch.tensor([intersection_status], dtype=torch.float)
 
         combined_data = torch.cat((data1, data2, label), dim=0)
         return combined_data
-
-    def _tetrahedron_to_vector(self, tetrahedron):
+    
+    def _json_to_tabular(self, tetrahedron):
         x = torch.tensor(tetrahedron['vertices'], dtype=torch.float)
         return x.view(-1)  # Flatten the tensor
 

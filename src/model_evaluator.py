@@ -8,7 +8,8 @@ from src.model_architecture import TabularClassifier, GraphPairClassifier
 from src.data_processor import TabularProcessor, GraphProcessor
 
 class ModelEvaluator:
-    def __init__(self, raw_data_root, model_path, batch_size=750):
+    def __init__(self, raw_data_root, model_path, batch_size=750, epochs=200):
+        self.epochs = epochs
         self.batch_size = batch_size
         self.raw_data_root = raw_data_root
         self.model_path = model_path
@@ -28,7 +29,7 @@ class ModelEvaluator:
 
         with torch.no_grad():
             
-            for i in range(200):
+            for i in range(self.epochs):
                 self.test_loader = self._get_graph_loader()
                 for data in self.test_loader:
                     outputs = self.model(data)
@@ -36,7 +37,7 @@ class ModelEvaluator:
                     y_true.extend(data.y.float().unsqueeze(1).cpu().numpy())
                     y_pred.extend(predictions.cpu().numpy())
 
-            # for i in range(200):
+            # for i in range(self.epochs):
             #     self.test_loader = self._get_tabular_loader()
             #     for data in self.test_loader:
             #         inputs = data[:, :-1]  # all features except the last one
@@ -60,7 +61,7 @@ class ModelEvaluator:
         return DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
 
     def _get_graph_loader(self):
-        dataset = self.data_processor.process_entries(subset='val', batch_size=self.batch_size)
+        dataset = self.data_processor.process_n_entries(subset='val', n=self.batch_size)
         return DataLoader(dataset, batch_size=self.batch_size, shuffle=True, follow_batch=['x_1', 'x_2'])
 
     def _print_confusion_matrix(self, y_true, y_pred):

@@ -3,5 +3,11 @@ pandas
 scikit-learn
 matplotlib
 seaborn
-torch
-torch-geometric
+torch>=1.8.0
+scipy
+torch-scatter>=2.0.6
+torch-sparse>=0.6.9
+torch-cluster>=1.5.9
+torch-geometric>=1.6.3
+openmesh
+tqdm

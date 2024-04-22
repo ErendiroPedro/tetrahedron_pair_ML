@@ -6,11 +6,13 @@ from abc import ABC, abstractmethod
 
 class BaseTrainer(ABC):
     def __init__(self, model, optimizer, data_processor, batch_size=32, epochs=50):
+        # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = model
         self.optimizer = optimizer
         self.batch_size = batch_size
         self.epochs = epochs
         self.data_processor = data_processor
+        
 
     @abstractmethod
     def _train_epoch(self, train_loader):
@@ -90,8 +92,8 @@ class GraphTrainer(BaseTrainer):
         return epoch_val_loss
     
     def _get_loaders(self):
-        train_data_list = self.data_processor.process_entries(subset='train', batch_size=self.batch_size)
-        val_data_list = self.data_processor.process_entries(subset='val', batch_size=self.batch_size)
+        train_data_list = self.data_processor.process_n_entries(subset='train', n=self.batch_size)
+        val_data_list = self.data_processor.process_n_entries(subset='val', n=self.batch_size)
 
         train_loader = DataLoader(train_data_list, batch_size=self.batch_size, shuffle=True, follow_batch=['x_1', 'x_2'])
         val_loader = DataLoader(val_data_list, batch_size=self.batch_size, shuffle=True,  follow_batch=['x_1', 'x_2'])
