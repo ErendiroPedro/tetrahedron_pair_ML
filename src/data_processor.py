@@ -3,16 +3,9 @@ import json
 import torch
 from torch_geometric.data import Data, Dataset
 from abc import ABC, abstractmethod
+from pathlib import Path
+import pandas as pd
 
-# class MeshProcessor(Dataset):
-#     def __init__(self, root, transform=None, pre_transform=None):
-#         super(MeshProcessor, self).__init__(root, transform, pre_transform)
-#         self.last_processed_index_train = None
-#         self.last_processed_index_val = None
-
-#     @property
-#     def raw_file_names(self):
-#         return os.listdir(os.path.join(self.raw_dir))
 
 class BaseProcessor(ABC, Dataset):
     def __init__(self, root_dir, transform=None, pre_transform=None):
@@ -20,10 +13,8 @@ class BaseProcessor(ABC, Dataset):
         self.root_dir = root_dir
         self.last_processed_index_train = None
         self.last_processed_index_val = None
-
-    @abstractmethod
-    def __len__(self):
-        pass
+        self.data_length = 0
+        
 
     @abstractmethod
     def _load_data(self, file_path):
@@ -33,6 +24,9 @@ class BaseProcessor(ABC, Dataset):
     def _process_item(self, item):
         pass
 
+    def __len__(self):
+        return self.data_length
+
     def _get_file_paths(self, subset):
         return [os.path.join(self.raw_dir, subset, f) for f in os.listdir(os.path.join(self.raw_dir, subset))]
     
@@ -41,7 +35,7 @@ class BaseProcessor(ABC, Dataset):
         if not file_paths:
             return []
 
-        data = self._load_data(file_paths[0])  # Assumes processing from one file, enhance to handle multiple files
+        data = self._load_data(file_paths[0])  # ToDo: Assumes processing from one file, enhance to handle multiple files
 
         last_index = self.last_processed_index_train if subset == 'train' else self.last_processed_index_val
         start_index = 0 if last_index is None else last_index + 1
@@ -60,10 +54,9 @@ class BaseProcessor(ABC, Dataset):
 
         return data_list
 
-class GraphProcessor(BaseProcessor, Dataset):
+class GraphProcessor(BaseProcessor):
     def __init__(self, root_dir, transform=None, pre_transform=None):
         super().__init__(root_dir, transform, pre_transform)
-        self.data_length = 0
 
     def _load_data(self, file_path):
         with open(file_path, 'r') as f:
@@ -89,19 +82,32 @@ class GraphProcessor(BaseProcessor, Dataset):
         x = torch.tensor(tetrahedron['vertices'], dtype=torch.float)
         edge_index = torch.tensor(tetrahedron['edges'], dtype=torch.long).t().contiguous()
         return Data(x=x, edge_index=edge_index)
+        
 
-    def __len__(self):
-        return self.data_length
-    
-class TabularProcessor(Dataset):
+class TabularProcessor(BaseProcessor):
     def __init__(self, root_dir, transform=None, pre_transform=None):
-        BaseProcessor.__init__(self, root_dir)
-        Dataset.__init__(self, root_dir, transform, pre_transform)
+        super().__init__(root_dir, transform, pre_transform)
         self.data_length = 0
+        self.isCSV = False
+        self.isJSON= False
 
     def _load_data(self, file_path):
-        with open(file_path, 'r') as f:
-            data = json.load(f)
+        file_extension = Path(file_path).suffix
+        
+        if file_extension == '.json':
+            print("## Reading JSON file ##")
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+            self.isCSV = False
+            self.isJSON= True
+        elif file_extension == '.csv':
+            print("## Reading CSV file ##")
+            data = pd.read_csv(file_path).to_dict(orient='records')
+            self.isJSON= False
+            self.isCSV = True
+        else:
+            raise ValueError(f"## Unsupported file type: {file_extension} ##")
+
         self.data_length = len(data)
         return data
 
@@ -109,21 +115,53 @@ class TabularProcessor(Dataset):
         return self.data_length
     
     def _process_item(self, item):
-        tetra1 = item['tetrahedron_1']
-        tetra2 = item['tetrahedron_2']
-        intersection_status = item['intersection_status']
+        if self.isJSON: 
+            print("## Processing JSON item... ##")
+            features_t1 = self._json_to_tabular(item['tetrahedron_1'])
+            features_t2 = self._json_to_tabular(item['tetrahedron_2'])
+            intersection_status = item['intersection_status']
+        elif self.isCSV: 
+            print("## Processing CSV item... ##")
+            features_t1 = self._csv_to_tabular(item, prefix='T1_v')
+            features_t2 = self._csv_to_tabular(item, prefix='T2_v')
+            intersection_status = item['intersection_status']
+        else:
+            raise ValueError(f"Unsupported item type: {type(item)}")
 
-        data1 = self._json_to_tabular(tetra1)
-        data2 = self._json_to_tabular(tetra2)
         label = torch.tensor([intersection_status], dtype=torch.float)
-
-        combined_data = torch.cat((data1, data2, label), dim=0)
+        combined_data = torch.cat((features_t1, features_t2, label), dim=0)
         return combined_data
     
     def _json_to_tabular(self, tetrahedron):
         x = torch.tensor(tetrahedron['vertices'], dtype=torch.float)
         return x.view(-1)  # Flatten the tensor
+    
+    def _csv_to_tabular(self, row, prefix):
+        vertices = []
+        for i in range(1, 5):  # 4 vertices
+            vertices.extend([row[f'{prefix}{i}_x'], row[f'{prefix}{i}_y'], row[f'{prefix}{i}_z']])
+        return torch.tensor(vertices, dtype=torch.float).view(-1)  # Flatten the tensor
 
+def _process_item(self, item):
+    if self.isJSON: 
+        print("## Processing JSON item... ##")
+        features_t1 = self._json_to_tabular(item['tetrahedron_1'])
+        features_t2 = self._json_to_tabular(item['tetrahedron_2'])
+        intersection_status = item['intersection_status']
+    elif self.isCSV: 
+        print("## Processing CSV item... ##")
+        combined_data = []
+        for row in item:
+            features_t1 = self._csv_to_tabular(row, prefix='T1_v')
+            features_t2 = self._csv_to_tabular(row, prefix='T2_v')
+            intersection_status = row['intersection_status']
+            label = torch.tensor([intersection_status], dtype=torch.float)
+            combined_row_data = torch.cat((features_t1, features_t2, label), dim=0)
+            combined_data.append(combined_row_data)
+    else:
+        raise ValueError(f"Unsupported item type: {type(item)}")
+
+    return combined_data
 ####################
 ## Helper Classes ##
 ####################
@@ -152,3 +190,14 @@ class TetrahedronPairGraph(Data):
             return 0
         else:
             return super().__cat_dim__(key, value, *args, **kwargs)
+
+class DataContainer:
+    def __init__(self, features, label):
+        self.features = features
+        self.label = label
+
+    def get_features(self):
+        return self.features
+
+    def get_label(self):
+        return self.label

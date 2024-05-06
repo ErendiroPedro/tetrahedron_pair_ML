@@ -1,0 +1,6 @@
+Evaluation Metrics
+
+Test Accuracy: 64.79%
+Precision: 67.17%
+Recall: 64.79%
+F1 Score: 63.52%

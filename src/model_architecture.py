@@ -11,7 +11,7 @@ class GraphPairClassifier(torch.nn.Module):
         super(GraphPairClassifier, self).__init__()
         
         self.encoder = GCNEncoder(num_input_features, 512)
-        self.classifier = MLPBinaryClassifier(1024, 1)
+        self.classifier = MLPBinaryClassifier(1024)
 
     def forward(self, data):
 
@@ -32,7 +32,7 @@ class TabularClassifier(torch.nn.Module):
         torch.manual_seed(12345)
         super(TabularClassifier, self).__init__()
         
-        self.classifier = MLPBinaryClassifier(num_input_features, 1)
+        self.classifier = MLPBinaryClassifier(num_input_features)
 
     def forward(self, data):
         x = self.classifier(data)
@@ -46,35 +46,39 @@ class GCNEncoder(torch.nn.Module):
     def __init__(self, num_input_features, num_output_features):
         super(GCNEncoder, self).__init__()
 
-        self.conv1 = GCNConv(num_input_features, 2**10)
-        self.conv2 = GCNConv(2**10, 2**9)
-        self.conv3 = GCNConv(2**9, 2**8)
-        self.conv4 = GCNConv(2**8, num_output_features)
+        self.conv1 = GCNConv(num_input_features, 2**9)
+        self.conv2 = GCNConv(2**9, 2**9)
+        self.conv3 = GCNConv(2**9, 2**9)
+        self.conv4 = GCNConv(2**9, 2**9)
+        self.conv5 = GCNConv(2**9, num_output_features)
 
     def forward(self, x, edge_index, batch):
         x = F.relu(self.conv1(x, edge_index))
         x = F.relu(self.conv2(x, edge_index))
         x = F.relu(self.conv3(x, edge_index))
         x = F.relu(self.conv4(x, edge_index))
+        x = F.relu(self.conv5(x, edge_index))
 
         x = global_mean_pool(x, batch)  # Get whole graph embeddings
         return x
  
 class MLPBinaryClassifier(torch.nn.Module):
-    def __init__(self, num_input_features, num_output_features):
+    def __init__(self, num_input_features):
         super(MLPBinaryClassifier, self).__init__()
-        self.layer_1 = torch.nn.Linear(num_input_features, 2**10)
-        self.layer_2 = torch.nn.Linear(2**10, 2**8)
-        self.layer_3 = torch.nn.Linear(2**8, 2**6)
-        self.layer_4 = torch.nn.Linear(2**6, 2**2)
-        self.layer_5 = torch.nn.Linear(2**2, num_output_features)
+        self.layer_1 = torch.nn.Linear(num_input_features, 2**16)
+        self.layer_2 = torch.nn.Linear(2**16, 2**8)
+        self.layer_3 = torch.nn.Linear(2**8, 2**8)
+        self.layer_4 = torch.nn.Linear(2**8, 2**4)
+        self.layer_5 = torch.nn.Linear(2**4, 2**2)
+        self.layer_6 = torch.nn.Linear(2**2, 1)
         
     def forward(self, x):
         x = F.relu(self.layer_1(x))
         x = F.relu(self.layer_2(x))
         x = F.relu(self.layer_3(x))
         x = F.relu(self.layer_4(x))
-        x = self.layer_5(x) # Linear output
+        x = F.relu(self.layer_5(x))
+        x = self.layer_6(x) # Linear output
         return x
 
 class SpiralEncoder(torch.nn.Module):

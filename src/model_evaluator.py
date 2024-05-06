@@ -13,8 +13,8 @@ class ModelEvaluator:
         self.batch_size = batch_size
         self.raw_data_root = raw_data_root
         self.model_path = model_path
-        self.data_processor = GraphProcessor(raw_data_root)
-        self.model = GraphPairClassifier()
+        self.data_processor = TabularProcessor(raw_data_root)
+        self.model = TabularClassifier()
         self.test_loader = self._get_graph_loader()
 
 
@@ -29,23 +29,23 @@ class ModelEvaluator:
 
         with torch.no_grad():
             
-            for i in range(self.epochs):
-                self.test_loader = self._get_graph_loader()
-                for data in self.test_loader:
-                    outputs = self.model(data)
-                    predictions = (outputs > 0.5).float()
-                    y_true.extend(data.y.float().unsqueeze(1).cpu().numpy())
-                    y_pred.extend(predictions.cpu().numpy())
-
             # for i in range(self.epochs):
-            #     self.test_loader = self._get_tabular_loader()
+            #     self.test_loader = self._get_graph_loader()
             #     for data in self.test_loader:
-            #         inputs = data[:, :-1]  # all features except the last one
-            #         labels = data[:, -1]  # only the last feature
-            #         outputs = self.model(inputs)
+            #         outputs = self.model(data)
             #         predictions = (outputs > 0.5).float()
-            #         y_true.extend(labels.float().unsqueeze(1).cpu().numpy())
+            #         y_true.extend(data.y.float().unsqueeze(1).cpu().numpy())
             #         y_pred.extend(predictions.cpu().numpy())
+
+            for i in range(self.epochs):
+                self.test_loader = self._get_tabular_loader()
+                for data in self.test_loader:
+                    inputs = data[:, :-1]  # all features except the last one
+                    labels = data[:, -1]  # only the last feature
+                    outputs = self.model(inputs)
+                    predictions = (outputs > 0.5).float()
+                    y_true.extend(labels.float().unsqueeze(1).cpu().numpy())
+                    y_pred.extend(predictions.cpu().numpy())
 
         y_true = np.array(y_true)
         y_pred = np.array(y_pred)
@@ -57,7 +57,7 @@ class ModelEvaluator:
 ######################
         
     def _get_tabular_loader(self):
-        dataset = self.data_processor.process_entries(subset='val', batch_size=self.batch_size)
+        dataset = self.data_processor.process_n_entries(subset='val', n=self.batch_size)
         return DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
 
     def _get_graph_loader(self):

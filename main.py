@@ -17,13 +17,13 @@ class MLWorkflowManager:
     def __init__(self, dataset_root, model_path):
         self.dataset_dir = dataset_root
         self.model_path = model_path
-        self.batch_size = 750
-        self.epochs = 200
-        self.model = GraphPairClassifier()
-        self.trainer = GraphTrainer(self.model, self.optimizer, self.data_processor, batch_size=self.batch_size, epochs=self.epochs)
+        self.batch_size = 3750
+        self.epochs = 40
+        self.model = TabularClassifier()
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        self.data_processor = TabularProcessor(dataset_root)
+        self.trainer = TabularTrainer(self.model, self.optimizer, self.data_processor, batch_size=self.batch_size, epochs=self.epochs)
         self.evaluator = ModelEvaluator(raw_data_root=self.dataset_dir, model_path=self.model_path, batch_size=self.batch_size, epochs = self.epochs)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.01)
-        self.data_processor = GraphProcessor(dataset_root)
         
         
     def run(self):
@@ -36,7 +36,6 @@ class MLWorkflowManager:
 
         evaluator = self.evaluator
         evaluator.evaluate()
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

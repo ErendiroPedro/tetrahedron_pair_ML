@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from abc import ABC, abstractmethod
 
 class BaseTrainer(ABC):
-    def __init__(self, model, optimizer, data_processor, batch_size=32, epochs=50):
+    def __init__(self, model, optimizer, data_processor, batch_size=32, epochs=100):
         # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = model
         self.optimizer = optimizer
@@ -31,25 +31,21 @@ class BaseTrainer(ABC):
         val_loss_values = []
 
         for epoch in range(self.epochs):
-
             train_loader, val_loader = self._get_loaders()
 
             epoch_loss = self._train_epoch(train_loader)
             print(f'Epoch {epoch+1}, Training Loss: {epoch_loss}')
-            if epoch_loss <= 3:
-                loss_values.append(epoch_loss)
+            loss_values.append(epoch_loss)
 
             epoch_val_loss = self._validate_epoch(val_loader)
             print(f'Epoch {epoch+1}, Validation Loss: {epoch_val_loss}')
-            if epoch_val_loss <= 3:
-                val_loss_values.append(epoch_val_loss)
+            val_loss_values.append(epoch_val_loss)
 
         torch.save(self.model.state_dict(), 'model.pt')
         torch.save(self.optimizer.state_dict(), 'optimizer.pt')
         self._plot_loss_curve(loss_values, val_loss_values)
   
     def _plot_loss_curve(self, loss_values, val_loss_values):
-
         plt.figure(figsize=(10, 5))
         plt.plot(loss_values, label='Training Loss')
         plt.plot(val_loss_values, label='Validation Loss')
@@ -58,9 +54,6 @@ class BaseTrainer(ABC):
         plt.title('Loss Curve')
         plt.legend()
         plt.savefig('loss_curve.png')
-
-class MeshTrainer(BaseTrainer):
-    pass
 
 class GraphTrainer(BaseTrainer):
     def _train_epoch(self, train_loader):
@@ -137,8 +130,8 @@ class TabularTrainer(BaseTrainer):
         return epoch_val_loss
 
     def _get_loaders(self):
-        train_data_list = self.data_processor.process_entries(subset='train', batch_size=self.batch_size)
-        val_data_list = self.data_processor.process_entries(subset='val', batch_size=self.batch_size)
+        train_data_list = self.data_processor.process_n_entries(subset='train', n=self.batch_size)
+        val_data_list = self.data_processor.process_n_entries(subset='val', n=self.batch_size)
 
         train_loader = DataLoader(train_data_list, batch_size=self.batch_size, shuffle=True)
         val_loader = DataLoader(val_data_list, batch_size=self.batch_size, shuffle=True)
