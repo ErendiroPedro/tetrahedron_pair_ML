@@ -17,45 +17,35 @@ class ModelTrainer():
         self.learning_rate_schedule = None
         self.config = config
 
-        self._configure(self.config[self.config["type"]])
+        self._configure_training(self.config[self.config["type"]])
 
-    def train_and_validate(self, model):
-        self.model = model
-        train_loss_values = []
-        val_loss_values = []
-
-        train_data_dir = os.path.join(self.config["processed_data_path"], "train")
-        val_data_dir = os.path.join(self.config["processed_data_path"], "val")
-
-        train_dataset = CustomDataset(train_data_dir)
-        val_dataset = CustomDataset(val_data_dir)
-
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False)
-
-        # Training and validation loop
-        for epoch in range(self.epochs):
-
-            # Train for one epoch
-            epoch_train_loss = self._train_epoch(train_loader)
-            train_loss_values.append(epoch_train_loss)
-
-            # Validate for one epoch
-            epoch_val_loss = self._validate_epoch(val_loader)
-            val_loss_values.append(epoch_val_loss)
-
-            print(f"Epoch {epoch + 1}/{self.epochs}, Training Loss: {epoch_train_loss:.4f}")
-            print(f"Epoch {epoch + 1}/{self.epochs}, Validation Loss: {epoch_val_loss:.4f}")   
-
-        # Generate and return the training report
-        return self.model, self._get_training_report(train_loss_values, val_loss_values)
-
-    def _configure(self, config):
-        self.loss_function = config["loss_function"]
-        self.optimizer = config["optimizer"]
-        self.learning_rate = config["learning_rate"]
-        self.batch_size = config["batch_size"]
-        self.epochs = config["epochs"]
+    def _configure_training(self):
+        """Configure training parameters from config."""
+        training_config = self.config[self.config["type"]]
+        
+        # Set training parameters
+        self.batch_size = training_config["batch_size"]
+        self.epochs = training_config["epochs"]
+        self.learning_rate = training_config["learning_rate"]
+        self.early_stopping_patience = training_config.get("early_stopping_patience", 5)
+        
+        # Loss functions setup
+        self.task = self.config["model_config"]["task"]
+        self.loss_functions = self._setup_loss_functions()
+        
+        # Optimizer setup
+        optimizer_name = training_config["optimizer"].lower()
+        if optimizer_name == "adam":
+            self.optimizer_class = torch.optim.Adam
+        elif optimizer_name == "adamw":
+            self.optimizer_class = torch.optim.AdamW
+        elif optimizer_name == "sgd":
+            self.optimizer_class = torch.optim.SGD
+        else:
+            raise ValueError(f"Unsupported optimizer: {optimizer_name}")
+        
+        # Learning rate scheduler setup
+        self.scheduler_config = training_config.get("learning_rate_schedule")
 
     def _train_epoch(self, train_loader):
         self.model.train()
