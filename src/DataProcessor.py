@@ -8,6 +8,7 @@ class DataProcessor:
         self.config = processor_config
 
     def process(self):
+        print("Processing Data")
         train_data, val_data = self._load_data()
         # train_data = self._augment_data(train_data)
         self._save_data(train_data, val_data)
@@ -77,22 +78,31 @@ class DataProcessor:
 
             # Filter data within the bin range
             bin_data = raw_data[(raw_data["IntersectionVolume"] >= bin_min) &
-                                (raw_data["IntersectionVolume"] < bin_max)]
+                            (raw_data["IntersectionVolume"] < bin_max)]
 
-            # Sample data for the bin
+            # Sample training data
             bin_train_data = bin_data.sample(
-                n=min(train_samples_per_bin, len(bin_data)), replace=len(bin_data) < train_samples_per_bin, random_state=42
+                n=min(train_samples_per_bin, len(bin_data)),
+                replace=len(bin_data) < train_samples_per_bin,
+                random_state=42 + i  # Different random state for each bin
             )
-            bin_val_data = bin_data.sample(
-                n=min(val_samples_per_bin, len(bin_data)), replace=len(bin_data) < val_samples_per_bin, random_state=42
+
+            # Remove training samples from the pool before sampling validation
+            remaining_data = bin_data[~bin_data.index.isin(bin_train_data.index)]
+
+            # Then sample validation data from remaining data
+            bin_val_data = remaining_data.sample(
+                n=min(val_samples_per_bin, len(remaining_data)),
+                replace=len(remaining_data) < val_samples_per_bin,
+                random_state=42 + nbins + i  # Different random state for validation
             )
 
             train_data_list.append(bin_train_data)
             val_data_list.append(bin_val_data)
 
         # Combine sampled data from all bins
-        train_data = pd.concat(train_data_list, ignore_index=True).reset_index(drop=True)
-        val_data = pd.concat(val_data_list, ignore_index=True).reset_index(drop=True)
+        train_data = pd.concat(train_data_list, ignore_index=True).sample(frac=1, random_state=42)
+        val_data = pd.concat(val_data_list, ignore_index=True).sample(frac=1, random_state=43)
 
         return train_data, val_data
     
