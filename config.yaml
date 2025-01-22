@@ -3,19 +3,19 @@ processor_config:
     raw_data: /home/sei/tetrahedron_pair_ML/data/raw
     processed_data: &processed_data_path /home/sei/tetrahedron_pair_ML/data/processed
 
-  num_train_samples: 10000
-  num_val_samples: 10000
+  num_train_samples: 20000
+  num_val_samples: 20000
 
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
     no_intersection: 50
-    point_intersection: 50
+    point_intersection: 0
     segment_intersection: 0
     polygon_intersection: 0
-    polyhedron_intersection: 0
+    polyhedron_intersection: 50
 
   volume_range: [0, 0.01]
-  number_of_bins: 100 # Granualatiry of volumes
+  number_of_bins: 1000 # Granualatiry of volumes
 
   augmentations:
     sort: null # null, X (sort by X coordinate), SFC (sort by space filling curves)
@@ -28,16 +28,10 @@ processor_config:
     affine_linear_transformation_augmentation_pct: 0
 
 model_config:
-  encoder_config:
-    type: mlp # deep_set, mlp
-    activation_function: relu
-    dropout_rate: 0.0
-    weight_decay: 0.0
-
-  decoder_config:
-    type: mlp
-    activation_function: relu      
-    task: classification # Classification, Regression, Classification&Regression
+  architecture: mlp # mlp, deep_set
+  activation_function: relu
+  dropout_rate: 0.0
+  task: &task_type binary_classification # binary_classification, Regression, Classification&Regression
 
 trainer_config:
   type: normal_training # normal_training, contrastive_learning
@@ -45,13 +39,14 @@ trainer_config:
   processed_data_path: *processed_data_path
 
   normal_training:
-    loss_function: binary_crossentropy
+    loss_function: *task_type
     evaluation_metric: accuracy
-    optimizer: adam
+    optimizer: adam # adam, adamw, sgd
     learning_rate: 0.001
     epochs: 20
     batch_size: 32
     learning_rate_schedule: null
+    early_stopping_patience: 10
 
   # contrastive_learning:
   #   loss_function: cosine_similarity
