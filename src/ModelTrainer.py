@@ -9,43 +9,40 @@ import os
 class ModelTrainer():
     def __init__(self, config):
         self.model = None
-        self.loss_function = None
-        self.optimizer = None
-        self.learning_rate = None
-        self.batch_size = None
-        self.epochs = None
-        self.learning_rate_schedule = None
         self.config = config
+        self.loss_function = self._setup_loss_functions(config["loss_function"])
+        self.optimizer = self._setup_optimizer(config["optimizer"])
+        self.learning_rate = config["learning_rate"]
+        self.batch_size = config["batch_size"]
+        self.epochs = config["epochs"]
+        self.learning_rate_schedule = config["learning_rate_schedule"]
+        self.early_stopping_patience = config["early_stopping_patience"]
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self._configure_training(self.config[self.config["type"]])
+    def _setup_loss_functions(self, task_name):
+        if task_name == "binary_classification":
+            return F.binary_cross_entropy
+        elif task_name == "regression":
+            return F.mse_loss
+        elif task_name == "classification_and_regression":
+            return self._classification_and_regression_loss
+        else:
+            raise ValueError(f"Unsupported task: {task_name}")
 
-    def _configure_training(self):
-        """Configure training parameters from config."""
-        training_config = self.config[self.config["type"]]
-        
-        # Set training parameters
-        self.batch_size = training_config["batch_size"]
-        self.epochs = training_config["epochs"]
-        self.learning_rate = training_config["learning_rate"]
-        self.early_stopping_patience = training_config.get("early_stopping_patience", 5)
-        
-        # Loss functions setup
-        self.task = self.config["model_config"]["task"]
-        self.loss_functions = self._setup_loss_functions()
-        
-        # Optimizer setup
-        optimizer_name = training_config["optimizer"].lower()
+    def _classification_and_regression_loss(self, output, target):
+        cls_loss = F.binary_cross_entropy(output[:, 0], target[:, 0])
+        reg_loss = F.mse_loss(output[:, 1], target[:, 1])
+        return cls_loss + reg_loss
+    
+    def _setup_optimizer(self, optimizer_name):    
         if optimizer_name == "adam":
-            self.optimizer_class = torch.optim.Adam
+            return torch.optim.Adam
         elif optimizer_name == "adamw":
-            self.optimizer_class = torch.optim.AdamW
+            return torch.optim.AdamW
         elif optimizer_name == "sgd":
-            self.optimizer_class = torch.optim.SGD
+            return torch.optim.SGD
         else:
             raise ValueError(f"Unsupported optimizer: {optimizer_name}")
-        
-        # Learning rate scheduler setup
-        self.scheduler_config = training_config.get("learning_rate_schedule")
 
     def _train_epoch(self, train_loader):
         self.model.train()
