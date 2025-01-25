@@ -19,7 +19,7 @@ class ModelBuilder:
         Returns:
             nn.Module: Constructed neural network
         """
-        print("-- Building Architecture... --")
+        print("-- Building Architecture --")
         model = None
         if self.config['architecture'] == 'mlp':
             model = MLP(
@@ -42,7 +42,7 @@ class ModelBuilder:
         else:
             raise ValueError(f"Unsupported architecture: {self.config['architecture']}")
         
-        print("--- Architecture Built ---")
+        print("---- Architecture Built ----")
         return model
 
     def _determine_output_dim(self):

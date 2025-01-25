@@ -16,6 +16,7 @@ class DataProcessor:
         train_data, val_data = self._load_data()
         # train_data = self._augment_data(train_data)
         self._save_data(train_data, val_data)
+        print("---- Data Processed ----")
 
     def _load_data(self):
         """Main method to load and sample raw data."""

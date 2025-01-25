@@ -151,7 +151,7 @@ class ModelTrainer:
             # Log progress
             elapsed_time = time.time() - start_time
             self._log_progress(epoch, train_loss, val_loss, elapsed_time)
-        print("--- Training Complete ---")
+        print("---- Training Complete ----")
         return self.model, self._generate_training_report(train_losses, val_losses)
 
     def _train_epoch(self, train_loader: DataLoader) -> float:
@@ -250,7 +250,6 @@ class ModelTrainer:
         plt.legend()
         
         buffer = BytesIO()
-        plt.savefig("debug_loss_plot.png")
         plt.savefig(buffer, format="png")
         buffer.seek(0)
         plt.close()
