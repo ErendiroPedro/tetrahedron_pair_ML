@@ -1,50 +1,54 @@
 import os
 import pandas as pd
-from functools import wraps
-from sklearn.metrics import (accuracy_score, precision_score, recall_score,
-                            f1_score, roc_auc_score, confusion_matrix)
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score,
+    f1_score, roc_auc_score, confusion_matrix
+)
 
 class Evaluator:
-    _test_registry = {
-        'binary_classification': [],
-        'regression': [],
-        'classification_and_regression': []
-    }
-
     def __init__(self, config):
+        """
+        Initialize the Evaluator with configuration.
+        
+        :param config: Dictionary containing evaluation configuration
+        """
         self.config = config
         self.task_type = config.get('task', 'binary_classification')
         self.test_data_loaded = False
         self.datasets = []
-        self.intersection_status_column = config['IntersectionStatus']
-        self.intersection_volume_column = config['IntersectionVolume']
-
-    @classmethod
-    def register_test(cls, task_type):
-        def decorator(func):
-            cls._test_registry[task_type].append(func)
-            @wraps(func)
-            def wrapper(*args, **kwargs):
-                return func(*args, **kwargs)
-            return wrapper
-        return decorator
+        self.intersection_status_column_name = 'HasIntersection'
+        self.intersection_volume_column_name = 'IntersectionVolume'
+        
+        self.test_registry = {
+            'binary_classification': [self.classification_performance],
+            'regression': [self.regression_performance],
+            'classification_and_regression': [self.classification_performance, self.regression_performance]
+        }
 
     def evaluate(self, model):
+        """
+        Evaluate the model across different test datasets.
+        
+        :param model: Trained model to evaluate
+        :return: Comprehensive evaluation report
+        """
         if self.config.get('skip_evaluation', False):
             return {'evaluation_status': 'skipped'}
 
         self._load_test_data()
+        
         report = {
             'task_type': self.task_type,
             'dataset_reports': {}
         }
 
+        # Run tests for the specific task type
         for dataset in self.datasets:
             dataset_report = {}
-            for test in self._test_registry[self.task_type]:
+            for test in self.test_registry.get(self.task_type, []):
                 test_name = test.__name__
                 try:
-                    dataset_report[test_name] = test(self, model, dataset)
+                    dataset_report[test_name] = test(model, dataset)
                 except Exception as e:
                     dataset_report[test_name] = {'error': str(e)}
             
@@ -76,16 +80,21 @@ class Evaluator:
                     self.datasets.append({
                         'name': f"{itype}/{file}",
                         'type': itype,
-                        'X': df.drop(columns=[self.intersection_status_column, self.intersection_volume_column]),
-                        'y': df[self.intersection_status_column],
-                        'volume': df[self.intersection_volume_column]
+                        'y': df[self.intersection_status_column_name],
+                        'volume': df[self.intersection_volume_column_name],
+                        'X': df.drop(columns=[self.intersection_status_column_name, self.intersection_volume_column_name]),
                     })
 
         self.test_data_loaded = True
 
-    @register_test('binary_classification')
     def classification_performance(self, model, dataset):
-        """Comprehensive classification evaluation"""
+        """
+        Comprehensive classification performance evaluation.
+        
+        :param model: Trained model
+        :param dataset: Dataset dictionary
+        :return: Dictionary of performance metrics
+        """
         y_pred = model.predict(dataset['X'])
         y_true = dataset['y']
         
@@ -97,7 +106,6 @@ class Evaluator:
             'confusion_matrix': confusion_matrix(y_true, y_pred).tolist()
         }
 
-        # Add probabilistic metrics if available
         if hasattr(model, 'predict_proba'):
             try:
                 y_proba = model.predict_proba(dataset['X'])[:, 1]
@@ -105,12 +113,19 @@ class Evaluator:
             except Exception as e:
                 metrics['probability_error'] = str(e)
 
-        # Add class distribution
         metrics['class_distribution'] = {
             'positive': y_true.mean(),
             'negative': 1 - y_true.mean()
         }
 
         return metrics
-
-    # Add new tests using the decorator
+    
+    def regression_performance(self, model, dataset):
+        """
+        Comprehensive regression performance evaluation.
+        
+        :param model: Trained model
+        :param dataset: Dataset dictionary
+        :return: Dictionary of performance metrics
+        """
+        pass
