@@ -19,6 +19,10 @@ class ModelBuilder:
         Returns:
             nn.Module: Constructed neural network
         """
+        if self.config["skip_building"]:
+            print("-- Skipped building architecture --")
+            return
+        
         print("-- Building Architecture --")
         model = None
         if self.config['architecture'] == 'mlp':

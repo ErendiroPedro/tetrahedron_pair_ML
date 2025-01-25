@@ -122,6 +122,9 @@ class ModelTrainer:
         :return: Trained model and training report
         """
         # Move model to device
+        if self.config["skip_training"]:
+            print("-- Skipped training model --")
+            return
         print(f"-- Training model using device: {self.device} --")
         self.model = model.to(self.device)
         
