@@ -87,6 +87,28 @@ class MLP(nn.Module):
     def forward(self, x):
         x = self.network(x)
         return task_specific_output(x, self.task)
+    
+    def predict(self, x):
+        """
+        Generate predictions for classification, regression, or combined tasks.
+
+        Args:
+            x (torch.Tensor): Input features.
+
+        Returns:
+            torch.Tensor: Predictions.
+        """
+        self.eval()  # Ensure the model is in evaluation mode
+        with torch.no_grad():
+            logits = self(x)
+            if self.task == 'binary_classification':
+                return (logits > 0.5).int()
+            elif self.task == 'regression':
+                return logits
+            elif self.task == 'classification_and_regression':
+                cls_prediction = (logits[:, 0] > 0.5).int().unsqueeze(1)
+                reg_prediction = logits[:, 1].unsqueeze(1) 
+                return torch.cat([cls_prediction, reg_prediction], dim=1)
 
 class DeepSet(nn.Module):
     """
