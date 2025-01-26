@@ -4,16 +4,15 @@ import torch
 import pickle
 from io import BytesIO
 from PIL import Image
-import random
-import string
 import datetime
+import json
+import yaml
 
 
 class ArtifactsManager:
     def __init__(self, config):
         self.config = config
-        self.artifacts_path = os.path.join(config['artifacts_config']['save_artifacts_to'], self._generate_folder_name())
-        os.makedirs(self.artifacts_path, exist_ok=True)
+        self.artifacts_path = self._create_experiment_folder()
 
     def save_artifacts(self, *args):
         """
@@ -27,35 +26,25 @@ class ArtifactsManager:
         """
         for index, artifact in enumerate(args):
             if isinstance(artifact, torch.nn.Module):
-                self._save_model(artifact, f"model_{index}")
-            elif isinstance(artifact, str):
-                if self._is_base64_image(artifact):
-                    self._save_base64_image(artifact, f"image_{index}")
-                else:
-                    self._save_text(artifact, f"text_{index}")
+                self._save_model(artifact)
+            elif isinstance(artifact, str) and self._is_base64_image(artifact):
+                self._save_base64_image(artifact, f"loss_report")
+            elif isinstance(artifact, dict):
+                self._save_evaluation_report(artifact)
             else:
                 raise ValueError(f"Unsupported artifact type for argument at position {index}")
 
-    def _get_artifacts_path(self):
+    def _create_experiment_folder(self):
         """
-        Get the path where artifacts are saved.
+        Generate a descriptive folder name based on the configuration and save the config file in the folder.
 
         Returns:
-            str: The path where artifacts are saved.
+            str: Path to the created folder.
         """
-        return self.artifacts_path
-
-    def _generate_folder_name(self):
-        """
-        Generate a descriptive folder name based on the configuration.
-
-        Args:
-            config (dict): The experiment configuration dictionary.
-
-        Returns:
-            str: A descriptive folder name.
-        """
-        id = datetime.datetime.now().strftime("%S%M%H-%Y%m%d")
+        # Generate a timestamp in reverse chronological order for sorting
+        id = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        
+        # Extract relevant configuration details
         model_architecture = self.config['model_config']['architecture']
         task = self.config['model_config']['task']
         num_train_samples = self.config['processor_config']['num_train_samples']
@@ -64,38 +53,53 @@ class ArtifactsManager:
         epochs = self.config['trainer_config']['epochs']
         optimizer = self.config['trainer_config']['optimizer']
         learning_rate = self.config['trainer_config']['learning_rate']
+
+        # Add distribution details
+        distributions = self.config['processor_config']['intersection_distributions']
+        dist_str = "_".join(f"{key}-{value}" for key, value in distributions.items() if value > 0)
+
+        # Construct the folder name
         folder_name = (
             f"id-{id}_{model_architecture}_{task}_"
             f"{num_train_samples}-train_{num_val_samples}-val_"
-            f"vol-{volume_range}_epochs-{epochs}_{optimizer}-{learning_rate}"
+            f"vol-{volume_range}_epochs-{epochs}_{optimizer}-{learning_rate}_"
+            f"distributions-{dist_str}"
         )
         
-        return folder_name
+        # Create the folder
+        artifacts_path = self.config['artifacts_config']['save_artifacts_to']
+        full_folder_path = os.path.join(artifacts_path, folder_name)
+        os.makedirs(full_folder_path, exist_ok=True)
 
-    def _save_model(self, model, filename):
+        # Save config
+        config_file_path = os.path.join(full_folder_path, "config.yaml")
+        with open(config_file_path, 'w') as config_file:
+            yaml.dump(self.config, config_file, default_flow_style=False)
+
+        return full_folder_path
+
+    def _save_model(self, model):
         """
         Save a PyTorch model including its class definition, weights, and architecture.
 
         Args:
             model (torch.nn.Module): PyTorch model to save.
-            filename (str): Base name of the file (without extension).
         """
         # Save the full model object (class and weights)
         full_model_path = os.path.join(self.artifacts_path, f"model.pkl")
         with open(full_model_path, "wb") as f:
             pickle.dump(model, f)
 
-    def _save_text(self, content, filename):
+    def _save_evaluation_report(self, report):
         """
-        Save a string as a text file.
+        Save the evaluation report as a JSON file.
 
         Args:
-            content (str): The text content to save.
-            filename (str): Name of the file to save the text as.
+            report (dict): The evaluation report dictionary to save.
         """
-        filepath = os.path.join(self.artifacts_path, f"{filename}.txt")
+        filepath = os.path.join(self.artifacts_path, f"evaluation_report.json")
         with open(filepath, "w", encoding="utf-8") as file:
-            file.write(content)
+            json.dump(report, file, indent=4)
 
     def _is_base64_image(self, base64_str):
         """
@@ -124,5 +128,5 @@ class ArtifactsManager:
         decoded_image = base64.b64decode(base64_str)
         image_buffer = BytesIO(decoded_image)
         image = Image.open(image_buffer)
-        filepath = os.path.join(self.artifacts_path, f"loss_report.png")
+        filepath = os.path.join(self.artifacts_path, f"{filename}.png")
         image.save(filepath, format="PNG")
