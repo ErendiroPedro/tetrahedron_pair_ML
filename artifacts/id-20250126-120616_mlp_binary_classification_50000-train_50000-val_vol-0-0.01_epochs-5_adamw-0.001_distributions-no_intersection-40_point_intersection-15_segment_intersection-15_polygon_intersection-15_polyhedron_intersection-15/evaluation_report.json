@@ -1,0 +1,95 @@
+{
+    "task_type": "binary_classification",
+    "dataset_reports": {
+        "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "accuracy": 0.89035,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "confusion_matrix": [
+                    [
+                        89035,
+                        10965
+                    ],
+                    [
+                        0,
+                        0
+                    ]
+                ]
+            }
+        },
+        "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "accuracy": 0.84709,
+                "precision": 1.0,
+                "recall": 0.84709,
+                "f1": 0.9172157285243274,
+                "confusion_matrix": [
+                    [
+                        0,
+                        0
+                    ],
+                    [
+                        15291,
+                        84709
+                    ]
+                ]
+            }
+        },
+        "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "accuracy": 0.8799,
+                "precision": 1.0,
+                "recall": 0.8799,
+                "f1": 0.9361136230650566,
+                "confusion_matrix": [
+                    [
+                        0,
+                        0
+                    ],
+                    [
+                        12010,
+                        87990
+                    ]
+                ]
+            }
+        },
+        "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "accuracy": 0.72263,
+                "precision": 1.0,
+                "recall": 0.72263,
+                "f1": 0.8389845759100909,
+                "confusion_matrix": [
+                    [
+                        0,
+                        0
+                    ],
+                    [
+                        27737,
+                        72263
+                    ]
+                ]
+            }
+        },
+        "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_random_volumes.csv": {
+            "classification_performance": {
+                "accuracy": 0.70671,
+                "precision": 1.0,
+                "recall": 0.70671,
+                "f1": 0.8281547538832021,
+                "confusion_matrix": [
+                    [
+                        0,
+                        0
+                    ],
+                    [
+                        29329,
+                        70671
+                    ]
+                ]
+            }
+        }
+    }
+}
