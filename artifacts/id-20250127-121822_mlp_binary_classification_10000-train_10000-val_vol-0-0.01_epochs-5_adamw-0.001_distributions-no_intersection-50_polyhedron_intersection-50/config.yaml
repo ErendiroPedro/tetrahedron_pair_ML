@@ -30,7 +30,7 @@ processor_config:
   num_train_samples: 10000
   num_val_samples: 10000
   number_of_bins: 1000
-  skip_processing: false
+  skip_processing: true
   volume_range:
   - 0
   - 0.01
