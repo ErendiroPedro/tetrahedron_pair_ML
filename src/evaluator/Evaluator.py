@@ -263,50 +263,61 @@ class Evaluator:
         
     def point_wise_permutation_consistency(self, model, dataset):
         """
-        Test prediction consistency when randomly permuting points within each of 
+        Test prediction consistency when randomly permuting points within each of
         the 2 tetrahedrons (24 total features) while preserving coordinate groupings.
         """
         try:
             # Convert data to tensor
             X = torch.tensor(dataset['X'].values, dtype=torch.float32)
-            device = next(model.parameters()).device
+            
+            # More robust device handling
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            if hasattr(model, 'device'):
+                device = model.device
+            elif next(model.parameters(), None) is not None:
+                device = next(model.parameters()).device
+                
             X = X.to(device)
             batch_size = X.size(0)
-
+            
             # Split into two tetrahedrons (12 features each)
             tetra1 = X[:, :12].view(batch_size, 4, 3)  # (B, 4, 3)
             tetra2 = X[:, 12:].view(batch_size, 4, 3)  # (B, 4, 3)
-
-            # Generate permutations for both tetrahedrons
+            
+            # permutation generation
             perm1 = torch.stack([torch.randperm(4) for _ in range(batch_size)]).to(device)
             perm2 = torch.stack([torch.randperm(4) for _ in range(batch_size)]).to(device)
-
+            
             # Apply permutations using gather
             permuted_tetra1 = torch.gather(tetra1, 1, perm1.unsqueeze(-1).expand(-1, -1, 3))
             permuted_tetra2 = torch.gather(tetra2, 1, perm2.unsqueeze(-1).expand(-1, -1, 3))
-
+            
             # Reconstruct features
             X_permuted = torch.cat([
                 permuted_tetra1.view(batch_size, 12),
                 permuted_tetra2.view(batch_size, 12)
             ], dim=1)
-
+            
             # Get predictions
             with torch.no_grad():
                 pred_original = model(X).cpu().numpy()
                 pred_permuted = model(X_permuted).cpu().numpy()
-
+            
             # Calculate consistency
             if self.task_type == 'binary_classification':
                 consistent = (np.round(pred_original) == np.round(pred_permuted))
             else:
-                consistent = np.isclose(pred_original, pred_permuted, rtol=0.01)
-
+                consistent = np.isclose(pred_original, pred_permuted, rtol=0.01, atol=1e-8)
+                
             return {
                 "consistency_rate": float(np.mean(consistent)),
                 "mean_absolute_difference": float(np.mean(np.abs(pred_original - pred_permuted))),
                 "total_samples": batch_size
             }
             
+        except ValueError as ve:
+            return {"error": "Data format error", "details": str(ve)}
+        except RuntimeError as re:
+            return {"error": "CUDA/Device error", "details": str(re)}
         except Exception as e:
-            return {"error": str(e)}
+            return {"error": "Unexpected error", "details": str(e)}
