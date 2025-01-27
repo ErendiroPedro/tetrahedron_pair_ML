@@ -29,91 +29,6 @@ class ModelTrainer:
         self.model = None # Will be set up during training
         self.optimizer = None # Will be set up during training
 
-    def _setup_loss_functions(self, task_name: str):
-        """
-        Set up the appropriate loss function based on the task.
-        
-        :param task_name: Name of the task (classification, regression, etc.)
-        :return: Loss function
-        """
-        loss_functions_map = {
-            "binary_classification": F.binary_cross_entropy_with_logits,
-            "regression": self._mape_loss,
-            "multiclass_classification": F.cross_entropy,
-            "classification_and_regression": self._classification_and_regression_loss
-        }
-        return loss_functions_map.get(task_name, F.binary_cross_entropy_with_logits)
-    
-    def _mape_loss(self, output, target):
-        """
-        Mean Absolute Percentage Error (MAPE) loss.
-        
-        :param output: Model predictions (tensor)
-        :param target: Ground truth values (tensor)
-        :param epsilon: Small constant to avoid division by zero
-        :return: MAPE loss (scalar)
-        """
-        epsilon=1e-16
-        if not isinstance(output, torch.Tensor) or not isinstance(target, torch.Tensor):
-            raise TypeError(f"Expected tensors, got {type(output)} and {type(target)}.")
-        return torch.mean(torch.abs((target - output) / (target + epsilon)))
-
-    def _classification_and_regression_loss(self, output, target):
-        """
-        Combined loss function for classification and regression tasks.
-        
-        :param output: Model output
-        :param target: Target values
-        :return: Combined loss
-        """
-        cls_loss = F.binary_cross_entropy_with_logits(output[:, 0], target[:, 0])
-        reg_loss = self._mape_loss(output[:, 1], target[:, 1])
-        return cls_loss + reg_loss
-
-    def _setup_optimizer(self, optimizer_name: str):
-        """
-        Set up the optimizer based on the configuration.
-        
-        :param optimizer_name: Name of the optimizer
-        :return: Optimizer class
-        """
-        optimizers = {
-            "adam": torch.optim.Adam,
-            "adamw": torch.optim.AdamW,
-            "sgd": torch.optim.SGD
-        }
-        return optimizers.get(optimizer_name, torch.optim.Adam)
-
-    def _setup_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
-        """
-        Setup training and validation data loaders from CSV files.
-        
-        :return: Train and validation data loaders
-        """
-        # Construct full paths to train and validation CSV files
-        train_data_path = os.path.join(self.processed_data_path, "train", "train_data.csv")
-        val_data_path = os.path.join(self.processed_data_path, "val", "val_data.csv")
-        
-        # Create datasets
-        train_dataset = TetrahedronDataset(train_data_path)
-        val_dataset = TetrahedronDataset(val_data_path)
-        
-        # Create data loaders
-        train_loader = DataLoader(
-            train_dataset, 
-            batch_size=self.batch_size, 
-            shuffle=True,
-            num_workers=4
-        )
-        val_loader = DataLoader(
-            val_dataset, 
-            batch_size=self.batch_size, 
-            shuffle=True,
-            num_workers=4
-        )
-        
-        return train_loader, val_loader
-
     def train_and_validate(self, model: torch.nn.Module) -> Tuple[torch.nn.Module, str]:
         """
         Train and validate the model.
@@ -121,23 +36,19 @@ class ModelTrainer:
         :param model: PyTorch model to train
         :return: Trained model and training report
         """
-        # Move model to device
         if self.config["skip_training"]:
             print("-- Skipped training model --")
             return
-        print(f"-- Training model using device: {self.device} --")
+        print(f"-- Training model using: {self.device} --")
+
         self.model = model.to(self.device)
         
-        # Setup optimizer
         self.optimizer = self._setup_optimizer(self.config.get("optimizer", "adam"))(
             params=self.model.parameters(),
             lr=self.learning_rate
         )
         
-        # Metrics tracking
         train_losses, val_losses = [], []
-        
-        # Data loaders
         train_loader, val_loader = self._setup_data_loaders()
         
         for epoch in range(self.epochs):
@@ -151,11 +62,11 @@ class ModelTrainer:
             val_loss = self._validate_epoch(val_loader)
             val_losses.append(val_loss)
             
-            # Log progress
             elapsed_time = time.time() - start_time
             self._log_progress(epoch, train_loss, val_loss, elapsed_time)
         print("---- Training Complete ----")
         return self.model, self._generate_training_report(train_losses, val_losses)
+
 
     def _train_epoch(self, train_loader: DataLoader) -> float:
         """
@@ -222,6 +133,81 @@ class ModelTrainer:
                 total_loss += loss.item()
 
         return total_loss / len(val_loader)
+
+    def _setup_loss_functions(self, task_name: str):
+        """
+        Set up the appropriate loss function based on the task.
+        
+        :param task_name: Name of the task (classification, regression, etc.)
+        :return: Loss function
+        """
+        loss_functions_map = {
+            "binary_classification": F.binary_cross_entropy_with_logits,
+            "regression": self._mape_loss,
+            "classification_and_regression": self._classification_and_regression_loss
+        }
+        return loss_functions_map.get(task_name, F.binary_cross_entropy_with_logits)
+    
+    def _mape_loss(self, output, target):
+        epsilon = 1e-8
+        clipped_target = torch.clamp(target, min=epsilon)
+        return torch.mean(torch.abs((clipped_target - output) / clipped_target))
+
+    def _classification_and_regression_loss(self, output, target):
+        """
+        Combined loss function for classification and regression tasks.
+        
+        :param output: Model output
+        :param target: Target values
+        :return: Combined loss
+        """
+        cls_loss = F.binary_cross_entropy_with_logits(output[:, 0], target[:, 0])
+        reg_loss = self._mape_loss(output[:, 1], target[:, 1])
+        return cls_loss + reg_loss
+
+    def _setup_optimizer(self, optimizer_name: str):
+        """
+        Set up the optimizer based on the configuration.
+        
+        :param optimizer_name: Name of the optimizer
+        :return: Optimizer class
+        """
+        optimizers = {
+            "adam": torch.optim.Adam,
+            "adamw": torch.optim.AdamW,
+            "sgd": torch.optim.SGD
+        }
+        return optimizers.get(optimizer_name, torch.optim.Adam)
+
+    def _setup_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
+        """
+        Setup training and validation data loaders from CSV files.
+        
+        :return: Train and validation data loaders
+        """
+        # Construct full paths to train and validation CSV files
+        train_data_path = os.path.join(self.processed_data_path, "train", "train_data.csv")
+        val_data_path = os.path.join(self.processed_data_path, "val", "val_data.csv")
+        
+        # Create datasets
+        train_dataset = TetrahedronDataset(train_data_path)
+        val_dataset = TetrahedronDataset(val_data_path)
+        
+        # Create data loaders
+        train_loader = DataLoader(
+            train_dataset, 
+            batch_size=self.batch_size, 
+            shuffle=True,
+            num_workers=4
+        )
+        val_loader = DataLoader(
+            val_dataset, 
+            batch_size=self.batch_size, 
+            shuffle=True,
+            num_workers=4
+        )
+        
+        return train_loader, val_loader
 
     def _log_progress(self, epoch: int, train_loss: float, val_loss: float, elapsed_time: float):
         """
