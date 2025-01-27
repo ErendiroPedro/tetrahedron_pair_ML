@@ -25,12 +25,12 @@ processor_config:
     no_intersection: 50
     point_intersection: 0
     polygon_intersection: 0
-    polyhedron_intersection: 50
-    segment_intersection: 0
+    polyhedron_intersection: 0
+    segment_intersection: 50
   num_train_samples: 10000
   num_val_samples: 10000
   number_of_bins: 1000
-  skip_processing: true
+  skip_processing: false
   volume_range:
   - 0
   - 0.01
