@@ -2,21 +2,21 @@ artifacts_config:
   save_artifacts_to: /home/sei/tetrahedron_pair_ML/artifacts
 
 processor_config:
-  skip_processing: true
+  skip_processing: false
   dataset_paths:
     raw_data: /home/sei/tetrahedron_pair_ML/data/raw
     processed_data: &processed_data_path /home/sei/tetrahedron_pair_ML/data/processed
 
-  num_train_samples: 20000
-  num_val_samples: 20000
+  num_train_samples: 10000
+  num_val_samples: 10000
 
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
     no_intersection: 50
     point_intersection: 0
     segment_intersection: 0
-    polygon_intersection: 50
-    polyhedron_intersection: 0
+    polygon_intersection: 0
+    polyhedron_intersection: 50
 
   volume_range: [0, 0.01]
   number_of_bins: 1000 # Granualatiry of volumes
@@ -28,15 +28,17 @@ processor_config:
     # Note: Augmentation percentages should sum at most to 0.5
     vertex_permutation_augmentation_pct: 0
     tetrahedron_permutation_augmentation_pct: 0
-    rigid_transformation_augmentation_pct: 0
-    affine_linear_transformation_augmentation_pct: 0
+
+    # Note: transformations are applied to all training and validation samples
+    rigid_transformation: false
+    affine_linear_transformation: false
 
 model_config:
   skip_building: false
   architecture: mlp # mlp, deep_set
   activation_function: relu # relu, tanh, leaky_relu, elu
   dropout_rate: 0.0
-  task: &task_type binary_classification # binary_classification, Regression, classification_and_regression
+  task: &task_type binary_classification # binary_classification, regression, classification_and_regression
 
 trainer_config:
   skip_training: false
@@ -50,16 +52,6 @@ trainer_config:
   batch_size: 32
   learning_rate_schedule: null
   early_stopping_patience: 10
-
-  # contrastive_learning:
-  #   loss_function: cosine_similarity
-  #   evaluation_metric: contrastive_accuracy
-  #   optimizer: adam
-  #   margin: 0.001
-  #   learning_rate: 0.001
-  #   epochs: 20
-  #   batch_size: 32
-  #   learning_rate_schedule: null
 
 evaluator_config:
   skip_evaluation: false
