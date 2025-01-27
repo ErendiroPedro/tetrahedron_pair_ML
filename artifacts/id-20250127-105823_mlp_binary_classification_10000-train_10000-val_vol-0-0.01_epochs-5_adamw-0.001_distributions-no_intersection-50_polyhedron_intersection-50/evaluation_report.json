@@ -1,0 +1,170 @@
+{
+    "task_type": "binary_classification",
+    "dataset_reports": {
+        "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "accuracy": 0.91005,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "confusion_matrix": [
+                    [
+                        91005,
+                        8995
+                    ],
+                    [
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce MX330",
+                    "cuda_driver_version": "12.1",
+                    "cuda_capability": [
+                        6,
+                        1
+                    ],
+                    "cuda_memory": "2.10 GB"
+                },
+                "total_time_seconds": 0.017682090759277343,
+                "avg_time_per_sample_seconds": 1.7682090759277343e-07,
+                "samples_per_second": 5655439.809770943
+            }
+        },
+        "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "accuracy": 0.4115,
+                "precision": 1.0,
+                "recall": 0.4115,
+                "f1": 0.5830676585193056,
+                "confusion_matrix": [
+                    [
+                        0,
+                        0
+                    ],
+                    [
+                        58850,
+                        41150
+                    ]
+                ]
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce MX330",
+                    "cuda_driver_version": "12.1",
+                    "cuda_capability": [
+                        6,
+                        1
+                    ],
+                    "cuda_memory": "2.10 GB"
+                },
+                "total_time_seconds": 0.01758798624674479,
+                "avg_time_per_sample_seconds": 1.758798624674479e-07,
+                "samples_per_second": 5685699.237939087
+            }
+        },
+        "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "accuracy": 0.5592,
+                "precision": 1.0,
+                "recall": 0.5592,
+                "f1": 0.7172909184197024,
+                "confusion_matrix": [
+                    [
+                        0,
+                        0
+                    ],
+                    [
+                        44080,
+                        55920
+                    ]
+                ]
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce MX330",
+                    "cuda_driver_version": "12.1",
+                    "cuda_capability": [
+                        6,
+                        1
+                    ],
+                    "cuda_memory": "2.10 GB"
+                },
+                "total_time_seconds": 0.01759361921946208,
+                "avg_time_per_sample_seconds": 1.7593619219462078e-07,
+                "samples_per_second": 5683878.839970567
+            }
+        },
+        "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "accuracy": 0.51799,
+                "precision": 1.0,
+                "recall": 0.51799,
+                "f1": 0.6824682639543079,
+                "confusion_matrix": [
+                    [
+                        0,
+                        0
+                    ],
+                    [
+                        48201,
+                        51799
+                    ]
+                ]
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce MX330",
+                    "cuda_driver_version": "12.1",
+                    "cuda_capability": [
+                        6,
+                        1
+                    ],
+                    "cuda_memory": "2.10 GB"
+                },
+                "total_time_seconds": 0.017614404233296715,
+                "avg_time_per_sample_seconds": 1.7614404233296716e-07,
+                "samples_per_second": 5677171.857505621
+            }
+        },
+        "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv": {
+            "classification_performance": {
+                "accuracy": 0.87203,
+                "precision": 1.0,
+                "recall": 0.87203,
+                "f1": 0.9316410527609066,
+                "confusion_matrix": [
+                    [
+                        0,
+                        0
+                    ],
+                    [
+                        12797,
+                        87203
+                    ]
+                ]
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce MX330",
+                    "cuda_driver_version": "12.1",
+                    "cuda_capability": [
+                        6,
+                        1
+                    ],
+                    "cuda_memory": "2.10 GB"
+                },
+                "total_time_seconds": 0.017593513679504395,
+                "avg_time_per_sample_seconds": 1.7593513679504395e-07,
+                "samples_per_second": 5683912.936419019
+            }
+        }
+    }
+}
