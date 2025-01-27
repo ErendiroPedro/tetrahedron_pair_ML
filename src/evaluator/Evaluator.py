@@ -18,18 +18,12 @@ class Evaluator:
         self.intersection_volume_column_name = 'IntersectionVolume'
         
         self.test_registry = {
-            'binary_classification': [self.classification_performance, self.inference_speed],
-            'regression': [self.regression_performance, self.inference_speed],
-            'classification_and_regression': [self.classification_performance, self.regression_performance, self.inference_speed]
+            'binary_classification': [self.classification_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.inference_speed],
+            'regression': [self.regression_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.inference_speed],
+            'classification_and_regression': [self.classification_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.regression_performance, self.inference_speed]
         }
 
     def evaluate(self, model):
-        """
-        Evaluate the model across different test datasets.
-        
-        :param model: Trained model to evaluate
-        :return: Comprehensive evaluation report
-        """
 
         if self.config.get('skip_evaluation', False):
             print("-- Skipped Evaluation --")
@@ -57,7 +51,9 @@ class Evaluator:
                     dataset_report[test_name] = {'error': str(e)}
             
             report['dataset_reports'][dataset['name']] = dataset_report
+
         print("---- Finished Evaluation ----")
+
         return report
 
     def _load_test_data(self):
@@ -80,8 +76,8 @@ class Evaluator:
 
         for itype in intersection_types:
             type_dir = os.path.join(base_path, itype)
-            if not os.path.exists(type_dir):
-                continue
+
+            assert os.path.exists(type_dir), f"Directory not found: {type_dir}"
 
             for file in os.listdir(type_dir):
                 if file.endswith('.csv'):
@@ -99,14 +95,7 @@ class Evaluator:
         self.test_data_loaded = True
 
     def classification_performance(self, model, dataset):
-      """
-      Comprehensive classification performance evaluation.
-
-      :param model: Trained model
-      :param dataset: Dataset dictionary
-      :return: Dictionary of performance metrics
-      """
-      # Convert DataFrame to PyTorch tensor
+      
       X = torch.tensor(dataset['X'].values, dtype=torch.float32)
       y_true = dataset['intersection_status'].values
 
@@ -114,7 +103,6 @@ class Evaluator:
       device = next(model.parameters()).device
       X = X.to(device)
 
-      # Generate predictions
       y_pred = model.predict(X).cpu().numpy()  # Convert predictions back to numpy for metric computation
 
       # Compute metrics
@@ -129,11 +117,7 @@ class Evaluator:
       return metrics
 
     def regression_performance(self, model, dataset):
-        """
-        Simplified regression evaluation with interval analysis.
-        Focuses on core metrics and 0-0.01 value range performance.
-        """
-        # Data preparation remains the same
+
         X = torch.tensor(dataset['X'].values, dtype=torch.float32)
         y_true = dataset['intersection_volume'].values.astype(np.float32)
         
@@ -141,18 +125,15 @@ class Evaluator:
         device = next(model.parameters()).device
         X = X.to(device)
         
-        # Prediction handling
         with torch.no_grad():
             try:
                 y_pred = model(X).cpu().numpy().reshape(-1).astype(np.float32)
             except Exception as e:
                 return {'error': str(e)}
         
-        # Validation check
         if y_true.shape != y_pred.shape:
-            return {'error': f"Shape mismatch: {y_true.shape} vs {y_pred.shape}"}
+            return {'error': f"Shape mismatch: {y_true.shape} vs {y_pred.shape}"} # Validation check
         
-        # Interval analysis (0-0.01 range)
         intervals = np.linspace(0, 0.01, 6)  # 5 intervals
         interval_metrics = {}
         
@@ -177,13 +158,7 @@ class Evaluator:
         return interval_metrics
 
     def inference_speed(self, model, dataset):
-        """
-        Measure inference speed of the model on the dataset including device info.
-        
-        :param model: Trained model
-        :param dataset: Dataset dictionary
-        :return: Dictionary with inference speed metrics and device info
-        """
+
         X = torch.tensor(dataset['X'].values, dtype=torch.float32)
         device = next(model.parameters()).device
         X = X.to(device)
@@ -244,3 +219,94 @@ class Evaluator:
             'avg_time_per_sample_seconds': avg_time_seconds / num_samples,
             'samples_per_second': num_samples / avg_time_seconds
         }
+
+    def tetrahedron_wise_permutation_consistency(self, model, dataset):
+        """
+        Test prediction consistency when swapping tetrahedron order in pairs.
+        """
+        try:
+            # Convert data to tensor
+            X = torch.tensor(dataset['X'].values, dtype=torch.float32)
+            device = next(model.parameters()).device
+            X = X.to(device)
+            
+            # Create swapped version (first 12 features <-> last 12 features)
+            X_swapped = torch.cat([X[:, 12:], X[:, :12]], dim=1)
+            
+            # Get predictions for both orders
+            with torch.no_grad():
+                pred_original = model(X).cpu().numpy()
+                pred_swapped = model(X_swapped).cpu().numpy()
+            
+            # Calculate consistency based on task type
+            if self.task_type == 'binary_classification':
+                # Round predictions for classification
+                pred_original = np.round(pred_original)
+                pred_swapped = np.round(pred_swapped)
+                consistent = (pred_original == pred_swapped)
+            else:  # Regression
+                # Consider predictions consistent if they match within 1% relative error
+                consistent = np.isclose(pred_original, pred_swapped, rtol=0.01)
+            
+            # Calculate metrics
+            consistency_rate = np.mean(consistent)
+            mad = np.mean(np.abs(pred_original - pred_swapped))  # Mean absolute difference
+            
+            return {
+                "consistency_rate": float(consistency_rate),
+                "mean_absolute_difference": float(mad),
+                "total_samples": len(X)
+            }
+            
+        except Exception as e:
+            return {"error": str(e)}
+        
+    def point_wise_permutation_consistency(self, model, dataset):
+        """
+        Test prediction consistency when randomly permuting points within each of 
+        the 2 tetrahedrons (24 total features) while preserving coordinate groupings.
+        """
+        try:
+            # Convert data to tensor
+            X = torch.tensor(dataset['X'].values, dtype=torch.float32)
+            device = next(model.parameters()).device
+            X = X.to(device)
+            batch_size = X.size(0)
+
+            # Split into two tetrahedrons (12 features each)
+            tetra1 = X[:, :12].view(batch_size, 4, 3)  # (B, 4, 3)
+            tetra2 = X[:, 12:].view(batch_size, 4, 3)  # (B, 4, 3)
+
+            # Generate permutations for both tetrahedrons
+            perm1 = torch.stack([torch.randperm(4) for _ in range(batch_size)]).to(device)
+            perm2 = torch.stack([torch.randperm(4) for _ in range(batch_size)]).to(device)
+
+            # Apply permutations using gather
+            permuted_tetra1 = torch.gather(tetra1, 1, perm1.unsqueeze(-1).expand(-1, -1, 3))
+            permuted_tetra2 = torch.gather(tetra2, 1, perm2.unsqueeze(-1).expand(-1, -1, 3))
+
+            # Reconstruct features
+            X_permuted = torch.cat([
+                permuted_tetra1.view(batch_size, 12),
+                permuted_tetra2.view(batch_size, 12)
+            ], dim=1)
+
+            # Get predictions
+            with torch.no_grad():
+                pred_original = model(X).cpu().numpy()
+                pred_permuted = model(X_permuted).cpu().numpy()
+
+            # Calculate consistency
+            if self.task_type == 'binary_classification':
+                consistent = (np.round(pred_original) == np.round(pred_permuted))
+            else:
+                consistent = np.isclose(pred_original, pred_permuted, rtol=0.01)
+
+            return {
+                "consistency_rate": float(np.mean(consistent)),
+                "mean_absolute_difference": float(np.mean(np.abs(pred_original - pred_permuted))),
+                "total_samples": batch_size
+            }
+            
+        except Exception as e:
+            return {"error": str(e)}
