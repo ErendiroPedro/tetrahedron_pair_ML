@@ -1,9 +1,15 @@
-import os
 import pandas as pd
 import numpy as np
 import torch
 import time
 import platform
+import sys
+import os
+
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(parent_dir)
+
+import GeometryUtils as gu
 
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.metrics import accuracy_score, precision_score, recall_score,f1_score, confusion_matrix
@@ -230,8 +236,7 @@ class Evaluator:
             device = next(model.parameters()).device
             X = X.to(device)
             
-            # Create swapped version (first 12 features <-> last 12 features)
-            X_swapped = torch.cat([X[:, 12:], X[:, :12]], dim=1)
+            X_swapped = gu.swap_tetrahedrons(X)
             
             # Get predictions for both orders
             with torch.no_grad():
@@ -240,17 +245,15 @@ class Evaluator:
             
             # Calculate consistency based on task type
             if self.task_type == 'binary_classification':
-                # Round predictions for classification
                 pred_original = np.round(pred_original)
                 pred_swapped = np.round(pred_swapped)
                 consistent = (pred_original == pred_swapped)
-            else:  # Regression
-                # Consider predictions consistent if they match within 1% relative error
+            elif self.task_type == 'regression':
                 consistent = np.isclose(pred_original, pred_swapped, rtol=0.01)
             
             # Calculate metrics
             consistency_rate = np.mean(consistent)
-            mad = np.mean(np.abs(pred_original - pred_swapped))  # Mean absolute difference
+            mad = np.mean(np.abs(pred_original - pred_swapped))
             
             return {
                 "consistency_rate": float(consistency_rate),
@@ -278,25 +281,8 @@ class Evaluator:
                 device = next(model.parameters()).device
                 
             X = X.to(device)
-            batch_size = X.size(0)
             
-            # Split into two tetrahedrons (12 features each)
-            tetra1 = X[:, :12].view(batch_size, 4, 3)  # (B, 4, 3)
-            tetra2 = X[:, 12:].view(batch_size, 4, 3)  # (B, 4, 3)
-            
-            # permutation generation
-            perm1 = torch.stack([torch.randperm(4) for _ in range(batch_size)]).to(device)
-            perm2 = torch.stack([torch.randperm(4) for _ in range(batch_size)]).to(device)
-            
-            # Apply permutations using gather
-            permuted_tetra1 = torch.gather(tetra1, 1, perm1.unsqueeze(-1).expand(-1, -1, 3))
-            permuted_tetra2 = torch.gather(tetra2, 1, perm2.unsqueeze(-1).expand(-1, -1, 3))
-            
-            # Reconstruct features
-            X_permuted = torch.cat([
-                permuted_tetra1.view(batch_size, 12),
-                permuted_tetra2.view(batch_size, 12)
-            ], dim=1)
+            X_permuted = gu.permute_points_within_tetrahedrons(X)
             
             # Get predictions
             with torch.no_grad():
@@ -312,7 +298,7 @@ class Evaluator:
             return {
                 "consistency_rate": float(np.mean(consistent)),
                 "mean_absolute_difference": float(np.mean(np.abs(pred_original - pred_permuted))),
-                "total_samples": batch_size
+                "total_samples": len(X)
             }
             
         except ValueError as ve:
