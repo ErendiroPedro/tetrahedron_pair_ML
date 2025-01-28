@@ -5,7 +5,7 @@ A flexible pipeline for optimizing model performance in tetrahedron-tetrahedron 
 ## Architecture Overview
 
 ![Pipeline Architecture](resources/architecture.png)  
-*Figure 1: Pipeline workflow. Processes include configuration setup, data sampling/transformation, model building, training, and evaluation. Artifacts (configurations, models, reports) are saved for reproducibility.*
+*Figure 1: Machine learning pipeline architecture. The pipeline orchestrator manages the workflow, handling configuration loading, data processing (sampling, transformations, augmentations), model building, and training. An artifacts manager handles saving and loading of configurations, trained models, and evaluation reports for reproducibility.*
 
 ### Key Components
 
