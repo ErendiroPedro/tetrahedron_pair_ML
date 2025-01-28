@@ -8,20 +8,35 @@ A flexible pipeline for optimizing model performance in tetrahedron-tetrahedron 
 *Figure 1: Pipeline workflow. Processes include configuration setup, data sampling/transformation, model building, training, and evaluation. Artifacts (configurations, models, reports) are saved for reproducibility.*
 
 ### Key Components
-- **Configuration Setup**:  
-  Starts with a `Configuration File` to initialize parameters for data processing, model architecture, and training.
+
 
 - **Data Processing**:  
-  Raw data is sampled, transformed (e.g., Cartesian/Plücker coordinates, rotations), and augmented to generate processed datasets.
+
+  Prepares raw tetrahedron pair data for training and validation with configurable steps:
+
+    Data Loading & Sampling
+
+        Loads raw geometric data (vertex coordinates, intersection volume labels).
+
+        Samples datasets based on intersection type distributions (e.g., disjoint, fully intersecting).
+
+        For polyhedron intersecting pairs, applies volume-aware uniform sampling to ensure balanced representation across volume ranges.
+
+    Augmentations (Optional)
+
+        Order invariance: Sorts tetrahedrons by coordinates or size to reduce input permutation sensitivity.
+
+        Geometric transformations: Placeholder support for rigid/affine transformations, vertex permutations, and tetrahedron swaps (configurable but not yet implemented).
+
+    Structured Saving
+
+        Outputs processed data to standardized train/val folders for reproducibility.
 
 - **Model Building**:  
-  Constructs neural networks based on configurable layers, activation functions, and architectures.
-
+  
 - **Training & Evaluation**:  
-  Trains models on processed data, saves trained weights, and evaluates performance. Feedback loops allow adjustments to configurations.
-
-### Artifacts
-- Saved configurations, trained models, and evaluation reports.
+  
+- **Artifact Manager**
 
 ---
 
