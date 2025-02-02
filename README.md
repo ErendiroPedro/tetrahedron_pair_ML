@@ -47,7 +47,8 @@ To set up the project, follow these steps:
 1. **Clone the repository**:
    ```bash
    git clone https://github.com/your-username/tetrahedron-pair-ml.git
-   cd tetrahedron-pair-ml```
+   cd tetrahedron-pair-ml
+   ```
 
 2. **Create a virtual environment (optional but recommended):**
     ```bash
@@ -59,6 +60,3 @@ To set up the project, follow these steps:
     ```bash
     pip install -r requirements.txt
     ```
-
-**Usage**: Clone the repo, adjust configurations in `config.yaml`, and run the pipeline to experiment with data or model settings.  
-**Goal**: Optimize intersection detection and volume estimation accuracy through iterative tuning.
