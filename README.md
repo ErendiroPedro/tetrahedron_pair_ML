@@ -40,5 +40,25 @@ A flexible pipeline for optimizing model performance in tetrahedron-tetrahedron 
 
 ---
 
+## Installation
+
+To set up the project, follow these steps:
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/your-username/tetrahedron-pair-ml.git
+   cd tetrahedron-pair-ml```
+
+2. **Create a virtual environment (optional but recommended):**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows, use `venv\Scripts\activate` 
+    ```
+
+3. **Install the required dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
 **Usage**: Clone the repo, adjust configurations in `config.yaml`, and run the pipeline to experiment with data or model settings.  
 **Goal**: Optimize intersection detection and volume estimation accuracy through iterative tuning.
