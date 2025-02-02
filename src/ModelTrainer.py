@@ -36,9 +36,6 @@ class ModelTrainer:
         :param model: PyTorch model to train
         :return: Trained model and training report
         """
-        if self.config["skip_training"]:
-            print("-- Skipped training model --")
-            return
         print(f"-- Training model using: {self.device} --")
 
         self.model = model.to(self.device)

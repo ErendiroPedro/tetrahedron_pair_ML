@@ -30,10 +30,6 @@ class Evaluator:
         }
 
     def evaluate(self, model):
-
-        if self.config.get('skip_evaluation', False):
-            print("-- Skipped Evaluation --")
-            return {'evaluation_status': 'skipped'}
         
         print("-- Evaluating --")
 

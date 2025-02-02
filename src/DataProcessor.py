@@ -7,11 +7,7 @@ class DataProcessor:
     def __init__(self, processor_config):
         self.config = processor_config
 
-    def process(self):
-        if self.config["skip_processing"]:
-            print("-- Skipped Processing Data --")
-            return
-            
+    def process(self):            
         print("-- Processing Data --")
         train_data, val_data = self._load_data()
         # train_data = self._augment_data(train_data)
