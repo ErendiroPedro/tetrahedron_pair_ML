@@ -29,20 +29,20 @@ class PipelineOrchestrator:
         print("- Pipeline Done -")
 
     def _process_data_step(self, state):
-        if self.config.get("skip_processing", False):
+        if self.config['processor_config'].get("skip_processing", True):
             print("-- Skipped Processing Data --")
             return
         self.data_processor.process()
 
     def _build_model_step(self, state):
-        if self.config.get("skip_building", False):
+        if self.config['model_config'].get("skip_building", True):
             print("-- Skipped building architecture --")
             return
         model_architecture = self.model_builder.build()
         state["model_architecture"] = model_architecture
 
     def _train_model_step(self, state):
-        if self.config.get("skip_training", False):
+        if self.config['trainer_config'].get("skip_training", True):
             print("-- Skipped training model --")
             return
         model_architecture = state.get("model_architecture")
@@ -54,7 +54,7 @@ class PipelineOrchestrator:
         state["training_report"] = training_report
 
     def _evaluate_model_step(self, state):
-        if self.config.get("skip_evaluation", False):
+        if self.config['evaluator_config'].get("skip_evaluation", True):
             print("-- Skipped Evaluation --")
             return
         trained_model = state.get("trained_model")
