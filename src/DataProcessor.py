@@ -10,6 +10,7 @@ class DataProcessor:
     def process(self):            
         print("-- Processing Data --")
         train_data, val_data = self._load_data()
+        # train_data = self._transform_data(train_data)
         # train_data = self._augment_data(train_data)
         self._save_data(train_data, val_data)
         print("---- Data Processed ----")
