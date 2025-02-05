@@ -6,3 +6,5 @@ seaborn==0.13.2
 torch==2.6.0
 setuptools>=68.0.0
 wheel>=0.41.0
+pyyaml
+torch-geometric==2.3.1
