@@ -13,10 +13,10 @@ processor_config:
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
     no_intersection: 50
-    point_intersection: 0
-    segment_intersection: 0
-    polygon_intersection: 0
-    polyhedron_intersection: 50
+    point_intersection: 1
+    segment_intersection: 1
+    polygon_intersection: 1
+    polyhedron_intersection: 47
 
   volume_range: [0, 0.01]
   number_of_bins: 1000 # Granualatiry of volumes
