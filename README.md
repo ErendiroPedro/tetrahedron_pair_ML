@@ -9,7 +9,6 @@ A flexible pipeline for optimizing model performance in tetrahedron-tetrahedron 
 
 ### Key Components
 
-
 - **Data Processing**:  
 
   Prepares raw tetrahedron pair data for training and validation with configurable steps:
@@ -50,13 +49,20 @@ To set up the project, follow these steps:
    cd tetrahedron-pair-ml
    ```
 
-2. **Create a virtual environment (optional but recommended):**
+2. **Install Git LFS (required for dataset access)**:
+   ```bash
+   sudo apt install git-lfs  # For Ubuntu/Debian
+   git lfs install
+   ```
+   > *Note: If you're using a different Linux distribution, install Git LFS using the appropriate package manager.*
+
+3. **Create a virtual environment (optional but recommended):**
     ```bash
     python -m venv venv
-    source venv/bin/activate  # On Windows, use `venv\Scripts\activate` 
+    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
     ```
 
-3. **Install the required dependencies:**
+4. **Install the required dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
