@@ -1,11 +1,13 @@
+home_dir: /home/erendiro/repos/tetrahedron_pair_ML
+
 artifacts_config:
-  save_artifacts_to: /home/sei/tetrahedron_pair_ML/artifacts
+  save_artifacts_to: "${home_dir}/artifacts"
 
 processor_config:
   skip_processing: false
   dataset_paths:
-    raw_data: /home/sei/tetrahedron_pair_ML/data/raw
-    processed_data: &processed_data_path /home/sei/tetrahedron_pair_ML/data/processed
+    raw_data: "${home_dir}/data/raw"
+    processed_data: &processed_data_path "${home_dir}/data/processed"
 
   num_train_samples: 10000
   num_val_samples: 10000
@@ -56,4 +58,4 @@ trainer_config:
 evaluator_config:
   skip_evaluation: false
   task: *task_type
-  test_data_path: '/home/sei/tetrahedron_pair_ML/src/evaluator/test_data'
+  test_data_path: "${home_dir}/src/evaluator/test_data"
