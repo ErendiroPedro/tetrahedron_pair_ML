@@ -3,14 +3,14 @@
     "dataset_reports": {
         "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv": {
             "classification_performance": {
-                "accuracy": 0.86582,
+                "accuracy": 0.85756,
                 "precision": 0.0,
                 "recall": 0.0,
                 "f1": 0.0,
                 "confusion_matrix": [
                     [
-                        86582,
-                        13418
+                        85756,
+                        14244
                     ],
                     [
                         0,
@@ -19,13 +19,13 @@
                 ]
             },
             "point_wise_permutation_consistency": {
-                "consistency_rate": 0.93992,
-                "mean_absolute_difference": 0.05933782085776329,
+                "consistency_rate": 0.84703,
+                "mean_absolute_difference": 0.15197424590587616,
                 "total_samples": 100000
             },
             "tetrahedron_wise_permutation_consistency": {
-                "consistency_rate": 0.89706,
-                "mean_absolute_difference": 0.10294000059366226,
+                "consistency_rate": 0.82954,
+                "mean_absolute_difference": 0.17046000063419342,
                 "total_samples": 100000
             },
             "inference_speed": {
@@ -39,36 +39,36 @@
                     ],
                     "cuda_memory": "10.49 GB"
                 },
-                "total_time_seconds": 0.0018093077103296916,
-                "avg_time_per_sample_seconds": 1.8093077103296915e-08,
-                "samples_per_second": 55269758.38829429
+                "total_time_seconds": 0.0018078751802444457,
+                "avg_time_per_sample_seconds": 1.8078751802444457e-08,
+                "samples_per_second": 55313553.2213451
             }
         },
         "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv": {
             "classification_performance": {
-                "accuracy": 0.58116,
+                "accuracy": 0.91355,
                 "precision": 1.0,
-                "recall": 0.58116,
-                "f1": 0.7351058716385438,
+                "recall": 0.91355,
+                "f1": 0.9548221891249249,
                 "confusion_matrix": [
                     [
                         0,
                         0
                     ],
                     [
-                        41884,
-                        58116
+                        8645,
+                        91355
                     ]
                 ]
             },
             "point_wise_permutation_consistency": {
-                "consistency_rate": 0.90159,
-                "mean_absolute_difference": 0.0977906808257103,
+                "consistency_rate": 0.84622,
+                "mean_absolute_difference": 0.15468743443489075,
                 "total_samples": 100000
             },
             "tetrahedron_wise_permutation_consistency": {
-                "consistency_rate": 0.78937,
-                "mean_absolute_difference": 0.21062999963760376,
+                "consistency_rate": 0.55519,
+                "mean_absolute_difference": 0.44481000304222107,
                 "total_samples": 100000
             },
             "inference_speed": {
@@ -82,36 +82,36 @@
                     ],
                     "cuda_memory": "10.49 GB"
                 },
-                "total_time_seconds": 0.0017965493321418762,
-                "avg_time_per_sample_seconds": 1.7965493321418762e-08,
-                "samples_per_second": 55662262.21062259
+                "total_time_seconds": 0.001806823460261027,
+                "avg_time_per_sample_seconds": 1.806823460261027e-08,
+                "samples_per_second": 55345750.262481794
             }
         },
         "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv": {
             "classification_performance": {
-                "accuracy": 0.71151,
+                "accuracy": 0.91553,
                 "precision": 1.0,
-                "recall": 0.71151,
-                "f1": 0.831441241944248,
+                "recall": 0.91553,
+                "f1": 0.9559025439434516,
                 "confusion_matrix": [
                     [
                         0,
                         0
                     ],
                     [
-                        28849,
-                        71151
+                        8447,
+                        91553
                     ]
                 ]
             },
             "point_wise_permutation_consistency": {
-                "consistency_rate": 0.9087,
-                "mean_absolute_difference": 0.0921885222196579,
+                "consistency_rate": 0.81823,
+                "mean_absolute_difference": 0.1830451339483261,
                 "total_samples": 100000
             },
             "tetrahedron_wise_permutation_consistency": {
-                "consistency_rate": 0.80611,
-                "mean_absolute_difference": 0.19389000535011292,
+                "consistency_rate": 0.60159,
+                "mean_absolute_difference": 0.39840999245643616,
                 "total_samples": 100000
             },
             "inference_speed": {
@@ -125,36 +125,36 @@
                     ],
                     "cuda_memory": "10.49 GB"
                 },
-                "total_time_seconds": 0.0017761173129081727,
-                "avg_time_per_sample_seconds": 1.7761173129081728e-08,
-                "samples_per_second": 56302587.263373025
+                "total_time_seconds": 0.0017846517364184062,
+                "avg_time_per_sample_seconds": 1.784651736418406e-08,
+                "samples_per_second": 56033341.384963244
             }
         },
         "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv": {
             "classification_performance": {
-                "accuracy": 0.63095,
+                "accuracy": 0.85546,
                 "precision": 1.0,
-                "recall": 0.63095,
-                "f1": 0.773720837548668,
+                "recall": 0.85546,
+                "f1": 0.92210018000927,
                 "confusion_matrix": [
                     [
                         0,
                         0
                     ],
                     [
-                        36905,
-                        63095
+                        14454,
+                        85546
                     ]
                 ]
             },
             "point_wise_permutation_consistency": {
-                "consistency_rate": 0.91259,
-                "mean_absolute_difference": 0.08698666840791702,
+                "consistency_rate": 0.7148,
+                "mean_absolute_difference": 0.28477615118026733,
                 "total_samples": 100000
             },
             "tetrahedron_wise_permutation_consistency": {
-                "consistency_rate": 0.82976,
-                "mean_absolute_difference": 0.17023999989032745,
+                "consistency_rate": 0.58582,
+                "mean_absolute_difference": 0.4141800105571747,
                 "total_samples": 100000
             },
             "inference_speed": {
@@ -168,36 +168,36 @@
                     ],
                     "cuda_memory": "10.49 GB"
                 },
-                "total_time_seconds": 0.0018085023721059164,
-                "avg_time_per_sample_seconds": 1.8085023721059164e-08,
-                "samples_per_second": 55294370.382027574
+                "total_time_seconds": 0.00180738023519516,
+                "avg_time_per_sample_seconds": 1.80738023519516e-08,
+                "samples_per_second": 55328700.65340847
             }
         },
         "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv": {
             "classification_performance": {
-                "accuracy": 0.90731,
+                "accuracy": 0.39275,
                 "precision": 1.0,
-                "recall": 0.90731,
-                "f1": 0.9514027609565304,
+                "recall": 0.39275,
+                "f1": 0.5639921019565608,
                 "confusion_matrix": [
                     [
                         0,
                         0
                     ],
                     [
-                        9269,
-                        90731
+                        60725,
+                        39275
                     ]
                 ]
             },
             "point_wise_permutation_consistency": {
-                "consistency_rate": 0.94787,
-                "mean_absolute_difference": 0.053376875817775726,
+                "consistency_rate": 0.64651,
+                "mean_absolute_difference": 0.34744495153427124,
                 "total_samples": 100000
             },
             "tetrahedron_wise_permutation_consistency": {
-                "consistency_rate": 0.91548,
-                "mean_absolute_difference": 0.08451999723911285,
+                "consistency_rate": 0.62563,
+                "mean_absolute_difference": 0.3743700087070465,
                 "total_samples": 100000
             },
             "inference_speed": {
@@ -211,9 +211,9 @@
                     ],
                     "cuda_memory": "10.49 GB"
                 },
-                "total_time_seconds": 0.0017871306777000426,
-                "avg_time_per_sample_seconds": 1.7871306777000425e-08,
-                "samples_per_second": 55955617.15089326
+                "total_time_seconds": 0.0017969749291737876,
+                "avg_time_per_sample_seconds": 1.7969749291737878e-08,
+                "samples_per_second": 55649079.1142968
             }
         }
     }
