@@ -51,7 +51,7 @@ def larger_tetrahedron_first(self, tetrahedron_pair: torch.Tensor) -> torch.Tens
     
     return tetrahedron_pair if vol1 >= vol2 else torch.cat([T2, T1])
 
-def sort_by_X_coordinate(self, tetrahedron_pair: pd.DataFrame, column_name: str = "T1_V1_x") -> pd.DataFrame:
+def sort_by_X_coordinate(tetrahedron_pair: pd.DataFrame, column_name: str = "T1_v1_x") -> pd.DataFrame:
     """
     Sorts the given DataFrame by the specified column.
     
