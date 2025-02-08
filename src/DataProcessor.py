@@ -134,10 +134,6 @@ class DataProcessor:
             else:
                 raise ValueError("Invalid sort augmentation specified.")
 
-        if self.config["augmentations"]["larger_tetrahedron_first"]:
-            train_data = gu.larger_tetrahedron_first(train_data)
-
-        # Placeholder for additional augmentations
         if self.config["augmentations"]["vertex_permutation_augmentation_pct"] > 0:
             pass
         if self.config["augmentations"]["tetrahedron_permutation_augmentation_pct"] > 0:

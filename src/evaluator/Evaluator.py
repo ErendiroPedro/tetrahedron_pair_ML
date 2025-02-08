@@ -67,12 +67,12 @@ class Evaluator:
         base_path = self.config['test_data_path']
 
         intersection_types = (
-            ['polyhedron_intersection'] 
+            ['polyhedron_intersection', 'big_dataset'] 
             if self.task_type == 'regression'
             else [
                 'no_intersection', 'point_intersection', 
                 'segment_intersection', 'polygon_intersection', 
-                'polyhedron_intersection'
+                'polyhedron_intersection', 'big_dataset'
             ]
         )
 
