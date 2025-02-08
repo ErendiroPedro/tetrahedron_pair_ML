@@ -11,7 +11,7 @@ class DataProcessor:
         print("-- Processing Data --")
         train_data, val_data = self._load_data()
         # train_data = self._transform_data(train_data)
-        # train_data = self._augment_data(train_data)
+        train_data, val_data = self._augment_data(train_data)
         self._save_data(train_data, val_data)
         print("---- Data Processed ----")
 
@@ -121,14 +121,16 @@ class DataProcessor:
         combined_data = pd.concat(data_list, ignore_index=True)
         return combined_data.sample(frac=1, random_state=42).reset_index(drop=True)
 
-    def _augment_data(self, train_data):
+    def _augment_data(self, train_data, val_data):
         """Applies augmentations to training data."""
         if self.config["augmentations"]["sort"]:
             sort_type = self.config["augmentations"]["sort"]
-            if sort_type == "X":
+            if sort_type == "x":
                 train_data = gu.sort_by_X_coordinate(train_data)
-            elif sort_type == "SFC":
+                val_data = gu.sort_by_X_coordinate(val_data)
+            elif sort_type == "sfc":
                 train_data = gu.sort_by_space_filling_curve(train_data)
+                val_data = gu.sort_by_space_filling_curve(val_data)
             else:
                 raise ValueError("Invalid sort augmentation specified.")
 
@@ -140,12 +142,8 @@ class DataProcessor:
             pass
         if self.config["augmentations"]["tetrahedron_permutation_augmentation_pct"] > 0:
             pass
-        if self.config["augmentations"]["rigid_transformation_augmentation_pct"] > 0:
-            pass
-        if self.config["augmentations"]["affine_linear_transformation_augmentation_pct"] > 0:
-            pass
 
-        return train_data
+        return train_data, val_data
 
     def _save_data(self, train_data, val_data):
         """Saves processed training and validation data in a structured folder layout."""

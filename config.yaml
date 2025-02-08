@@ -1,11 +1,11 @@
 artifacts_config:
-  save_artifacts_to: /home/erendiro/repos/tetrahedron_pair_ML/artifacts
+  save_artifacts_to: /home/sei/tetrahedron_pair_ML/artifacts
 
 processor_config:
   skip_processing: false
   dataset_paths:
-    raw_data: /home/erendiro/repos/tetrahedron_pair_ML/data/raw
-    processed_data: &processed_data_path /home/erendiro/repos/tetrahedron_pair_ML/data/processed
+    raw_data: /home/sei/tetrahedron_pair_ML/data/raw
+    processed_data: &processed_data_path /home/sei/tetrahedron_pair_ML/data/processed
 
   num_train_samples: 10000
   num_val_samples: 10000
@@ -13,22 +13,23 @@ processor_config:
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
     no_intersection: 50
-    point_intersection: 1
-    segment_intersection: 1
-    polygon_intersection: 1
-    polyhedron_intersection: 47
+    point_intersection: 0
+    segment_intersection: 0
+    polygon_intersection: 0
+    polyhedron_intersection: 50
 
   volume_range: [0, 0.01]
   number_of_bins: 1000 # Granualatiry of volumes
 
   augmentations:
-    sort: null # null, X (sort by X coordinate), SFC (sort by space filling curves)
+    sort: x # null, x (sort by X coordinate), sfc (sort by space filling curves)
     larger_tetrahedron_first: false
 
     # Note: Augmentation percentages should sum at most to 0.5
     vertex_permutation_augmentation_pct: 0
     tetrahedron_permutation_augmentation_pct: 0
 
+  transformations:
     # Note: transformations are applied to all training and validation samples
     rigid_transformation: false
     affine_linear_transformation: false
@@ -56,4 +57,4 @@ trainer_config:
 evaluator_config:
   skip_evaluation: false
   task: *task_type
-  test_data_path: /home/erendiro/repos/tetrahedron_pair_ML/src/evaluator/test_data
+  test_data_path: /home/sei/tetrahedron_pair_ML/src/evaluator/test_data

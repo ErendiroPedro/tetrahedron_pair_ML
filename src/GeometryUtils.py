@@ -51,8 +51,21 @@ def larger_tetrahedron_first(self, tetrahedron_pair: torch.Tensor) -> torch.Tens
     
     return tetrahedron_pair if vol1 >= vol2 else torch.cat([T2, T1])
 
-def sort_by_X_coordinate(self, tretrahedron_pair: torch.Tensor) -> torch.Tensor:
-    pass
+def sort_by_X_coordinate(self, tetrahedron_pair: pd.DataFrame, column_name: str = "T1_V1_x") -> pd.DataFrame:
+    """
+    Sorts the given DataFrame by the specified column.
+    
+    Args:
+        tetrahedron_pair (pd.DataFrame): The input dataset containing the column to sort by.
+        column_name (str): The name of the column to sort the DataFrame by.
+    
+    Returns:
+        pd.DataFrame: Sorted DataFrame by the specified column in ascending order.
+    """
+    if column_name not in tetrahedron_pair.columns:
+        raise ValueError(f"Column '{column_name}' not found in the dataset.")
+    
+    return tetrahedron_pair.sort_values(by=column_name, ascending=True).reset_index(drop=True)
 
 def sort_by_space_filling_curve(self, tetrahedron_pair: torch.Tensor) -> torch.Tensor:
     pass
