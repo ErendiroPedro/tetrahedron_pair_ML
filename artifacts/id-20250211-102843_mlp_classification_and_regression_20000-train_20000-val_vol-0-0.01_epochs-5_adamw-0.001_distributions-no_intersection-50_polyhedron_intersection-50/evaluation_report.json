@@ -1,0 +1,160 @@
+{
+    "task_type": "classification_and_regression",
+    "dataset_reports": {
+        "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "error": "Classification metrics can't handle a mix of binary and continuous-multioutput targets"
+            },
+            "point_wise_permutation_consistency": {
+                "consistency_rate": 0.54657,
+                "mean_absolute_difference": 0.00011398582137189806,
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "error": "cannot access local variable 'consistent' where it is not associated with a value"
+            },
+            "regression_performance": {
+                "error": "Shape mismatch: (100000,) vs (200000,)"
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce RTX 3080",
+                    "cuda_driver_version": "12.4",
+                    "cuda_capability": [
+                        8,
+                        6
+                    ],
+                    "cuda_memory": "10.49 GB"
+                },
+                "total_time_seconds": 0.0018958314776420593,
+                "avg_time_per_sample_seconds": 1.8958314776420592e-08,
+                "samples_per_second": 52747304.37769449
+            }
+        },
+        "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "error": "Classification metrics can't handle a mix of binary and continuous-multioutput targets"
+            },
+            "point_wise_permutation_consistency": {
+                "consistency_rate": 0.55301,
+                "mean_absolute_difference": 9.77612507995218e-05,
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "error": "cannot access local variable 'consistent' where it is not associated with a value"
+            },
+            "regression_performance": {
+                "error": "Shape mismatch: (100000,) vs (200000,)"
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce RTX 3080",
+                    "cuda_driver_version": "12.4",
+                    "cuda_capability": [
+                        8,
+                        6
+                    ],
+                    "cuda_memory": "10.49 GB"
+                },
+                "total_time_seconds": 0.0017894506653149923,
+                "avg_time_per_sample_seconds": 1.7894506653149922e-08,
+                "samples_per_second": 55883071.79309538
+            }
+        },
+        "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "error": "Classification metrics can't handle a mix of binary and continuous-multioutput targets"
+            },
+            "point_wise_permutation_consistency": {
+                "consistency_rate": 0.546295,
+                "mean_absolute_difference": 0.0001009554835036397,
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "error": "cannot access local variable 'consistent' where it is not associated with a value"
+            },
+            "regression_performance": {
+                "error": "Shape mismatch: (100000,) vs (200000,)"
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce RTX 3080",
+                    "cuda_driver_version": "12.4",
+                    "cuda_capability": [
+                        8,
+                        6
+                    ],
+                    "cuda_memory": "10.49 GB"
+                },
+                "total_time_seconds": 0.0018974773406982422,
+                "avg_time_per_sample_seconds": 1.8974773406982424e-08,
+                "samples_per_second": 52701551.610203445
+            }
+        },
+        "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "error": "Classification metrics can't handle a mix of binary and continuous-multioutput targets"
+            },
+            "point_wise_permutation_consistency": {
+                "consistency_rate": 0.541445,
+                "mean_absolute_difference": 0.00010450185072841123,
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "error": "cannot access local variable 'consistent' where it is not associated with a value"
+            },
+            "regression_performance": {
+                "error": "Shape mismatch: (100000,) vs (200000,)"
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce RTX 3080",
+                    "cuda_driver_version": "12.4",
+                    "cuda_capability": [
+                        8,
+                        6
+                    ],
+                    "cuda_memory": "10.49 GB"
+                },
+                "total_time_seconds": 0.0018985749403635662,
+                "avg_time_per_sample_seconds": 1.8985749403635662e-08,
+                "samples_per_second": 52671083.9135223
+            }
+        },
+        "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv": {
+            "classification_performance": {
+                "error": "Classification metrics can't handle a mix of binary and continuous-multioutput targets"
+            },
+            "point_wise_permutation_consistency": {
+                "consistency_rate": 0.529595,
+                "mean_absolute_difference": 0.00012419730774126947,
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "error": "cannot access local variable 'consistent' where it is not associated with a value"
+            },
+            "regression_performance": {
+                "error": "Shape mismatch: (100000,) vs (200000,)"
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce RTX 3080",
+                    "cuda_driver_version": "12.4",
+                    "cuda_capability": [
+                        8,
+                        6
+                    ],
+                    "cuda_memory": "10.49 GB"
+                },
+                "total_time_seconds": 0.001797591467698415,
+                "avg_time_per_sample_seconds": 1.797591467698415e-08,
+                "samples_per_second": 55629992.57447364
+            }
+        }
+    }
+}
