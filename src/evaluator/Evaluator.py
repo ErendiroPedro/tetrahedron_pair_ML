@@ -29,6 +29,16 @@ class Evaluator:
             'classification_and_regression': [self.classification_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.regression_performance, self.inference_speed]
         }
 
+        self.dataset_folders = (
+            ['polyhedron_intersection', 'big_dataset'] 
+            if self.task_type == 'regression'
+            else [
+                'no_intersection', 'point_intersection', 
+                'segment_intersection', 'polygon_intersection', 
+                'polyhedron_intersection', 'big_dataset'
+            ]
+        )
+
     def evaluate(self, model):
         
         print("-- Evaluating --")
@@ -66,29 +76,21 @@ class Evaluator:
 
         base_path = self.config['test_data_path']
 
-        intersection_types = (
-            ['polyhedron_intersection', 'big_dataset'] 
-            if self.task_type == 'regression'
-            else [
-                'no_intersection', 'point_intersection', 
-                'segment_intersection', 'polygon_intersection', 
-                'polyhedron_intersection', 'big_dataset'
-            ]
-        )
+        assert os.path.exists(base_path), f"Directory not found: {base_path}"
 
-        for itype in intersection_types:
-            type_dir = os.path.join(base_path, itype)
+        for folder in self.dataset_folders:
+            dataset_dir = os.path.join(base_path, folder)
 
-            assert os.path.exists(type_dir), f"Directory not found: {type_dir}"
+            assert os.path.exists(dataset_dir), f"Directory not found: {dataset_dir}"
 
-            for file in os.listdir(type_dir):
+            for file in os.listdir(dataset_dir):
                 if file.endswith('.csv'):
-                    file_path = os.path.join(type_dir, file)
+                    file_path = os.path.join(dataset_dir, file)
                     df = pd.read_csv(file_path)
                     
                     self.datasets.append({
-                        'name': f"{itype}/{file}",
-                        'type': itype,
+                        'name': f"{folder}/{file}",
+                        'type': folder,
                         'intersection_status': df[self.intersection_status_column_name],
                         'intersection_volume': df[self.intersection_volume_column_name],
                         'X': df.drop(columns=[self.intersection_status_column_name, self.intersection_volume_column_name]),
