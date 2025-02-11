@@ -150,7 +150,7 @@ class ModelTrainer:
         clipped_target = torch.clamp(target, min=epsilon)
         return torch.mean(torch.abs((clipped_target - output) / clipped_target))
 
-    def _classification_and_regression_loss(self, output, target):
+    def _classification_and_regression_loss(self, output, target, reg_weight1=0.3):
         """
         Combined loss function for classification and regression tasks.
         
@@ -158,17 +158,14 @@ class ModelTrainer:
         :param target: Target values
         :return: Combined loss
         """
+        reg_weight2 = 1 - reg_weight1
+        
         cls_loss = F.binary_cross_entropy_with_logits(output[:, 0], target[:, 0])
         reg_loss = self._mape_loss(output[:, 1], target[:, 1])
-        return cls_loss + reg_loss
+
+        return reg_weight1*cls_loss + reg_weight2*reg_loss
 
     def _setup_optimizer(self, optimizer_name: str):
-        """
-        Set up the optimizer based on the configuration.
-        
-        :param optimizer_name: Name of the optimizer
-        :return: Optimizer class
-        """
         optimizers = {
             "adam": torch.optim.Adam,
             "adamw": torch.optim.AdamW,
@@ -207,26 +204,11 @@ class ModelTrainer:
         return train_loader, val_loader
 
     def _log_progress(self, epoch: int, train_loss: float, val_loss: float, elapsed_time: float):
-        """
-        Log training progress.
-        
-        :param epoch: Current epoch number
-        :param train_loss: Training loss for the epoch
-        :param val_loss: Validation loss for the epoch
-        :param elapsed_time: Time taken for the epoch
-        """
         print(f"Epoch {epoch + 1}/{self.epochs} - Time: {elapsed_time:.2f}s")
         print(f"  Training Loss: {train_loss:.4f}")
         print(f"  Validation Loss: {val_loss:.4f}")
 
     def _generate_training_report(self, train_losses: List[float], val_losses: List[float]) -> str:
-        """
-        Generate training report with loss plots.
-        
-        :param train_losses: List of training losses
-        :param val_losses: List of validation losses
-        :return: Base64 encoded plot image
-        """
         plt.figure(figsize=(10, 5))
         plt.plot(train_losses, label="Training Loss")
         plt.plot(val_losses, label="Validation Loss")
