@@ -243,16 +243,20 @@ class Evaluator:
             
             # Get predictions for both orders
             with torch.no_grad():
-                pred_original = model(X).cpu().numpy()
-                pred_swapped = model(X_swapped).cpu().numpy()
+                pred_original = model.predict(X).cpu().numpy()
+                pred_swapped = model.predict(X_swapped).cpu().numpy()
+
+                if self.task_type == 'classification_and_regression':
+                    pred_original = pred_original[:, 0]
+                    pred_swapped = pred_swapped[:, 0]
             
             # Calculate consistency based on task type
             if self.task_type == 'binary_classification':
-                pred_original = np.round(pred_original)
-                pred_swapped = np.round(pred_swapped)
+                pred_original = pred_original
+                pred_swapped = pred_swapped
                 consistent = (pred_original == pred_swapped)
             elif self.task_type == 'regression':
-                consistent = np.isclose(pred_original, pred_swapped, rtol=0.01)
+                consistent = np.isclose(pred_original, pred_swapped, rtol=0.00001)
             
             # Calculate metrics
             consistency_rate = np.mean(consistent)
@@ -289,12 +293,16 @@ class Evaluator:
             
             # Get predictions
             with torch.no_grad():
-                pred_original = model(X).cpu().numpy()
-                pred_permuted = model(X_permuted).cpu().numpy()
+                pred_original = model.predict(X).cpu().numpy()
+                pred_permuted = model.predict(X_permuted).cpu().numpy()
+
+                if self.task_type == 'classification_and_regression':
+                    pred_original = pred_original[:, 0]
+                    pred_permuted = pred_permuted[:, 0]
             
             # Calculate consistency
             if self.task_type == 'binary_classification':
-                consistent = (np.round(pred_original) == np.round(pred_permuted))
+                consistent = pred_original == pred_permuted
             else:
                 consistent = np.isclose(pred_original, pred_permuted, rtol=0.01, atol=1e-8)
                 
