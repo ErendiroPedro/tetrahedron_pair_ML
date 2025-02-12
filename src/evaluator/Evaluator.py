@@ -232,86 +232,118 @@ class Evaluator:
     def tetrahedron_wise_permutation_consistency(self, model, dataset):
         """
         Test prediction consistency when swapping tetrahedron order in pairs.
+        Returns a dictionary of consistency metrics.
         """
         try:
-            # Convert data to tensor
-            X = torch.tensor(dataset['X'].values, dtype=torch.float32)
+            # Convert dataset to tensor and move to model's device
             device = next(model.parameters()).device
-            X = X.to(device)
+            X = torch.tensor(dataset['X'].values, dtype=torch.float32, device=device)
             
+            # Swap tetrahedron order
             X_swapped = gu.swap_tetrahedrons(X)
             
-            # Get predictions for both orders
+            # Get predictions without gradient tracking
             with torch.no_grad():
-                pred_original = model.predict(X).cpu().numpy()
-                pred_swapped = model.predict(X_swapped).cpu().numpy()
-
-                if self.task_type == 'classification_and_regression':
-                    pred_original = pred_original[:, 0]
-                    pred_swapped = pred_swapped[:, 0]
+                pred_original = model.predict(X).cpu().numpy().astype(np.float32)
+                pred_swapped = model.predict(X_swapped).cpu().numpy().astype(np.float32)
             
-            # Calculate consistency based on task type
+            # Process predictions based on task type
             if self.task_type == 'binary_classification':
-                pred_original = pred_original
-                pred_swapped = pred_swapped
+                # For binary classification, assume predictions are class labels or probabilities.
                 consistent = (pred_original == pred_swapped)
+                consistency_rate = float(np.mean(consistent))
+                # Mean absolute difference may be less meaningful for classification but is computed here
+                mad = float(np.mean(np.abs(pred_original - pred_swapped)))
+                result = {
+                    "consistency_rate": consistency_rate,
+                    "mean_absolute_difference": mad,
+                    "total_samples": X.shape[0]
+                }
             elif self.task_type == 'regression':
-                consistent = np.isclose(pred_original, pred_swapped, rtol=0.00001)
+                consistent = np.isclose(pred_original, pred_swapped, rtol=1e-5)
+                consistency_rate = float(np.mean(consistent))
+                mad = float(np.mean(np.abs(pred_original - pred_swapped)))
+                result = {
+                    "consistency_rate": consistency_rate,
+                    "mean_absolute_difference": mad,
+                    "total_samples": X.shape[0]
+                }
+            elif self.task_type == 'classification_and_regression':
+                # Assume predictions are two-column arrays:
+                # Column 0: classification output, Column 1: regression output.
+                cls_original = pred_original[:, 0]
+                cls_swapped = pred_swapped[:, 0]
+                reg_original = pred_original[:, 1]
+                reg_swapped = pred_swapped[:, 1]
+                
+                cls_consistent = (cls_original == cls_swapped)
+                reg_consistent = np.isclose(reg_original, reg_swapped, rtol=1e-5)
+                
+                consistency_rate_cls = float(np.mean(cls_consistent))
+                consistency_rate_reg = float(np.mean(reg_consistent))
+                mad_reg = float(np.mean(np.abs(reg_original - reg_swapped)))
+                
+                result = {
+                    "classification_consistency_rate": consistency_rate_cls,
+                    "regression_consistency_rate": consistency_rate_reg,
+                    "mean_absolute_difference_regression": mad_reg,
+                    "total_samples": X.shape[0]
+                }
+            else:
+                raise ValueError(f"Unsupported task type: {self.task_type}")
             
-            # Calculate metrics
-            consistency_rate = np.mean(consistent)
-            mad = np.mean(np.abs(pred_original - pred_swapped))
-            
-            return {
-                "consistency_rate": float(consistency_rate),
-                "mean_absolute_difference": float(mad),
-                "total_samples": len(X)
-            }
-            
+            return result
+
         except Exception as e:
             return {"error": str(e)}
-        
+
     def point_wise_permutation_consistency(self, model, dataset):
         """
         Test prediction consistency when randomly permuting points within each of
         the 2 tetrahedrons (24 total features) while preserving coordinate groupings.
+        Returns a dictionary with consistency metrics.
         """
         try:
-            # Convert data to tensor
-            X = torch.tensor(dataset['X'].values, dtype=torch.float32)
-            
-            # More robust device handling
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            # Determine the appropriate device
             if hasattr(model, 'device'):
                 device = model.device
             elif next(model.parameters(), None) is not None:
                 device = next(model.parameters()).device
-                
-            X = X.to(device)
+            else:
+                device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             
+            # Convert dataset to tensor and move to the selected device
+            X = torch.tensor(dataset['X'].values, dtype=torch.float32, device=device)
+            
+            # Permute points within tetrahedrons
             X_permuted = gu.permute_points_within_tetrahedrons(X)
             
-            # Get predictions
+            # Get predictions without tracking gradients
             with torch.no_grad():
-                pred_original = model.predict(X).cpu().numpy()
-                pred_permuted = model.predict(X_permuted).cpu().numpy()
-
+                pred_original = model.predict(X).cpu().numpy().astype(np.float32)
+                pred_permuted = model.predict(X_permuted).cpu().numpy().astype(np.float32)
+                
+                # For classification_and_regression tasks, select classification output (assumed to be at index 0)
                 if self.task_type == 'classification_and_regression':
                     pred_original = pred_original[:, 0]
                     pred_permuted = pred_permuted[:, 0]
             
             # Calculate consistency
             if self.task_type == 'binary_classification':
-                consistent = pred_original == pred_permuted
+                consistent = (pred_original == pred_permuted)
             else:
                 consistent = np.isclose(pred_original, pred_permuted, rtol=0.01, atol=1e-8)
-                
-            return {
-                "consistency_rate": float(np.mean(consistent)),
-                "mean_absolute_difference": float(np.mean(np.abs(pred_original - pred_permuted))),
-                "total_samples": len(X)
-            }
             
+            consistency_rate = float(np.mean(consistent))
+            mad = float(np.mean(np.abs(pred_original - pred_permuted)))
+            total_samples = X.shape[0]
+            
+            return {
+                "consistency_rate": consistency_rate,
+                "mean_absolute_difference": mad,
+                "total_samples": total_samples
+            }
+        
         except ValueError as ve:
             return {"error": "Data format error", "details": str(ve)}
         except RuntimeError as re:
