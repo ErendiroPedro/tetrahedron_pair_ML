@@ -64,7 +64,6 @@ class ModelTrainer:
         print("---- Training Complete ----")
         return self.model, self._generate_training_report(train_losses, val_losses)
 
-
     def _train_epoch(self, train_loader: DataLoader) -> float:
         """
         Train for one epoch.
@@ -159,7 +158,7 @@ class ModelTrainer:
         :return: Combined loss
         """
         reg_weight2 = 1 - reg_weight1
-        
+
         cls_loss = F.binary_cross_entropy_with_logits(output[:, 0], target[:, 0])
         reg_loss = self._mape_loss(output[:, 1], target[:, 1])
 

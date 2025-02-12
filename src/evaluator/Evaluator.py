@@ -100,25 +100,29 @@ class Evaluator:
 
     def classification_performance(self, model, dataset):
       
-      X = torch.tensor(dataset['X'].values, dtype=torch.float32)
-      y_true = dataset['intersection_status'].values
+        X = torch.tensor(dataset['X'].values, dtype=torch.float32)
+        y_true = dataset['intersection_status'].values
 
-      # Ensure the tensor is on the same device as the model
-      device = next(model.parameters()).device
-      X = X.to(device)
+        device = next(model.parameters()).device  # Ensure the tensor is on the same device as the model
+        X = X.to(device)
 
-      y_pred = model.predict(X).cpu().numpy()  # Convert predictions back to numpy for metric computation
+        with torch.no_grad(): # Disables gradient computation for efficiency
+            try:
+                y_pred = model.predict(X).cpu().numpy()  # Convert predictions back to numpy for metric computation
+                if self.task_type == 'classification_and_regression':
+                    y_pred = y_pred[:, 0]
+            except Exception as e:
+                return {'error': str(e)}
+            
+        metrics = {
+            'accuracy': accuracy_score(y_true, y_pred),
+            'precision': precision_score(y_true, y_pred),
+            'recall': recall_score(y_true, y_pred),
+            'f1': f1_score(y_true, y_pred),
+            'confusion_matrix': confusion_matrix(y_true, y_pred).tolist()
+        }
 
-      # Compute metrics
-      metrics = {
-         'accuracy': accuracy_score(y_true, y_pred),
-         'precision': precision_score(y_true, y_pred),
-         'recall': recall_score(y_true, y_pred),
-         'f1': f1_score(y_true, y_pred),
-         'confusion_matrix': confusion_matrix(y_true, y_pred).tolist()
-      }
-
-      return metrics
+        return metrics
 
     def regression_performance(self, model, dataset):
 
@@ -129,14 +133,15 @@ class Evaluator:
         device = next(model.parameters()).device
         X = X.to(device)
         
-        with torch.no_grad():
+        with torch.no_grad():  # Disables gradient computation for efficiency
             try:
-                y_pred = model(X).cpu().numpy().reshape(-1).astype(np.float32)
+                y_pred = model.predict(X).cpu().numpy().astype(np.float32)
+                if self.task_type == 'classification_and_regression':
+                    y_pred = y_pred[:, 1] 
             except Exception as e:
                 return {'error': str(e)}
-        
-        if y_true.shape != y_pred.shape:
-            return {'error': f"Shape mismatch: {y_true.shape} vs {y_pred.shape}"} # Validation check
+
+        assert y_true.shape == y_pred.shape, f"Shape mismatch: {y_true.shape} vs {y_pred.shape}"
         
         intervals = np.linspace(0, 0.01, 6)  # 5 intervals
         interval_metrics = {}
