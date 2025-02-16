@@ -140,7 +140,7 @@ class ModelTrainer:
         loss_functions_map = {
             "binary_classification": F.binary_cross_entropy_with_logits,
             "regression": self._mape_loss,
-            "classification_and_regression": self._classification_and_regression_loss
+            "classification_and_regression": self._combined_loss
         }
         return loss_functions_map.get(task_name, F.binary_cross_entropy_with_logits)
     
@@ -149,7 +149,7 @@ class ModelTrainer:
         clipped_target = torch.clamp(target, min=epsilon)
         return torch.mean(torch.abs((clipped_target - output) / clipped_target))
 
-    def _classification_and_regression_loss(self, output, target, reg_weight1=0.3):
+    def _combined_loss(self, output, target):
         """
         Combined loss function for classification and regression tasks.
         
@@ -157,12 +157,13 @@ class ModelTrainer:
         :param target: Target values
         :return: Combined loss
         """
-        reg_weight2 = 1 - reg_weight1
+        cls_weight = 10000
+        reg_weight1 = 0.01
 
         cls_loss = F.binary_cross_entropy_with_logits(output[:, 0], target[:, 0])
         reg_loss = self._mape_loss(output[:, 1], target[:, 1])
 
-        return reg_weight1*cls_loss + reg_weight2*reg_loss
+        return cls_weight*cls_loss + reg_weight1*reg_loss
 
     def _setup_optimizer(self, optimizer_name: str):
         optimizers = {

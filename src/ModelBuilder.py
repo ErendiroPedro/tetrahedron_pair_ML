@@ -25,8 +25,7 @@ class ModelBuilder:
         if self.config['architecture'] == 'mlp':
             model = MLP(
                 input_dim=24,  # 4 points × 3 coordinates × 2 tetrahedra
-                hidden_dims=[128, 128, 128],
-                output_dim=self._determine_output_dim(),
+                hidden_dims=[128],
                 activation=self.config['activation_function'],
                 dropout_rate=self.config['dropout_rate'],
                 task=self.task
@@ -35,7 +34,6 @@ class ModelBuilder:
             model = DeepSet(
                 point_dim=3,  # Each point has x, y, z coordinates
                 hidden_dims=[128, 128, 128],
-                output_dim=self._determine_output_dim(),
                 activation=self.config['activation_function'],
                 dropout_rate=self.config['dropout_rate'],
                 task=self.task
@@ -44,7 +42,6 @@ class ModelBuilder:
             model = PointNet(
                 point_dim=3,  # Each point has x, y, z coordinates
                 hidden_dims=[64, 128, 256],  # Minimal hidden dimensions
-                output_dim=self._determine_output_dim(),
                 activation=self.config['activation_function'],
                 dropout_rate=self.config['dropout_rate'],
                 task=self.task
@@ -55,23 +52,13 @@ class ModelBuilder:
         print("---- Architecture Built ----")
         return model
 
-    def _determine_output_dim(self):
-        """
-        Determine the output dimension based on the task.
-        """
-        if self.task in ['binary_classification', 'regression']:
-            return 1
-        elif self.task == 'classification_and_regression':
-            return 2
-        else:
-            raise ValueError(f"Unsupported task: {self.task}")
-
 
 # Architecture Definitions
 
 class MLP(nn.Module):
-    def __init__(self, input_dim, hidden_dims, output_dim, activation, dropout_rate, task):
+    def __init__(self, input_dim, hidden_dims, activation, dropout_rate, task):
         super().__init__()
+        self.task = task
         self.activation_map = {
             'relu': nn.ReLU,
             'tanh': nn.Tanh,
@@ -81,6 +68,7 @@ class MLP(nn.Module):
         layers = []
         current_dim = input_dim
 
+        # Shared backbone network
         for hidden_dim in hidden_dims:
             layers.extend([
                 nn.Linear(current_dim, hidden_dim),
@@ -88,26 +76,42 @@ class MLP(nn.Module):
                 nn.Dropout(dropout_rate)
             ])
             current_dim = hidden_dim
+        self.shared_net = nn.Sequential(*layers)
 
-        layers.append(nn.Linear(current_dim, output_dim))
-        self.network = nn.Sequential(*layers)
-        self.task = task
+        # Build branches based on the task type
+        if task == 'classification_and_regression':
+            # Classification branch
+            self.classifier_branch = nn.Sequential(
+                nn.Linear(current_dim, current_dim // 2),
+                self.activation_map[activation](),
+                nn.Linear(current_dim // 2, 1)  # single output for binary classification
+            )
+            # Regression branch
+            self.regressor_branch = nn.Sequential(
+                nn.Linear(current_dim, current_dim ),
+                self.activation_map[activation](),
+                nn.Linear(current_dim, current_dim // 2),
+                self.activation_map[activation](),
+                nn.Linear(current_dim // 2, 1)  # single output for regression
+            )
+        else:
+            # For other tasks, use a single output layer.
+            self.output_layer = nn.Linear(current_dim, 1)  # adjust output dimensions if needed
 
     def forward(self, x):
-        x = self.network(x)
-        return task_specific_output(x, self.task)
-    
+        shared_out = self.shared_net(x)
+        if self.task == 'classification_and_regression':
+            cls_out = torch.sigmoid(self.classifier_branch(shared_out))
+            reg_out = self.regressor_branch(shared_out)
+            return torch.cat([cls_out, reg_out], dim=1)
+        elif self.task == 'binary_classification':
+            x = self.output_layer(shared_out)
+            return torch.sigmoid(x)
+        elif self.task == 'regression':
+            return self.output_layer(shared_out)
+
     def predict(self, x):
-        """
-        Generate predictions for classification, regression, or combined tasks.
-
-        Args:
-            x (torch.Tensor): Input features.
-
-        Returns:
-            torch.Tensor: Predictions.
-        """
-        self.eval()  # Ensure the model is in evaluation mode
+        self.eval()  # set evaluation mode
         with torch.no_grad():
             logits = self(x)
             if self.task == 'binary_classification':
@@ -116,7 +120,7 @@ class MLP(nn.Module):
                 return logits
             elif self.task == 'classification_and_regression':
                 cls_prediction = (logits[:, 0] > 0.5).int().unsqueeze(1)
-                reg_prediction = logits[:, 1].unsqueeze(1) 
+                reg_prediction = logits[:, 1].unsqueeze(1)
                 return torch.cat([cls_prediction, reg_prediction], dim=1)
 
 class DeepSet(nn.Module):
@@ -280,19 +284,3 @@ class PointNet(nn.Module):
         # Task-specific output
         output = self.output_net(global_features)
         return task_specific_output(output, self.task)
-    
-# Helper functions
-
-
-def task_specific_output(output, task):
-    if task == 'binary_classification':
-        return torch.sigmoid(output)
-    elif task == 'regression':
-        return output
-    elif task == 'classification_and_regression':
-        # Split the output into classification and regression heads
-        cls_output = torch.sigmoid(output[:, 0].unsqueeze(1))  # Classification
-        reg_output = output[:, 1].unsqueeze(1)  # Regression
-        return torch.cat([cls_output, reg_output], dim=1)
-    else:
-        raise ValueError(f"Unsupported task: {task}")
