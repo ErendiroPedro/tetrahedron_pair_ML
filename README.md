@@ -1,4 +1,4 @@
-# Tetrahedron Pair Intersection and Volume Computation Using Neural Networks
+# Introduction
 
 > "I think the universe is pure geometry — basically, a beautiful shape twisting around and dancing over space-time."  
 > — *Antony Garrett Lisi*
@@ -32,34 +32,14 @@ This project is an exploration of that idea. It’s a fusion of **computational 
 
 **Can machines learn the language of shapes?**
 
-## Experiment Pipeline Architecture Overview
+# Pipeline Overview
 
-![Pipeline Architecture](resources/architecture.png)  
-*Figure 1: Machine learning pipeline architecture. The pipeline orchestrator manages the workflow, handling configuration loading, data processing (sampling, transformations, augmentations), model building, and training. An artifacts manager handles saving and loading of configurations, trained models, and evaluation reports for reproducibility.*
+![Architecture](resources/architecture.png)  
+*Figure 1: The pipeline orchestrator manages the workflow, handling configuration loading, data processing (sampling, transformations, augmentations), model building, and training. An artifacts manager handles saving and loading of configurations, trained models, and evaluation reports for reproducibility.*
 
 ### Key Components
 
 - **Data Processing**:  
-
-  Prepares raw tetrahedron pair data for training and validation with configurable steps:
-
-    Data Loading & Sampling
-
-        Loads raw geometric data (vertex coordinates, intersection volume labels).
-
-        Samples datasets based on intersection type distributions (e.g., disjoint, fully intersecting).
-
-        For polyhedron intersecting pairs, applies volume-aware uniform sampling to ensure balanced representation across volume ranges.
-
-    Augmentations (Optional)
-
-        Order invariance: Sorts tetrahedrons by coordinates or size to reduce input permutation sensitivity.
-
-        Geometric transformations: Placeholder support for rigid/affine transformations, vertex permutations, and tetrahedron swaps (configurable but not yet implemented).
-
-    Structured Saving
-
-        Outputs processed data to standardized train/val folders for reproducibility.
 
 - **Model Building**:  
   
@@ -69,7 +49,7 @@ This project is an exploration of that idea. It’s a fusion of **computational 
 
 ---
 
-## Installation
+# Installation Guide
 
 To set up the project, follow these steps:
 
@@ -96,3 +76,5 @@ To set up the project, follow these steps:
     ```bash
     pip install -r requirements.txt
     ```
+
+# How To Use
