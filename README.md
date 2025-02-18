@@ -1,3 +1,11 @@
+# Tetrahedron-Tetrahedron Intersection and Volume Computation Using Neural Networks
+
+## Table of Contents
+1. [Introduction](#introduction)
+2. [Pipeline Overview](#pipeline-overview)
+3. [Installation Guide](#installation-guide)
+4. [How To Use](#how-to-use)
+
 # Introduction
 
 > "I think the universe is pure geometry — basically, a beautiful shape twisting around and dancing over space-time."  
@@ -37,14 +45,11 @@ This project is an exploration of that idea. It’s a fusion of **computational 
 ![Architecture](resources/architecture.png)  
 *Figure 1: The pipeline orchestrator manages the workflow, handling configuration loading, data processing (sampling, transformations, augmentations), model building, and training. An artifacts manager handles saving and loading of configurations, trained models, and evaluation reports for reproducibility.*
 
-### Key Components
+## Key Components
 
-- **Data Processing**:  
-
-- **Model Building**:  
-  
-- **Training & Evaluation**:  
-  
+- **Data Processing**  
+- **Model Building**  
+- **Training & Evaluation**  
 - **Artifact Manager**
 
 ---
@@ -78,3 +83,4 @@ To set up the project, follow these steps:
     ```
 
 # How To Use
+
