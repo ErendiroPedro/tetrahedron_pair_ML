@@ -7,12 +7,20 @@ class DataProcessor:
     def __init__(self, processor_config):
         self.config = processor_config
 
-    def process(self):            
+    def process(self): 
+           
         print("-- Processing Data --")
+
         train_data, val_data = self._load_data()
-        # train_data = self._transform_data(train_data)
-        train_data, val_data = self._augment_data(train_data, val_data)
+
+        train_data = self.transform_data(train_data, self.config)
+        val_data = self.transform_data( val_data, self.config)
+
+        train_data = self.augment_data(train_data, self.config)
+        val_data = self.augment_data(val_data, self.config)
+
         self._save_data(train_data, val_data)
+
         print("---- Data Processed ----")
 
     def _load_data(self):
@@ -44,8 +52,8 @@ class DataProcessor:
             val_data_list.append(val_data)
 
         # Combine all intersection types
-        train_data = self._combine_and_shuffle_data(train_data_list)
-        val_data = self._combine_and_shuffle_data(val_data_list)
+        train_data = self._combine(train_data_list)
+        val_data = self._combine(val_data_list)
 
         return train_data, val_data
 
@@ -116,30 +124,53 @@ class DataProcessor:
         val_data = raw_data.iloc[num_train:num_train + num_val]
         return train_data, val_data
 
-    def _combine_and_shuffle_data(self, data_list):
+    def _combine(self, data_list):
         """Combines and shuffles a list of dataframes."""
         combined_data = pd.concat(data_list, ignore_index=True)
         return combined_data.sample(frac=1, random_state=42).reset_index(drop=True)
 
-    def _augment_data(self, train_data, val_data):
+    @staticmethod
+    def augment_data(data, config = None):
         """Applies augmentations to training data."""
-        if self.config["augmentations"]["sort"]:
-            sort_type = self.config["augmentations"]["sort"]
+        sort_type = config["augmentations"]["sort"]
+        if sort_type:
             if sort_type == "x":
-                train_data = gu.sort_by_X_coordinate(train_data)
-                val_data = gu.sort_by_X_coordinate(val_data)
+                data = gu.sort_by_X_coordinate(data)
             elif sort_type == "sfc":
-                train_data = gu.sort_by_space_filling_curve(train_data)
-                val_data = gu.sort_by_space_filling_curve(val_data)
+                data = gu.sort_by_space_filling_curve(data)
             else:
                 raise ValueError("Invalid sort augmentation specified.")
 
-        if self.config["augmentations"]["vertex_permutation_augmentation_pct"] > 0:
-            pass
-        if self.config["augmentations"]["tetrahedron_permutation_augmentation_pct"] > 0:
+        if config["augmentations"]["vertex_permutation_augmentation_pct"] > 0:
             pass
 
-        return train_data, val_data
+        if config["augmentations"]["tetrahedron_permutation_augmentation_pct"] > 0:
+            pass
+
+        return data
+
+    @staticmethod
+    def transform_data(data: pd.DataFrame, config = None) -> pd.DataFrame:
+        """Transforms data based on the configuration."""
+
+        if config["transformations"]["affine_linear_transformation"]:
+
+            features = data.iloc[:, :-2]
+            labels = data.iloc[:, -2:]
+            
+            transformed_features = features.apply(
+                gu.apply_affine_linear_transformation, 
+                axis=1,
+                result_type='expand'
+            )
+            
+            transformed_features.columns = [
+                f'v{i//3 + 1}_{"xyz"[i % 3]}' for i in range(12)
+            ]
+
+            data = pd.concat([transformed_features, labels], axis=1)
+    
+        return data
 
     def _save_data(self, train_data, val_data):
         """Saves processed training and validation data in a structured folder layout."""
