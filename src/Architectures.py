@@ -1,10 +1,6 @@
 import torch
 import torch.nn as nn
-import torch
-import torch.nn as nn
 import torch.nn.functional as F
-
-# Architecture Definitions
 
 class MLP(nn.Module):
     def __init__(self, input_dim, hidden_dims, activation, dropout_rate, task):
@@ -19,7 +15,6 @@ class MLP(nn.Module):
         layers = []
         current_dim = input_dim
 
-        # Shared backbone network
         for hidden_dim in hidden_dims:
             layers.extend([
                 nn.Linear(current_dim, hidden_dim),
@@ -27,27 +22,22 @@ class MLP(nn.Module):
                 nn.Dropout(dropout_rate)
             ])
             current_dim = hidden_dim
+
         self.shared_net = nn.Sequential(*layers)
 
-        # Build branches based on the task type
-        if task == 'classification_and_regression':
-            # Classification branch
-            self.classifier_branch = nn.Sequential(
-                nn.Linear(current_dim, current_dim // 2),
-                self.activation_map[activation](),
-                nn.Linear(current_dim // 2, 1)  # single output for binary classification
-            )
-            # Regression branch
-            self.regressor_branch = nn.Sequential(
-                nn.Linear(current_dim, current_dim ),
-                self.activation_map[activation](),
-                nn.Linear(current_dim, current_dim // 2),
-                self.activation_map[activation](),
-                nn.Linear(current_dim // 2, 1)  # single output for regression
-            )
-        else:
-            # For other tasks, use a single output layer.
-            self.output_layer = nn.Linear(current_dim, 1)  # adjust output dimensions if needed
+        self.classifier_branch = nn.Sequential(
+            nn.Linear(current_dim, current_dim // 2),
+            self.activation_map[activation](),
+            nn.Linear(current_dim // 2, 1)
+        )
+
+        self.regressor_branch = nn.Sequential(
+            nn.Linear(current_dim, current_dim ),
+            self.activation_map[activation](),
+            nn.Linear(current_dim, current_dim // 2),
+            self.activation_map[activation](),
+            nn.Linear(current_dim // 2, 1)
+        )
 
     def forward(self, x):
         shared_out = self.shared_net(x)
@@ -56,10 +46,9 @@ class MLP(nn.Module):
             reg_out = self.regressor_branch(shared_out)
             return torch.cat([cls_out, reg_out], dim=1)
         elif self.task == 'binary_classification':
-            x = self.output_layer(shared_out)
-            return torch.sigmoid(x)
+            return torch.sigmoid(self.classifier_branch(shared_out))
         elif self.task == 'regression':
-            return self.output_layer(shared_out)
+            return self.regressor_branch(shared_out)
 
     def predict(self, x):
         self.eval()  # set evaluation mode
