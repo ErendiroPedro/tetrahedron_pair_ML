@@ -10,6 +10,7 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
 import GeometryUtils as gu
+import DataProcessor as dp
 
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.metrics import accuracy_score, precision_score, recall_score,f1_score, confusion_matrix
@@ -22,6 +23,7 @@ class Evaluator:
         self.datasets = []
         self.intersection_status_column_name = 'HasIntersection'
         self.intersection_volume_column_name = 'IntersectionVolume'
+        self.dp = dp.DataProcessor(config)
         
         self.test_registry = {
             'binary_classification': [self.classification_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.inference_speed],
@@ -87,6 +89,18 @@ class Evaluator:
                 if file.endswith('.csv'):
                     file_path = os.path.join(dataset_dir, file)
                     df = pd.read_csv(file_path)
+                    transformation_time_ms = 0
+                    augmentation_time_ms = 0
+
+                    if self.config.get('transformations', None) is not None:
+                        start = time.time()
+                        df = self.dp.transform_data(df, self.config)
+                        transformation_time_ms = (time.time() - start) * 1000
+                    
+                    # if self.config.get('augmentations', None) is not None:
+                    #     start = time.time()
+                    #     df = dp.augment_data(df, self.config)
+                    #     self.augmentation_time_ms = (time.time() - start) * 1000
                     
                     self.datasets.append({
                         'name': f"{folder}/{file}",
@@ -94,6 +108,8 @@ class Evaluator:
                         'intersection_status': df[self.intersection_status_column_name],
                         'intersection_volume': df[self.intersection_volume_column_name],
                         'X': df.drop(columns=[self.intersection_status_column_name, self.intersection_volume_column_name]),
+                        'transformation_time_ms': transformation_time_ms,
+                        'augmentation_time_ms': augmentation_time_ms
                     })
 
         self.test_data_loaded = True
@@ -180,8 +196,7 @@ class Evaluator:
             for _ in range(10):
                 _ = predict_method(X)
 
-        # Configure repetitions based on device
-        repetitions = 30
+        repetitions = 50
         timings = np.zeros(repetitions)
 
         device_info = {
@@ -220,13 +235,17 @@ class Evaluator:
                 timings[rep] = (end_time - start_time) * 1000  # Convert to milliseconds
 
         avg_time_ms = np.mean(timings)
-        avg_time_seconds = avg_time_ms / 1000.0
+        total_time_seconds = (dataset['transformation_time_ms'] / 1000.0) + (dataset['augmentation_time_ms'] / 1000.0) + (avg_time_ms / 1000.0)
 
         return {
             'device_info': device_info,
-            'total_time_seconds': avg_time_seconds,
-            'avg_time_per_sample_seconds': avg_time_seconds / num_samples,
-            'samples_per_second': num_samples / avg_time_seconds
+            'repetitions': repetitions,
+            'augmentation_time_seconds': dataset['augmentation_time_ms'] / 1000.0,
+            'transformation_time_seconds': dataset['transformation_time_ms'] / 1000.0,
+            'inference_time_seconds': avg_time_ms / 1000.0,
+            'total_time_seconds': total_time_seconds,
+            'avg_time_per_sample_seconds': total_time_seconds / num_samples,
+            'samples_per_second': num_samples / total_time_seconds
         }
 
     def tetrahedron_wise_permutation_consistency(self, model, dataset):
