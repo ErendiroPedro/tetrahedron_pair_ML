@@ -1,14 +1,16 @@
+home: &home_path /home/sei/tetrahedron_pair_ML # all other paths are relative to home
+
 artifacts_config:
-  save_artifacts_to: /home/sei/tetrahedron_pair_ML/artifacts
+  save_artifacts_to: artifacts 
 
 processor_config:
-  skip_processing: false
+  skip_processing: true
   dataset_paths:
-    raw_data: /home/sei/tetrahedron_pair_ML/data/raw
-    processed_data: &processed_data_path /home/sei/tetrahedron_pair_ML/data/processed
+    raw_data: data/raw          
+    processed_data: &processed_data_path data/processed
 
-  num_train_samples: 10000
-  num_val_samples: 10000
+  num_train_samples: 2000
+  num_val_samples: 2000
 
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
@@ -19,27 +21,27 @@ processor_config:
     polyhedron_intersection: 50
 
   volume_range: [0, 0.01]
-  number_of_bins: 1000 # Granualatiry of volumes
+  number_of_bins: 500
 
-  augmentations:
-    sort: x # null, x (sort by X coordinate), sfc (sort by space filling curves)
+  augmentations: &augmentations_config
+    sort: null
     larger_tetrahedron_first: false
 
     # Note: Augmentation percentages should sum at most to 0.5
     vertex_permutation_augmentation_pct: 0
     tetrahedron_permutation_augmentation_pct: 0
 
-  transformations:
-    # Note: transformations are applied to all training and validation samples
+  transformations: &transformations_config
     rigid_transformation: false
     affine_linear_transformation: false
 
 model_config:
   skip_building: false
-  architecture: mlp # mlp, deep_set
-  activation_function: relu # relu, tanh, leaky_relu, elu
+  architecture: mlp
+  activation_function: relu
   dropout_rate: 0.0
   task: &task_type binary_classification # binary_classification, regression, classification_and_regression
+  processed_data_path: *processed_data_path
 
 trainer_config:
   skip_training: false
@@ -57,4 +59,6 @@ trainer_config:
 evaluator_config:
   skip_evaluation: false
   task: *task_type
-  test_data_path: /home/sei/tetrahedron_pair_ML/src/evaluator/test_data
+  test_data_path: src/evaluator/test_data 
+  augmentations: *augmentations_config
+  transformations: *transformations_config

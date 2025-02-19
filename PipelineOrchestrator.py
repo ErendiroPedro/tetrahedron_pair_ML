@@ -1,4 +1,5 @@
 import yaml
+import os
 from src.DataProcessor import DataProcessor
 from src.ModelBuilder import ModelBuilder
 from src.ModelTrainer import ModelTrainer
@@ -15,9 +16,40 @@ class PipelineOrchestrator:
         self.evaluator = Evaluator(self.config["evaluator_config"])
 
     def _load_config(self, config_file):
+
         with open(config_file, "r") as file:
             print("- Configuration Loaded -")
-            return yaml.safe_load(file)
+            config = yaml.safe_load(file)
+
+        # Retrieve the base home path.
+        home = config.get('home')
+        if not home:
+            raise ValueError("The 'home' path is missing from the configuration.")
+
+        def join_with_home(path):
+            # If path is already absolute, leave it unchanged.
+            if os.path.isabs(path):
+                return path
+            return os.path.join(home, path)
+
+        # Update artifacts_config path.
+        artifacts = config.get('artifacts_config', {})
+        if 'save_artifacts_to' in artifacts:
+            artifacts['save_artifacts_to'] = join_with_home(artifacts['save_artifacts_to'])
+        
+        # Update dataset paths under processor_config.
+        processor = config.get('processor_config', {})
+        dataset_paths = processor.get('dataset_paths', {})
+        for key, value in dataset_paths.items():
+            dataset_paths[key] = join_with_home(value)
+        
+        # Update evaluator_config path.
+        evaluator = config.get('evaluator_config', {})
+        if 'test_data_path' in evaluator:
+            evaluator['test_data_path'] = join_with_home(evaluator['test_data_path'])
+
+        return config
+
     
     def run(self):
         print("- Running Pipeline -")
