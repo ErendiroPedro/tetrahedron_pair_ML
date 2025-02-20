@@ -74,31 +74,30 @@ def apply_rigid_transformation(self, tetrahedron_pair: torch.Tensor) -> torch.Te
     pass
 
 def apply_affine_linear_transformation(tetrahedron_pair_vertices_flat: pd.Series) -> pd.Series:
-    """Transform second tetrahedron's vertices relative to the first one using PyTorch"""
-
+    """Transform second tetrahedron's vertices relative to the first one"""
     input_tensor = torch.tensor(tetrahedron_pair_vertices_flat.values, dtype=torch.float32).flatten()
-
+    
     # Reshape into two tetrahedrons
     tetra1_vertices = input_tensor[:12].reshape(4, 3)
     tetra2_vertices = input_tensor[12:].reshape(4, 3)
-
+    
     # Get first tetrahedron's basis vectors
     v0, v1, v2, v3 = tetra1_vertices[0], tetra1_vertices[1], tetra1_vertices[2], tetra1_vertices[3]
     edge_vectors = torch.stack([v1 - v0, v2 - v0, v3 - v0])
-
+    
     # Calculate inverse transformation matrix
     try:
         inv_transform = torch.inverse(edge_vectors)
     except RuntimeError:
         raise ValueError("The tetrahedron basis matrix is singular and cannot be inverted")
-
+    
     # Transform second tetrahedron's vertices
     transformed = []
     for vertex in tetra2_vertices:
         translated = vertex - v0
-        transformed_vert = inv_transform @ translated.unsqueeze(-1)
+        transformed_vert = inv_transform.T @ translated.unsqueeze(-1)
         transformed.append(transformed_vert.squeeze())
-
+    
     # Convert back to a Pandas Series
     result = torch.stack(transformed).flatten().detach().numpy()
     return pd.Series(result, index=[f'v{i//3 + 1}_{"xyz"[i % 3]}' for i in range(12)])
