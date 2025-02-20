@@ -6,20 +6,22 @@ import src.GeometryUtils as gu
 class DataProcessor:
     def __init__(self, processor_config):
         self.config = processor_config
+        self.train_data = None
+        self.val_data = None
 
     def process(self): 
            
         print("-- Processing Data --")
 
-        train_data, val_data = self._load_data()
+        self._load_data()
 
-        train_data = self.transform_data(train_data, self.config)
-        val_data = self.transform_data( val_data, self.config)
+        self.train_data = self.transform_data(self.train_data, self.config)
+        self.val_data = self.transform_data(self.val_data, self.config)
 
-        train_data = self.augment_data(train_data, self.config)
-        val_data = self.augment_data(val_data, self.config)
+        self.train_data = self.augment_data(self.train_data, self.config)
+        self.val_data = self.augment_data(self.val_data, self.config)
 
-        self._save_data(train_data, val_data)
+        self._save_data()
 
         print("---- Data Processed ----")
 
@@ -52,10 +54,8 @@ class DataProcessor:
             val_data_list.append(val_data)
 
         # Combine all intersection types
-        train_data = self._combine(train_data_list)
-        val_data = self._combine(val_data_list)
-
-        return train_data, val_data
+        self.train_data = self._combine(train_data_list)
+        self.val_data = self._combine(val_data_list)
 
     def _load_data_for_intersection_type(self, raw_data_path, intersection_type):
         """Loads raw data for a specific intersection type."""
@@ -172,7 +172,7 @@ class DataProcessor:
     
         return data
 
-    def _save_data(self, train_data, val_data):
+    def _save_data(self):
         """Saves processed training and validation data in a structured folder layout."""
         processed_data_path = self.config["dataset_paths"]["processed_data"]
 
@@ -187,8 +187,8 @@ class DataProcessor:
         # Save training and validation data
         train_data_file = os.path.join(train_data_path, "train_data.csv")
         val_data_file = os.path.join(val_data_path, "val_data.csv")
-        train_data.to_csv(train_data_file, index=False)
-        val_data.to_csv(val_data_file, index=False)
+        self.train_data.to_csv(train_data_file, index=False)
+        self.val_data.to_csv(val_data_file, index=False)
 
         # Optionally log the save operation
         print(f"Training data saved to: {train_data_file}")
