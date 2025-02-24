@@ -34,9 +34,7 @@ class MLP(nn.Module):
         self.regressor_branch = nn.Sequential(
             nn.Linear(current_dim, current_dim ),
             self.activation_map[activation](),
-            nn.Linear(current_dim, current_dim // 2),
-            self.activation_map[activation](),
-            nn.Linear(current_dim // 2, 1)
+            nn.Linear(current_dim, 1)
         )
 
     def forward(self, x):
@@ -51,16 +49,16 @@ class MLP(nn.Module):
             return self.regressor_branch(shared_out)
 
     def predict(self, x):
-        self.eval()  # set evaluation mode
+        self.eval()
         with torch.no_grad():
             logits = self(x)
             if self.task == 'binary_classification':
-                return (logits > 0.5).int()
+                return (logits > 0.5).int().squeeze()
             elif self.task == 'regression':
-                return logits
+                return logits.squeeze()
             elif self.task == 'classification_and_regression':
-                cls_prediction = (logits[:, 0] > 0.5).int().unsqueeze(1)
-                reg_prediction = logits[:, 1].unsqueeze(1)
+                cls_prediction = (logits[:, 0] > 0.5).int().squeeze()
+                reg_prediction = logits[:, 1].squeeze()
                 return torch.cat([cls_prediction, reg_prediction], dim=1)
 
 class DeepSet(nn.Module):

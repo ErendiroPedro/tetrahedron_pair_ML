@@ -342,7 +342,6 @@ class Evaluator:
             X_permuted = gu.permute_points_within_tetrahedrons(X)
 
             # Get predictions
-
             pred_original = model.predict(X).cpu().numpy().astype(np.float32)
             pred_permuted = model.predict(X_permuted).cpu().numpy().astype(np.float32)
 

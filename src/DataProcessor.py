@@ -169,7 +169,7 @@ class DataProcessor:
             ]
 
             data = pd.concat([transformed_features, labels], axis=1)
-    
+
         return data
 
     def _save_data(self):
@@ -190,6 +190,5 @@ class DataProcessor:
         self.train_data.to_csv(train_data_file, index=False)
         self.val_data.to_csv(val_data_file, index=False)
 
-        # Optionally log the save operation
         print(f"Training data saved to: {train_data_file}")
         print(f"Validation data saved to: {val_data_file}")

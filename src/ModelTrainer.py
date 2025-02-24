@@ -138,11 +138,11 @@ class ModelTrainer:
         :return: Loss function
         """
         loss_functions_map = {
-            "binary_classification": F.binary_cross_entropy_with_logits,
+            "binary_classification": F.binary_cross_entropy,
             "regression": self._mape_loss,
             "classification_and_regression": self._combined_loss
         }
-        return loss_functions_map.get(task_name, F.binary_cross_entropy_with_logits)
+        return loss_functions_map.get(task_name, F.binary_cross_entropy)
     
     def _mape_loss(self, output, target):
         epsilon = 1e-8

@@ -43,7 +43,7 @@ class ModelBuilder:
         if self.config['architecture'] == 'mlp':
             model = MLP(
                 input_dim=input_shape,
-                hidden_dims=[128, 128, 128, 128],
+                hidden_dims=[128],
                 activation=self.config['activation_function'],
                 dropout_rate=self.config['dropout_rate'],
                 task=self.task
