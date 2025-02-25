@@ -1,5 +1,5 @@
 import torch.nn.functional as F
-from src.Architectures import MLP, DeepSet, PointNet
+from src.Architectures import MLP, DeepSet, CompactPointNet
 import pandas as pd
 import os
 
@@ -57,9 +57,9 @@ class ModelBuilder:
                 task=self.task
             )
         elif self.config['architecture'] == 'pointnet':
-            model = PointNet(
+            model = CompactPointNet(
                 point_dim=3,
-                hidden_dims=[64, 128, 256],
+                hidden_dims=[64, 128, 64],
                 activation=self.config['activation_function'],
                 dropout_rate=self.config['dropout_rate'],
                 task=self.task
