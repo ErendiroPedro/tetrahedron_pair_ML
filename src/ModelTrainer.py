@@ -61,6 +61,7 @@ class ModelTrainer:
             
             elapsed_time = time.time() - start_time
             self._log_progress(epoch, train_loss, val_loss, elapsed_time)
+
         print("---- Training Complete ----")
         return self.model, self._generate_training_report(train_losses, val_losses)
 
@@ -150,20 +151,30 @@ class ModelTrainer:
         return torch.mean(torch.abs((clipped_target - output) / clipped_target))
 
     def _combined_loss(self, output, target):
-        """
-        Combined loss function for classification and regression tasks.
+        """Balanced combined loss with dynamic weighting"""
+        # Ensure proper target types
+        cls_target = target[:, 0].float()  # Classification targets
+        reg_target = target[:, 1].float()  # Regression targets
         
-        :param output: Model output
-        :param target: Target values
-        :return: Combined loss
-        """
-        cls_weight = 10000
-        reg_weight1 = 0.01
-
-        cls_loss = F.binary_cross_entropy_with_logits(output[:, 0], target[:, 0])
-        reg_loss = self._mape_loss(output[:, 1], target[:, 1])
-
-        return cls_weight*cls_loss + reg_weight1*reg_loss
+        # Classification loss (with label smoothing)
+        cls_loss = F.binary_cross_entropy_with_logits(
+            output[:, 0], 
+            cls_target
+        )
+        
+        # Regression loss with input validation
+        valid_reg = reg_target > 1e-8  # Filter invalid small values
+        if valid_reg.any():
+            reg_loss = F.mse_loss(
+                output[:, 1][valid_reg], 
+                reg_target[valid_reg]
+            )
+        else:
+            reg_loss = torch.tensor(0.0).to(output.device)
+        
+        # Automatic weight balancing
+        total_loss = 0.5 * cls_loss + 0.5 * reg_loss
+        return total_loss
 
     def _setup_optimizer(self, optimizer_name: str):
         optimizers = {
@@ -236,8 +247,8 @@ class TetrahedronDataset(Dataset):
         
         # Extract features and targets
         self.features = df.iloc[:, :-2].values
-        self.intersection_status = df.iloc[:, -1].values
         self.intersection_volume = df.iloc[:, -2].values
+        self.intersection_status = df.iloc[:, -1].values
         
         # Convert to tensors
         self.features = torch.tensor(self.features, dtype=torch.float32)

@@ -1,5 +1,5 @@
 import torch.nn.functional as F
-from src.Architectures import MLP, DeepSet, CompactPointNet
+from src.Architectures import MLP, DeepSet
 import pandas as pd
 import os
 
@@ -43,27 +43,23 @@ class ModelBuilder:
         if self.config['architecture'] == 'mlp':
             model = MLP(
                 input_dim=input_shape,
-                hidden_dims=[128],
+                shared_layers=[128, 64],
                 activation=self.config['activation_function'],
                 dropout_rate=self.config['dropout_rate'],
                 task=self.task
             )
-        elif self.config['architecture'] == 'deep_set':
+        elif self.config['architecture'] == 'deepset':
             model = DeepSet(
-                point_dim=3,
-                hidden_dims=[128, 128, 128],
+                input_dim=input_shape,
                 activation=self.config['activation_function'],
                 dropout_rate=self.config['dropout_rate'],
                 task=self.task
             )
-        elif self.config['architecture'] == 'pointnet':
-            model = CompactPointNet(
-                point_dim=3,
-                hidden_dims=[64, 128, 64],
-                activation=self.config['activation_function'],
-                dropout_rate=self.config['dropout_rate'],
-                task=self.task
-            )
+        # elif self.config['architecture'] == 'pointnet':
+        #     model = TetrahedraPointNet(
+        #         dropout_rate=self.config['dropout_rate'],
+        #         task=self.task
+        #     )
         else:
             raise ValueError(f"Unsupported architecture: {self.config['architecture']}")
         
