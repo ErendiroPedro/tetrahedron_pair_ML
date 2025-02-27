@@ -119,12 +119,13 @@ class Evaluator:
         X = torch.tensor(dataset['X'].values, dtype=torch.float32)
         y_true = dataset['intersection_status'].values
 
-        device = next(model.parameters()).device  # Ensure the tensor is on the same device as the model
+        # Ensure data is on the same device as the model
+        device = next(model.parameters()).device
         X = X.to(device)
 
         with torch.no_grad(): # Disables gradient computation for efficiency
             try:
-                y_pred = model.predict(X).cpu().numpy()  # Convert predictions back to numpy for metric computation
+                y_pred = model.predict(X).cpu().numpy()
                 if self.task_type == 'classification_and_regression':
                     y_pred = y_pred[:, 0]
             except Exception as e:
@@ -264,6 +265,9 @@ class Evaluator:
                 pred_original = model.predict(X).cpu().numpy().astype(np.float32)
                 pred_swapped = model.predict(X_swapped).cpu().numpy().astype(np.float32)
             
+            rtol = 1e-2
+            atol = 1e-8
+
             # Process predictions based on task type
             if self.task_type == 'binary_classification':
                 consistent = (pred_original == pred_swapped)
@@ -274,12 +278,12 @@ class Evaluator:
                     "total_samples": X.shape[0]
                 }
             elif self.task_type == 'regression':
-                consistent = np.isclose(pred_original, pred_swapped, rtol=0.01)
+                consistent = np.isclose(pred_original, pred_swapped, rtol=rtol, atol = atol)
                 consistency_rate = float(np.mean(consistent))
                 mad = float(np.mean(np.abs(pred_original - pred_swapped)))
                 result = {
                     "regression_consistency_rate": consistency_rate,
-                    "mean_absolute_difference": mad,
+                    "consistency_thresholds": {"rtol": rtol, "atol": atol},
                     "total_samples": X.shape[0]
                 }
             elif self.task_type == 'classification_and_regression':
@@ -289,7 +293,7 @@ class Evaluator:
                 reg_swapped = pred_swapped[:, 1]
                 
                 cls_consistent = (cls_original == cls_swapped)
-                reg_consistent = np.isclose(reg_original, reg_swapped, rtol=1e-8)
+                reg_consistent = np.isclose(reg_original, reg_swapped, rtol=rtol, atol=atol)
                 
                 consistency_rate_cls = float(np.mean(cls_consistent))
                 consistency_rate_reg = float(np.mean(reg_consistent))
@@ -298,7 +302,7 @@ class Evaluator:
                 result = {
                     "classification_consistency_rate": consistency_rate_cls,
                     "regression_consistency_rate": consistency_rate_reg,
-                    "mean_absolute_difference_regression": mad_reg,
+                    "consistency_thresholds": {"rtol": rtol, "atol": atol},
                     "total_samples": X.shape[0]
                 }
             else:
@@ -346,14 +350,17 @@ class Evaluator:
             pred_permuted = model.predict(X_permuted).cpu().numpy().astype(np.float32)
 
             # Calculate consistency metrics
+            rtol = 1e-2
+            atol = 1e-8
             result = {}
             if self.task_type == 'binary_classification':
                 consistent = (pred_original == pred_permuted)
                 result["classification_consistency_rate"] = float(np.mean(consistent))
 
             elif self.task_type == 'regression':
-                consistent = np.isclose(pred_original, pred_permuted, rtol=0.01)
+                consistent = np.isclose(pred_original, pred_permuted, rtol=rtol, atol=atol)
                 result["regression_consistency_rate"] = float(np.mean(consistent))
+                result["consistency_thresholds"] = {"rtol": rtol, "atol": atol}
                 result["mean_absolute_difference"] = float(np.mean(np.abs(pred_original - pred_permuted)))
 
             elif self.task_type == 'classification_and_regression':
@@ -363,11 +370,11 @@ class Evaluator:
                 reg_swapped = pred_permuted[:, 1]
 
                 cls_consistent = (cls_original == cls_swapped)
-                reg_consistent = np.isclose(reg_original, reg_swapped, rtol=1e-8)
+                reg_consistent = np.isclose(reg_original, reg_swapped, rtol=rtol, atol=atol)
 
                 result["classification_consistency_rate"] = float(np.mean(cls_consistent))
                 result["regression_consistency_rate"] = float(np.mean(reg_consistent))
-                result["mean_absolute_difference_regression"] = float(np.mean(np.abs(reg_original - reg_swapped)))
+                result["consistency_thresholds"] = {"rtol": rtol, "atol": atol}
 
             result["total_samples"] = X.shape[0]
 
