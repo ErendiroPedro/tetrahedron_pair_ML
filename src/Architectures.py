@@ -45,17 +45,17 @@ class BaseNet(nn.Module):
         """Common prediction logic for all networks"""
         self.eval()
         with torch.no_grad():
-            output = self(x)
+            logits = self(x)
 
             if self.task == 'binary_classification':
-                return (torch.sigmoid(output) > 0.5).int().squeeze() 
+                return (logits > 0.5).int().squeeze() 
 
             elif self.task == 'regression':
-                return output.squeeze()
+                return logits.squeeze()
 
             elif self.task == 'classification_and_regression':
-                cls_prediction = (torch.sigmoid(output[:, 0]) > 0.5).int().squeeze()
-                reg_prediction = output[:, 1].squeeze()
+                cls_prediction = (logits[:, 0] > 0.5).int().squeeze()
+                reg_prediction = logits[:, 1].squeeze()
                 return torch.stack([cls_prediction, reg_prediction], dim=1)
             
             raise ValueError(f"Unknown task: {self.task}")
@@ -83,8 +83,7 @@ class MLP(BaseNet):
     def _init_branches(self, current_dim):
         """Initialize task-specific branches"""
         self.classifier_branch = self._build_branch([
-            current_dim, 
-            current_dim // 2,
+            current_dim,
             current_dim // 4,
             current_dim // 8,   
             1
