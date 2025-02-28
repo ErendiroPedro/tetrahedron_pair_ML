@@ -130,14 +130,19 @@ class DataProcessor:
         return combined_data.sample(frac=1, random_state=42).reset_index(drop=True)
 
     @staticmethod
-    def augment_data(data, config = None):
+    def augment_data(data, config):
         """Applies augmentations to training data."""
+
         sort_type = config["augmentations"]["sort"]
+
         if sort_type:
+
             if sort_type == "x":
                 data = gu.sort_by_X_coordinate(data)
-            elif sort_type == "sfc":
-                data = gu.sort_by_space_filling_curve(data)
+
+            elif sort_type == "morton_code":
+                data = gu.sort_by_morton_code(data)
+
             else:
                 raise ValueError("Invalid sort augmentation specified.")
 
@@ -150,7 +155,7 @@ class DataProcessor:
         return data
 
     @staticmethod
-    def transform_data(data: pd.DataFrame, config = None) -> pd.DataFrame:
+    def transform_data(data: pd.DataFrame, config) -> pd.DataFrame:
         """Transforms data based on the configuration."""
 
         if config["transformations"]["affine_linear_transformation"]:
