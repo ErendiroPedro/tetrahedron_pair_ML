@@ -4,13 +4,13 @@ artifacts_config:
   save_artifacts_to: artifacts 
 
 processor_config:
-  skip_processing: true
+  skip_processing: false
   dataset_paths:
     raw_data: data/raw          
     processed_data: &processed_data_path data/processed
 
-  num_train_samples: 2000
-  num_val_samples: 2000
+  num_train_samples: 20000
+  num_val_samples: 20000
 
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
@@ -24,7 +24,7 @@ processor_config:
   number_of_bins: 500
 
   augmentations: &augmentations_config
-    sort: null
+    sort: morton_code
     larger_tetrahedron_first: false
 
     # Note: Augmentation percentages should sum at most to 0.5
