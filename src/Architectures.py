@@ -124,10 +124,21 @@ class DeepSet(BaseNet):
     """DeepSet architecture with shared base"""
     def __init__(self, input_dim, activation, dropout_rate, task):
         super().__init__(activation, task)
+        
+        # Determine number of tetrahedrons based on input_dim.
+        # 24 means two tetrahedrons (2*4*3), 12 means one tetrahedron (1*4*3).
+        if input_dim == 24:
+            self.num_tets = 2
+            # For two tetrahedrons, the concatenated feature vector is 2*128 = 256.
+            self.post_concat_residual = ResidualBlock(input_dim=256, output_dim=64, dropout_rate=dropout_rate)
+        elif input_dim == 12:
+            self.num_tets = 1
+            # For a single tetrahedron, the feature vector is 128.
+            self.post_concat_residual = ResidualBlock(input_dim=128, output_dim=64, dropout_rate=dropout_rate)
+        else:
+            raise ValueError("input_dim must be either 12 or 24")
 
-        # Encoder components
         self.tetra_residual = ResidualBlock(input_dim=3, output_dim=128, dropout_rate=dropout_rate)
-        self.post_concat_residual = ResidualBlock(input_dim=256, output_dim=64, dropout_rate=dropout_rate)
         self.final_fc = nn.Linear(64, 64)
         self.final_activation = nn.ReLU()
 
@@ -140,17 +151,22 @@ class DeepSet(BaseNet):
         self.regressor_branch = self._build_branch([64, 64, 1])
 
     def _forward_shared(self, x):
-        """Shared DeepSet processing"""
-        x = x.view(-1, 2, 4, 3)
-        
-        # Process tetrahedrons
-        tet1 = self.tetra_residual(x[:, 0, :, :])
-        tet1 = torch.max(tet1, dim=1)[0]
-        
-        tet2 = self.tetra_residual(x[:, 1, :, :])
-        tet2 = torch.max(tet2, dim=1)[0]
-        
-        x = torch.cat([tet1, tet2], dim=1)
+        """Shared DeepSet processing with dynamic tetrahedron count"""
+        if self.num_tets == 2:
+            # Reshape to (batch, 2, 4, 3) for two tetrahedrons.
+            x = x.view(-1, 2, 4, 3)
+            tet1 = self.tetra_residual(x[:, 0, :, :])
+            tet1 = torch.max(tet1, dim=1)[0]
+            tet2 = self.tetra_residual(x[:, 1, :, :])
+            tet2 = torch.max(tet2, dim=1)[0]
+            x = torch.cat([tet1, tet2], dim=1)
+        else:  # self.num_tets == 1
+            # Reshape to (batch, 4, 3) for a single tetrahedron.
+            x = x.view(-1, 4, 3)
+            tet1 = self.tetra_residual(x)
+            tet1 = torch.max(tet1, dim=1)[0]
+            x = tet1
+
         x = self.post_concat_residual(x)
         return self.final_activation(self.final_fc(x))
 
