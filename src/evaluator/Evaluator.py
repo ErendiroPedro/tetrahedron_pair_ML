@@ -92,15 +92,16 @@ class Evaluator:
                     transformation_time_ms = 0
                     augmentation_time_ms = 0
 
-                    if self.config.get('transformations', None) is not None:
-                        start = time.time()
-                        df = self.dp.transform_data(df, self.config)
-                        transformation_time_ms = (time.time() - start) * 1000
-                    
                     if self.config.get('augmentations', None) is not None:
                         start = time.time()
                         df = self.dp.augment_data(df, self.config)
                         augmentation_time_ms = (time.time() - start) * 1000
+
+                    if self.config.get('transformations', None) is not None:
+                        start = time.time()
+                        df = self.dp.transform_data(df, self.config)
+                        transformation_time_ms = (time.time() - start) * 1000
+                
                     
                     self.datasets.append({
                         'name': f"{folder}/{file}",

@@ -15,11 +15,11 @@ class DataProcessor:
 
         self._load_data()
 
-        self.train_data = self.transform_data(self.train_data, self.config)
-        self.val_data = self.transform_data(self.val_data, self.config)
-
         self.train_data = self.augment_data(self.train_data, self.config)
         self.val_data = self.augment_data(self.val_data, self.config)
+        
+        self.train_data = self.transform_data(self.train_data, self.config)
+        self.val_data = self.transform_data(self.val_data, self.config)
 
         self._save_data()
 
