@@ -1,7 +1,6 @@
 import os
 import base64
 import torch
-import pickle
 from io import BytesIO
 from PIL import Image
 import datetime
@@ -80,15 +79,15 @@ class ArtifactsManager:
 
     def _save_model(self, model):
         """
-        Save a PyTorch model including its class definition, weights, and architecture.
+        Save a PyTorch model in TorchScript format for use in C++.
 
         Args:
             model (torch.nn.Module): PyTorch model to save.
         """
-        # Save the full model object (class and weights)
-        full_model_path = os.path.join(self.artifacts_path, f"model.pkl")
-        with open(full_model_path, "wb") as f:
-            pickle.dump(model, f)
+        script_model = torch.jit.script(model)  # Convert model to TorchScript
+        script_model_path = os.path.join(self.artifacts_path, "model.pt")
+        script_model.save(script_model_path)  # Save the scripted model
+        print(f"Model saved as TorchScript at {script_model_path}")
 
     def _save_evaluation_report(self, report):
         """
