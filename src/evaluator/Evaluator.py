@@ -116,73 +116,123 @@ class Evaluator:
         self.test_data_loaded = True
 
     def classification_performance(self, model, dataset):
-      
         X = torch.tensor(dataset['X'].values, dtype=torch.float32)
         y_true = dataset['intersection_status'].values
 
-        # Ensure data is on the same device as the model
         device = next(model.parameters()).device
         X = X.to(device)
 
-        with torch.no_grad(): # Disables gradient computation for efficiency
-            try:
-                y_pred = model.predict(X).cpu().numpy()
-                if self.task_type == 'classification_and_regression':
-                    y_pred = y_pred[:, 0]
-            except Exception as e:
-                return {'error': str(e)}
-            
-        metrics = {
-            'accuracy': accuracy_score(y_true, y_pred),
-            'precision': precision_score(y_true, y_pred),
-            'recall': recall_score(y_true, y_pred),
-            'f1': f1_score(y_true, y_pred),
-            'confusion_matrix': confusion_matrix(y_true, y_pred).tolist()
+        num_repeats = 50
+        metrics_list = []
+
+        try:
+            with torch.no_grad():
+                for _ in range(num_repeats):
+                    y_pred = model.predict(X).cpu().numpy()
+                    if self.task_type == 'classification_and_regression':
+                        y_pred = y_pred[:, 0]
+
+                    # Compute metrics for the current run
+                    run_metrics = {
+                        'accuracy': accuracy_score(y_true, y_pred),
+                        'precision': precision_score(y_true, y_pred),
+                        'recall': recall_score(y_true, y_pred),
+                        'f1': f1_score(y_true, y_pred),
+                        'confusion_matrix': confusion_matrix(y_true, y_pred).tolist()
+                    }
+                    metrics_list.append(run_metrics)
+        except Exception as e:
+            return {'error': str(e)}
+
+        # Average metrics across all runs
+        avg_metrics = {
+            'repetitions': num_repeats,
+            'accuracy': np.mean([m['accuracy'] for m in metrics_list]),
+            'precision': np.mean([m['precision'] for m in metrics_list]),
+            'recall': np.mean([m['recall'] for m in metrics_list]),
+            'f1': np.mean([m['f1'] for m in metrics_list]),
+            'confusion_matrix': np.mean([m['confusion_matrix'] for m in metrics_list], axis=0).tolist()
         }
 
-        return metrics
+        return avg_metrics
 
     def regression_performance(self, model, dataset):
-
         X = torch.tensor(dataset['X'].values, dtype=torch.float32)
         y_true = dataset['intersection_volume'].values.astype(np.float32)
-        
+
         model.eval()
         device = next(model.parameters()).device
         X = X.to(device)
-        
-        with torch.no_grad():  # Disables gradient computation for efficiency
-            try:
-                y_pred = model.predict(X).cpu().numpy().astype(np.float32)
-                if self.task_type == 'classification_and_regression':
-                    y_pred = y_pred[:, 1] 
-            except Exception as e:
-                return {'error': str(e)}
 
-        assert y_true.shape == y_pred.shape, f"Shape mismatch: {y_true.shape} vs {y_pred.shape}"
-        
-        intervals = np.linspace(0, 0.01, 6)  # 5 intervals
-        interval_metrics = {}
-        
-        for i in range(len(intervals)-1):
-            low = intervals[i]
-            high = intervals[i+1]
-            mask = (y_true >= low) & (y_true < high)
-            
-            if np.sum(mask) > 0:
-                interval_metrics[f'{low:.3f}-{high:.3f}'] = {
-                    'mae': float(mean_absolute_error(y_true[mask], y_pred[mask])),
-                    'mse': float(mean_squared_error(y_true[mask], y_pred[mask])),
-                    'samples': int(np.sum(mask))
-                }
-            else:
-                interval_metrics[f'{low:.3f}-{high:.3f}'] = {
-                    'mae': None,
-                    'mse': None,
-                    'samples': 0
-                }
-        
-        return interval_metrics
+        num_repeats = 10
+        all_interval_metrics = []
+
+        try:
+            with torch.no_grad():
+                for _ in range(num_repeats):
+                    y_pred = model.predict(X).cpu().numpy().astype(np.float32)
+                    if self.task_type == 'classification_and_regression':
+                        y_pred = y_pred[:, 1]
+
+                    assert y_true.shape == y_pred.shape, f"Shape mismatch: {y_true.shape} vs {y_pred.shape}"
+
+                    intervals = np.linspace(0, 0.01, 6)  # 5 intervals
+                    interval_metrics = {}
+
+                    for i in range(len(intervals)-1):
+                        low = intervals[i]
+                        high = intervals[i+1]
+                        mask = (y_true >= low) & (y_true < high)
+
+                        if np.sum(mask) > 0:
+                            mae = mean_absolute_error(y_true[mask], y_pred[mask])
+                            mse = mean_squared_error(y_true[mask], y_pred[mask])
+                            interval_metrics[f'{low:.3f}-{high:.3f}'] = {
+                                'mae': float(mae),
+                                'mse': float(mse),
+                                'samples': int(np.sum(mask))
+                            }
+                        else:
+                            interval_metrics[f'{low:.3f}-{high:.3f}'] = {
+                                'mae': None,
+                                'mse': None,
+                                'samples': 0
+                            }
+
+                    all_interval_metrics.append(interval_metrics)
+        except Exception as e:
+            return {'error': str(e)}
+
+        # Average metrics across all runs for each interval
+        avg_interval_metrics = {}
+        if not all_interval_metrics:
+            return avg_interval_metrics
+
+        interval_keys = all_interval_metrics[0].keys()
+
+        for key in interval_keys:
+            maes = []
+            mses = []
+            samples = all_interval_metrics[0][key]['samples']
+
+            for run in all_interval_metrics:
+                current = run[key]
+                if current['mae'] is not None:
+                    maes.append(current['mae'])
+                if current['mse'] is not None:
+                    mses.append(current['mse'])
+
+            avg_mae = np.mean(maes) if maes else None
+            avg_mse = np.mean(mses) if mses else None
+
+            avg_interval_metrics[key] = {
+                'repetitions': num_repeats,
+                'mae': avg_mae,
+                'mse': avg_mse,
+                'samples': samples
+            }
+
+        return avg_interval_metrics
 
     def inference_speed(self, model, dataset):
 
