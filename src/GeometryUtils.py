@@ -39,16 +39,39 @@ def permute_points_within_tetrahedrons(X: torch.Tensor) -> torch.Tensor:
         permuted_tetra2.view(batch_size, 12)
     ], dim=1)
 
-def larger_tetrahedron_first(self, tetrahedron_pair: torch.Tensor) -> torch.Tensor:
-    """Reorder tetrahedron_pair so larger tetrahedron comes first."""
-    T1, T2 = tetrahedron_pair[:12], tetrahedron_pair[12:]
-    
-    vol1 = self.calculate_tetrahedron_volume(T1)
-    vol2 = self.calculate_tetrahedron_volume(T2)
-    
-    return tetrahedron_pair if vol1 >= vol2 else torch.cat([T2, T1])
+def larger_tetrahedron_first(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Reorders tetrahedron pairs in each row of the DataFrame so the larger tetrahedron comes first.
+    Assumes the first 24 columns are features (two tetrahedrons) and the last two columns are labels.
+    """
+    features = data.iloc[:, :-2]
+    labels = data.iloc[:, -2:]
 
-def sort_by_X_coordinate(tetrahedron_pair_vertices_flat: pd.DataFrame, column_name: str = "T1_v1_x") -> pd.DataFrame:
+    def reorder_row(row):
+        X = row.values.astype(np.float32)
+        
+        # Split into two tetrahedrons
+        T1, T2 = X[:12], X[12:]
+        
+        # Calculate volumes
+        vol1 = calculate_tetrahedron_volume(T1)
+        vol2 = calculate_tetrahedron_volume(T2)
+        
+        # Reorder if necessary
+        if vol2 > vol1:
+            X = np.concatenate([T2, T1])
+        
+        return X
+
+    # Apply reordering to each row
+    features_processed = features.apply(reorder_row, axis=1, result_type='expand')
+    
+    # Recombine features and labels
+    data_processed = pd.concat([features_processed, labels.reset_index(drop=True)], axis=1)
+    
+    return data_processed
+
+def sort_by_X_coordinate(data: pd.DataFrame, column_name: str = "T1_v1_x") -> pd.DataFrame:
     """
     Sorts the given DataFrame by the specified column.
     
@@ -59,10 +82,10 @@ def sort_by_X_coordinate(tetrahedron_pair_vertices_flat: pd.DataFrame, column_na
     Returns:
         pd.DataFrame: Sorted DataFrame by the specified column in ascending order.
     """
-    if column_name not in tetrahedron_pair_vertices_flat.columns:
+    if column_name not in data.columns:
         raise ValueError(f"Column '{column_name}' not found in the dataset.")
     
-    return tetrahedron_pair_vertices_flat.sort_values(by=column_name, ascending=True).reset_index(drop=True)
+    return data.sort_values(by=column_name, ascending=True).reset_index(drop=True)
 
 def sort_by_morton_code(data: pd.DataFrame) -> pd.DataFrame:
 
@@ -97,9 +120,6 @@ def sort_by_morton_code(data: pd.DataFrame) -> pd.DataFrame:
 
     return sorted_df
 
-def apply_rigid_transformation(self, tetrahedron_pair: torch.Tensor) -> torch.Tensor:
-    pass
-
 def apply_affine_linear_transformation(tetrahedron_pair_vertices_flat: pd.Series) -> pd.Series:
     """Transform second tetrahedron's vertices relative to the first one"""
     input_tensor = torch.tensor(tetrahedron_pair_vertices_flat.values, dtype=torch.float32).flatten()
@@ -129,7 +149,7 @@ def apply_affine_linear_transformation(tetrahedron_pair_vertices_flat: pd.Series
     result = torch.stack(transformed).flatten().detach().numpy()
     return pd.Series(result, index=[f'v{i//3 + 1}_{"xyz"[i % 3]}' for i in range(12)])
 
-def calculate_tetrahedron_volume(tetrahedron: torch.Tensor) -> torch.Tensor:
-        """Calculate tetrahedron volume using signed tetrahedral volume formula."""
-        v0, v1, v2, v3 = tetrahedron.view(4, 3)
-        return torch.abs(torch.det(torch.stack([v1-v0, v2-v0, v3-v0]))) / 6
+def calculate_tetrahedron_volume(tetrahedron: np.ndarray) -> float:
+    """Calculate tetrahedron volume using signed tetrahedral volume formula."""
+    v0, v1, v2, v3 = tetrahedron.reshape(4, 3)
+    return np.abs(np.linalg.det(np.stack([v1-v0, v2-v0, v3-v0]))) / 6

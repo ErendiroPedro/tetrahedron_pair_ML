@@ -263,10 +263,10 @@ class DataProcessor:
         return combined_data.sample(frac=1, random_state=42).reset_index(drop=True)
 
     @staticmethod
-    def augment_data(data, config):
+    def augment_data(data: pd.DataFrame, config) -> pd.DataFrame:
         """Applies augmentations to training data."""
-        sort_type = config["augmentations"]["sort"]
 
+        sort_type = config["augmentations"]["sort"]
         if sort_type:
             if sort_type == "x":
                 data = gu.sort_by_X_coordinate(data)
@@ -276,6 +276,9 @@ class DataProcessor:
 
             else:
                 raise ValueError("Invalid sort augmentation specified.")
+            
+        if config["augmentations"]["larger_tetrahedron_first"]:
+            data = gu.larger_tetrahedron_first(data)
 
         return data
 
