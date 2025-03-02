@@ -24,20 +24,19 @@ processor_config:
   number_of_bins: 500
 
   augmentations: &augmentations_config
-    sort: morton_code
+    sort: null
     larger_tetrahedron_first: false
 
-    # Note: Augmentation percentages should sum at most to 0.5
-    vertex_permutation_augmentation_pct: 0
-    tetrahedron_permutation_augmentation_pct: 0
+    # Note: Augmentation percentages should sum at most to 50
+    point_wise_permutation_augmentation_pct: 0
+    tetrahedron_wise_permutation_augmentation_pct: 0
 
   transformations: &transformations_config
-    rigid_transformation: false
     affine_linear_transformation: false
 
 model_config:
   skip_building: false
-  architecture: mlp
+  architecture: mlp # mlp, deepset
   activation_function: relu
   dropout_rate: 0.0
   task: &task_type binary_classification # binary_classification, regression, classification_and_regression
