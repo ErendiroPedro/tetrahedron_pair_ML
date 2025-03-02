@@ -84,10 +84,10 @@ class ArtifactsManager:
         Args:
             model (torch.nn.Module): PyTorch model to save.
         """
-        script_model = torch.jit.script(model)  # Convert model to TorchScript
+        script_model = torch.jit.script(model)
         script_model_path = os.path.join(self.artifacts_path, "model.pt")
-        script_model.save(script_model_path)  # Save the scripted model
-        print(f"Model saved as TorchScript at {script_model_path}")
+        script_model.save(script_model_path)
+        print(f"Model saved at {script_model_path}")
 
     def _save_evaluation_report(self, report):
         """
