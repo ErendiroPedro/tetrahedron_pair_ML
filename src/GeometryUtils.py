@@ -14,13 +14,9 @@ def swap_tetrahedrons(X):
     """
     return torch.cat([X[:, 12:], X[:, :12]], dim=1)
 
-def permute_points_within_tetrahedrons(X):
+def permute_points_within_tetrahedrons(X: torch.Tensor) -> torch.Tensor:
     """
-    Randomly permute points within each tetrahedron in the input tensor.
-    Args:
-        X (torch.Tensor): Input tensor of shape (batch_size, 24).
-    Returns:
-        torch.Tensor: Tensor with permuted points within tetrahedrons.
+    Randomly permute points within each tetrahedron
     """
     batch_size = X.size(0)
     device = X.device
@@ -69,41 +65,36 @@ def sort_by_X_coordinate(tetrahedron_pair_vertices_flat: pd.DataFrame, column_na
     return tetrahedron_pair_vertices_flat.sort_values(by=column_name, ascending=True).reset_index(drop=True)
 
 def sort_by_morton_code(data: pd.DataFrame) -> pd.DataFrame:
-    # Define a scaling factor to convert high precision coordinates into integers.
-    # Adjust the factor based on the actual range of your data.
-    scale_factor = 1e18 
-    
+
+    scale_factor = 1e18 # to convert high precision coordinates into integers.
+
     morton_codes = []
-    
-    # Iterate over each row/sample in the DataFrame.
+
     for idx, row in data.iterrows():
-        # Extract the 24 coordinate features. Assuming the first 2 columns are not coordinates.
+
+        # Get tetrahedron vertices
         coords = row.iloc[2:].to_numpy(dtype=float)
-        # First tetrahedron: first 12 features (4 vertices × 3 coordinates)
         tetra1 = coords[:12].reshape((4, 3))
-        # Second tetrahedron: next 12 features
         tetra2 = coords[12:].reshape((4, 3))
-        
+
         # Compute centroids of each tetrahedron
         centroid1 = tetra1.mean(axis=0)
         centroid2 = tetra2.mean(axis=0)
-        
+
         # Calculate the average (combined) centroid
         avg_centroid = (centroid1 + centroid2) / 2.0
-        
+
         # Scale and convert each coordinate to an integer.
-        # Rounding is applied to preserve numerical differences.
         x, y, z = [int(round(coord * scale_factor)) for coord in avg_centroid]
-        
-        # Compute the Morton code (Z-order) for the scaled centroid.
+
+        # Compute the Morton code (Z-order)
         code = pymorton.interleave(x, y, z)
         morton_codes.append(code)
-    
-    # Add a temporary column for sorting purposes.
-    data['_morton_code'] = morton_codes
+
     # Sort by the Morton code and drop the temporary column before returning.
+    data['_morton_code'] = morton_codes
     sorted_df = data.sort_values(by='_morton_code').drop(columns=['_morton_code']).reset_index(drop=True)
-    
+
     return sorted_df
 
 def apply_rigid_transformation(self, tetrahedron_pair: torch.Tensor) -> torch.Tensor:
