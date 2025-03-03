@@ -71,7 +71,7 @@ def larger_tetrahedron_first(data: pd.DataFrame) -> pd.DataFrame:
     
     return data_processed
 
-def sort_by_X_coordinate(data: pd.DataFrame, column_name: str = "T1_v1_x") -> pd.DataFrame:
+def sort_by_x_coordinate(data: pd.DataFrame, column_name: str = "T1_v1_x") -> pd.DataFrame:
     """
     Sorts the given DataFrame by the specified column.
     

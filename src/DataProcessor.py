@@ -269,7 +269,7 @@ class DataProcessor:
         sort_type = config["augmentations"]["sort"]
         if sort_type:
             if sort_type == "x":
-                data = gu.sort_by_X_coordinate(data)
+                data = gu.sort_by_x_coordinate(data)
 
             elif sort_type == "morton_code":
                 data = gu.sort_by_morton_code(data)

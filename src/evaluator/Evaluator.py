@@ -164,7 +164,7 @@ class Evaluator:
         device = next(model.parameters()).device
         X = X.to(device)
 
-        num_repeats = 10
+        num_repeats = 50
         all_interval_metrics = []
 
         try:
