@@ -152,65 +152,26 @@ def sort_by_morton_code_alt(data: pd.DataFrame, scale_factor: float = 1e18) -> p
     # Columns for T1 and T2 vertices
     t1_columns = [col for col in data.columns if col.startswith("T1_")]
     t2_columns = [col for col in data.columns if col.startswith("T2_")]
-    # Columns for metadata (non-vertex columns)
     metadata_columns = [col for col in data.columns if col not in t1_columns + t2_columns]
-    
-    def sort_tetrahedron_vertices(row, tetrahedron_columns, scale_factor):
-        # Extract vertices and reshape to 4x3
-        vertices = row[tetrahedron_columns].values.reshape(4, 3)
+
+    def sort_tetrahedron(row, tetra_columns):
+        vertices = row[tetra_columns].values.reshape(4, 3)
         morton_codes = []
-        # Compute Morton code for each vertex
         for vertex in vertices:
-            # Scale and convert to integers
-            scaled_x = int(round(vertex[0] * scale_factor))
-            scaled_y = int(round(vertex[1] * scale_factor))
-            scaled_z = int(round(vertex[2] * scale_factor))
-            code = pymorton.interleave(scaled_x, scaled_y, scaled_z)
+            # Process each coordinate (x, y, z) individually
+            scaled_coords = [int(round(coord * scale_factor)) for coord in vertex]
+            code = pymorton.interleave(*scaled_coords)
             morton_codes.append(code)
-        # Get indices that sort the Morton codes
         sorted_indices = np.argsort(morton_codes)
-        # Sort vertices using these indices
-        sorted_vertices = vertices[sorted_indices]
-        # Flatten and return as a Series
-        return pd.Series(sorted_vertices.flatten(), index=tetrahedron_columns)
-    
-    # Sort T1 and T2 vertices for each row
-    t1_sorted = data.apply(sort_tetrahedron_vertices, axis=1, tetrahedron_columns=t1_columns, scale_factor=scale_factor)
-    t2_sorted = data.apply(sort_tetrahedron_vertices, axis=1, tetrahedron_columns=t2_columns, scale_factor=scale_factor)
-    
-    # Combine sorted columns with metadata
-    sorted_data = pd.concat([t1_sorted, t2_sorted, data[metadata_columns]], axis=1)
-    
-    return sorted_data
+        sorted_vertices = vertices[sorted_indices].flatten()
+        return pd.Series(sorted_vertices, index=tetra_columns)
 
-def sort_by_morton_code(data: pd.DataFrame) -> pd.DataFrame:
+    # Apply sorting to T1 and T2 columns
+    t1_sorted = data.apply(sort_tetrahedron, axis=1, tetra_columns=t1_columns)
+    t2_sorted = data.apply(sort_tetrahedron, axis=1, tetra_columns=t2_columns)
 
-    scale_factor = 1e18 # to convert high precision coordinates into integers.
-
-    morton_codes = []
-
-    for idx, row in data.iterrows():
-
-        # Get tetrahedron vertices
-        coords = row.iloc[2:].to_numpy(dtype=float)
-        tetra1 = coords[:12].reshape((4, 3))
-        tetra2 = coords[12:].reshape((4, 3))
-
-        # Scale and convert each coordinate to an integer.
-        x1, y1, z1 = [int(round(coord * scale_factor)) for coord in tetra1]
-
-        # Scale and convert each coordinate to an integer.
-        x2, y2, z2 = [int(round(coord * scale_factor)) for coord in tetra2]
-
-        # Compute the Morton code (Z-order)
-        code = pymorton.interleave(x1, y1, z1)
-        morton_codes.append(code)
-
-    # Sort by the Morton code and drop the temporary column before returning.
-    data['_morton_code'] = morton_codes
-    sorted_df = data.sort_values(by='_morton_code').drop(columns=['_morton_code']).reset_index(drop=True)
-
-    return sorted_df
+    # Rebuild DataFrame with sorted vertices and metadata
+    return pd.concat([t1_sorted, t2_sorted, data[metadata_columns]], axis=1)
 
 def apply_affine_linear_transformation(tetrahedron_pair_vertices_flat: pd.Series) -> pd.Series:
     """Transform second tetrahedron's vertices relative to the first one"""
