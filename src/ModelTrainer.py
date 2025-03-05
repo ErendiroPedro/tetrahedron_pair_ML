@@ -202,13 +202,13 @@ class ModelTrainer:
         train_loader = DataLoader(
             train_dataset, 
             batch_size=self.batch_size, 
-            shuffle=True,
+            shuffle=False,
             num_workers=4
         )
         val_loader = DataLoader(
             val_dataset, 
             batch_size=self.batch_size, 
-            shuffle=True,
+            shuffle=False,
             num_workers=4
         )
         
