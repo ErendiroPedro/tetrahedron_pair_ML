@@ -44,7 +44,7 @@ class ArtifactsManager:
         id = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         
         # Extract relevant configuration details
-        model_architecture = self.config['model_config']['architecture']
+        model_architecture = self.config['model_config']['architecture']['use']
         task = self.config['model_config']['task']
         num_train_samples = self.config['processor_config']['num_train_samples']
         num_val_samples = self.config['processor_config']['num_val_samples']

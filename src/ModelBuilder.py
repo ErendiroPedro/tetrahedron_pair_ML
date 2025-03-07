@@ -40,28 +40,41 @@ class ModelBuilder:
         model = None
         input_shape = self._infer_input_shape()
 
-        if self.config['architecture'] == 'mlp':
+        architecture_use = self.config['architecture'].get('use')
+        if not architecture_use:
+            raise ValueError("Architecture 'use' not specified in config.")
+
+        if architecture_use == 'mlp':
+            mlp_config = self.config['architecture'].get('mlp')
+            if not mlp_config:
+                raise ValueError("MLP configuration missing in architecture settings.")
+
             model = MLP(
                 input_dim=input_shape,
-                shared_layers=[128, 64],
+                shared_layers=mlp_config['shared_layers'],
+                classification_head=mlp_config['classification_head'],
+                regression_head=mlp_config['regression_head'],
                 activation=self.config['activation_function'],
                 dropout_rate=self.config['dropout_rate'],
                 task=self.task
             )
-        elif self.config['architecture'] == 'deepset':
-            model = DeepSet(
-                input_dim=input_shape,
-                activation=self.config['activation_function'],
-                dropout_rate=self.config['dropout_rate'],
-                task=self.task
-            )
+        else:
+            raise ValueError(f"Unsupported architecture: {architecture_use}")
+
+        # elif self.config['architecture'] == 'deepset':
+        #     model = DeepSet(
+        #         input_dim=input_shape,
+        #         activation=self.config['activation_function'],
+        #         dropout_rate=self.config['dropout_rate'],
+        #         task=self.task
+        #     )
         # elif self.config['architecture'] == 'pointnet':
         #     model = TetrahedraPointNet(
         #         dropout_rate=self.config['dropout_rate'],
         #         task=self.task
         #     )
-        else:
-            raise ValueError(f"Unsupported architecture: {self.config['architecture']}")
+        # else:
+        #     raise ValueError(f"Unsupported architecture: {self.config['architecture']}")
         
         print("---- Architecture Built ----")
         return model

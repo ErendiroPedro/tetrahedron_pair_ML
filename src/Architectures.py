@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from abc import ABC, abstractmethod
 
-class BaseNet(nn.Module):
+class BaseNet(nn.Module, ABC):
     """Base network with common functionality for all models"""
     def __init__(self, activation, task):
         super().__init__()
@@ -16,6 +17,11 @@ class BaseNet(nn.Module):
         self.activation = self.activation_map[activation]()
         self.classifier_branch = None
         self.regressor_branch = None
+
+    @abstractmethod
+    def _forward_shared(self, x):
+        """To be implemented by child classes"""
+        pass
 
     def _build_branch(self, layer_dims):
         """Helper to create sequential branches"""
@@ -32,8 +38,8 @@ class BaseNet(nn.Module):
         
         if self.task == 'classification_and_regression':
             return torch.cat([
-                self.classifier_branch(shared_out), # Logits for classification
-                self.regressor_branch(shared_out) # Raw regression output
+                self.classifier_branch(shared_out),
+                self.regressor_branch(shared_out)
             ], dim=1)
         elif self.task == 'binary_classification':
             return self.classifier_branch(shared_out)
@@ -49,77 +55,70 @@ class BaseNet(nn.Module):
 
             if self.task == 'binary_classification':
                 return (logits > 0.5).int().squeeze() 
-
             elif self.task == 'regression':
                 return logits.squeeze()
-
             elif self.task == 'classification_and_regression':
                 cls_prediction = (logits[:, 0] > 0.5).int().squeeze()
                 reg_prediction = logits[:, 1].squeeze()
-                return torch.stack([cls_prediction, reg_prediction], dim=1)
-            
+                return torch.stack([cls_prediction, reg_prediction], dim=1)         
             raise ValueError(f"Unknown task: {self.task}")
 
 class MLP(BaseNet):
-    """Multi-Layer Perceptron with shared base"""
-    def __init__(self, input_dim, shared_layers, activation, dropout_rate, task):
+    def __init__(self, input_dim, shared_layers, classification_head, regression_head, 
+                 activation, dropout_rate, task):
         super().__init__(activation, task)
+        self.dropout = nn.Dropout(dropout_rate)
         
         # Build shared layers
-        layers = []
-        current_dim = input_dim
-        for hidden_dim in shared_layers:
-            layers += [
-                nn.Linear(current_dim, hidden_dim),
-                self.activation,
-                nn.Dropout(dropout_rate)
-            ]
-            current_dim = hidden_dim
-        self.shared_net = nn.Sequential(*layers)
-
-        # Initialize task branches
-        self._init_branches(current_dim)
-
-    def _init_branches(self, current_dim):
-        """Initialize task-specific branches"""
-        self.classifier_branch = self._build_branch([
-            current_dim,
-            current_dim // 4,
-            current_dim // 8,   
-            1
-        ])
-        self.regressor_branch = self._build_branch([
-            current_dim, 
-            current_dim, 
-            1
-        ])
+        shared_dims = [input_dim] + shared_layers
+        self.shared_layers = nn.ModuleList()
+        for i in range(len(shared_dims)-1):
+            self.shared_layers.append(nn.Linear(shared_dims[i], shared_dims[i+1]))
+        
+        # Initialize branches
+        self.classifier_branch = self._build_branch([shared_dims[-1]] + classification_head)
+        self.regressor_branch = self._build_branch([shared_dims[-1]] + regression_head)
 
     def _forward_shared(self, x):
-        """Shared network forward pass"""
-        return self.shared_net(x)
+        """MLP-specific shared forward pass"""
+        for layer in self.shared_layers:
+            x = layer(x)
+            x = self.activation(x)
+            x = self.dropout(x)
+        return x
 
 class ResidualBlock(nn.Module):
-    """Residual block (unchanged from original)"""
-    def __init__(self, input_dim, output_dim, dropout_rate=0.1):
+    def __init__(self, input_dim, output_dim):
         super().__init__()
+        # Main path components
+        self.norm1 = nn.LayerNorm(input_dim)
+        self.relu1 = nn.ReLU()
         self.fc1 = nn.Linear(input_dim, output_dim)
-        self.ln1 = nn.LayerNorm(output_dim)
-        self.activation = nn.ReLU()
-        self.dropout = nn.Dropout(dropout_rate)
+        
+        self.norm2 = nn.LayerNorm(output_dim)
+        self.relu2 = nn.ReLU()
         self.fc2 = nn.Linear(output_dim, output_dim)
-        self.ln2 = nn.LayerNorm(output_dim)
+        
+        # Skip connection (identity or projection)
         self.skip = nn.Linear(input_dim, output_dim) if input_dim != output_dim else nn.Identity()
-
+        
     def forward(self, x):
+        # Skip connection
         residual = self.skip(x)
-        out = self.fc1(x)
-        out = self.ln1(out)
-        out = self.activation(out)
-        out = self.dropout(out)
-        out = self.fc2(out)
-        out = self.ln2(out)
+        
+        # Main path with pre-activation pattern
+        # First block: norm -> activation -> weight
+        out = self.norm1(x)
+        out = self.relu1(out)
+        out = self.fc1(out)
+        
+        # Second block: norm -> activation -> weight
+        # out = self.norm2(out)
+        # out = self.relu2(out)
+        # out = self.fc2(out)
+        
+        # Add skip connection to output
         return out + residual
-
 class DeepSet(BaseNet):
     """DeepSet architecture with shared base"""
     def __init__(self, input_dim, activation, dropout_rate, task):
@@ -130,7 +129,7 @@ class DeepSet(BaseNet):
         if input_dim == 24:
             self.num_tets = 2
             # For two tetrahedrons, the concatenated feature vector is 2*128 = 256.
-            self.post_concat_residual = ResidualBlock(input_dim=256, output_dim=64, dropout_rate=dropout_rate)
+            self.post_concat_residual = ResidualBlock(input_dim=32, output_dim=16, dropout_rate=dropout_rate)
         elif input_dim == 12:
             self.num_tets = 1
             # For a single tetrahedron, the feature vector is 128.
