@@ -1,0 +1,72 @@
+artifacts_config:
+  save_artifacts_to: /home/erendiro/repos/tetrahedron_pair_ML/artifacts
+evaluator_config:
+  augmentations: &id001
+    larger_tetrahedron_first: false
+    point_wise_permutation_augmentation_pct: 0
+    sort: null
+    tetrahedron_wise_permutation_augmentation_pct: 0
+  skip_evaluation: false
+  task: regression
+  test_data_path: /home/erendiro/repos/tetrahedron_pair_ML/src/evaluator/test_data
+  transformations: &id002
+    affine_linear_transformation: false
+home: /home/erendiro/repos/tetrahedron_pair_ML
+model_config:
+  activation_function: relu
+  architecture:
+    deep_set:
+      classification_head:
+      - 128
+      - 64
+      - 32
+      - 1
+      num_residual_blocks_per_tet: 1
+      num_residual_blocks_post_concat: 1
+      regression_head:
+      - 128
+      - 64
+      - 32
+      - 1
+    mlp:
+      classification_head:
+      - 1
+      regression_head:
+      - 1
+      shared_layers:
+      - 384
+    use: mlp
+  dropout_rate: 0.0
+  processed_data_path: data/processed
+  skip_building: false
+  task: regression
+processor_config:
+  augmentations: *id001
+  dataset_paths:
+    processed_data: /home/erendiro/repos/tetrahedron_pair_ML/data/processed
+    raw_data: /home/erendiro/repos/tetrahedron_pair_ML/data/raw
+  intersection_distributions:
+    no_intersection: 50
+    point_intersection: 0
+    polygon_intersection: 0
+    polyhedron_intersection: 50
+    segment_intersection: 0
+  num_train_samples: 200000
+  num_val_samples: 200000
+  number_of_bins: 500
+  skip_processing: true
+  transformations: *id002
+  volume_range:
+  - 0
+  - 0.01
+trainer_config:
+  batch_size: 32
+  early_stopping_patience: 10
+  epochs: 5
+  evaluation_metric: accuracy
+  learning_rate: 0.001
+  learning_rate_schedule: null
+  loss_function: regression
+  optimizer: adamw
+  processed_data_path: data/processed
+  skip_training: false

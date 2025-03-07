@@ -1,0 +1,75 @@
+{
+    "task_type": "regression",
+    "dataset_reports": {
+        "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv": {
+            "regression_performance": {
+                "0.000-0.002": {
+                    "repetitions": 50,
+                    "mae": 0.000819508801214397,
+                    "mse": 9.723490848045913e-07,
+                    "samples": 20028
+                },
+                "0.002-0.004": {
+                    "repetitions": 50,
+                    "mae": 0.0027999109588563442,
+                    "mse": 8.175075890903827e-06,
+                    "samples": 19875
+                },
+                "0.004-0.006": {
+                    "repetitions": 50,
+                    "mae": 0.004799457732588053,
+                    "mse": 2.336807483516168e-05,
+                    "samples": 20028
+                },
+                "0.006-0.008": {
+                    "repetitions": 50,
+                    "mae": 0.00679882662370801,
+                    "mse": 4.6557550376746804e-05,
+                    "samples": 20033
+                },
+                "0.008-0.010": {
+                    "repetitions": 50,
+                    "mae": 0.008799005299806595,
+                    "mse": 7.775568519718945e-05,
+                    "samples": 20036
+                }
+            },
+            "point_wise_permutation_consistency": {
+                "regression_consistency_rate": 0.99909,
+                "consistency_thresholds": {
+                    "rtol": 0.01,
+                    "atol": 1e-08
+                },
+                "mean_absolute_difference": 1.1209200323492041e-07,
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "regression_consistency_rate": 0.99911,
+                "consistency_thresholds": {
+                    "rtol": 0.01,
+                    "atol": 1e-08
+                },
+                "total_samples": 100000
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce RTX 3080",
+                    "cuda_driver_version": "12.4",
+                    "cuda_capability": [
+                        8,
+                        6
+                    ],
+                    "cuda_memory": "10.49 GB"
+                },
+                "repetitions": 50,
+                "augmentation_time_seconds": 1.0728836059570312e-05,
+                "transformation_time_seconds": 1.6689300537109375e-06,
+                "inference_time_seconds": 0.0013509971404075621,
+                "total_time_seconds": 0.0013633949065208434,
+                "avg_time_per_sample_seconds": 1.3633949065208435e-08,
+                "samples_per_second": 73346320.66008177
+            }
+        }
+    }
+}
