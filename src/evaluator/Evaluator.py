@@ -49,10 +49,20 @@ class Evaluator:
 
         self._load_test_data()
         
+        # Calculate model parameters
+        total_params = sum(p.numel() for p in model.parameters())
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        
         report = {
             'task_type': self.task_type,
+            'model_parameters': {
+                'total': total_params,
+                'trainable': trainable_params,
+                'non_trainable': total_params - trainable_params
+            },
             'dataset_reports': {}
         }
+
 
         # Run tests for the specific task type
         for dataset in self.datasets:
