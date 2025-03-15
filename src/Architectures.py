@@ -26,13 +26,15 @@ class BaseNet(nn.Module, ABC):
         """To be implemented by child classes"""
         pass
 
-    def _build_branch(self, layer_dims):
+    def _build_branch(self, layer_dims, regressor = False):
         """Helper to create sequential branches"""
         layers = []
         for i in range(len(layer_dims) - 1):
             layers.append(nn.Linear(layer_dims[i], layer_dims[i+1]))
             if i < len(layer_dims) - 2:  # No activation after last layer
                 layers.append(self.activation)
+        if regressor:
+            layers.append(nn.Softplus())
         return nn.Sequential(*layers)
 
     def forward(self, x):
@@ -97,7 +99,7 @@ class MLP(BaseNet):
         
         # Initialize branches
         self.classifier_branch = self._build_branch([shared_dims[-1]] + classification_head)
-        self.regressor_branch = self._build_branch([shared_dims[-1]] + regression_head)
+        self.regressor_branch = self._build_branch([shared_dims[-1]] + regression_head, regressor = True)
 
     def _forward_shared(self, x):
         """MLP-specific shared forward pass"""
