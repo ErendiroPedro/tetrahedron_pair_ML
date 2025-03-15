@@ -37,10 +37,11 @@ processor_config:
 model_config:
 
   skip_building: false
-  task: &task_type binary_classification # binary_classification, regression, classification_and_regression
+  task: &task_type regression # binary_classification, regression, classification_and_regression
   activation_function: relu
   dropout_rate: 0.0
   processed_data_path: *processed_data_path
+  regression_scaling_factor: 1
 
   architecture:
     use: mlp # mlp, deep_set
