@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 class BaseNet(nn.Module, ABC):
     """Base network with common functionality for all models"""
-    def __init__(self, activation, task):
+    def __init__(self, activation, task, regression_scale_factor=1):
         super().__init__()
         self.task = task
         self.activation_map = {
@@ -15,6 +15,9 @@ class BaseNet(nn.Module, ABC):
             'elu': nn.ELU
         }
         self.activation = self.activation_map[activation]()
+        self.regression_scale_factor = nn.Parameter(
+            torch.tensor(regression_scale_factor), requires_grad=False
+        )
         self.classifier_branch = None
         self.regressor_branch = None
 
@@ -37,14 +40,31 @@ class BaseNet(nn.Module, ABC):
         shared_out = self._forward_shared(x)
         
         if self.task == 'classification_and_regression':
+            cls_out = self.classifier_branch(shared_out)
+            reg_out = self.regressor_branch(shared_out) 
+
+            if self.training:
+                reg_out =reg_out * self.regression_scale_factor
+            else:
+                reg_out = reg_out / self.regression_scale_factor
+
             return torch.cat([
-                self.classifier_branch(shared_out),
-                self.regressor_branch(shared_out)
+                cls_out,
+                reg_out
             ], dim=1)
+        
         elif self.task == 'binary_classification':
             return self.classifier_branch(shared_out)
+
         elif self.task == 'regression':
-            return self.regressor_branch(shared_out)
+            reg_out = self.regressor_branch(shared_out) 
+
+            if self.training:
+                reg_out = reg_out * self.regression_scale_factor
+            else:
+                reg_out = reg_out / self.regression_scale_factor
+
+            return reg_out
         raise ValueError(f"Unknown task: {self.task}")
 
     def predict(self, x):
@@ -65,8 +85,8 @@ class BaseNet(nn.Module, ABC):
 
 class MLP(BaseNet):
     def __init__(self, input_dim, shared_layers, classification_head, regression_head, 
-                 activation, dropout_rate, task):
-        super().__init__(activation, task)
+                 activation, dropout_rate, task, regression_scale_factor=1):
+        super().__init__(activation, task, regression_scale_factor)
         self.dropout = nn.Dropout(dropout_rate)
         
         # Build shared layers
