@@ -86,9 +86,9 @@ class ModelTrainer:
             if self.config["loss_function"] == "binary_classification":
                 loss = self.loss_function(output, batch_status)
             elif self.config["loss_function"] == "regression":
-                loss = self.loss_function(output, batch_volume)
+                loss = self.loss_function(output, batch_volume * self.model.regression_scale_factor)
             elif self.config["loss_function"] == "classification_and_regression":
-                loss = self.loss_function(output, torch.cat([batch_status, batch_volume], dim=1))
+                loss = self.loss_function(output, torch.cat([batch_status, batch_volume * self.model.regression_scale_factor], dim=1))
             else:
                 raise ValueError("Invalid loss function specified in configuration.")
                 
