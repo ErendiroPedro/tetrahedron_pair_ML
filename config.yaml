@@ -12,6 +12,8 @@ processor_config:
   num_train_samples: 20000
   num_val_samples: 20000
 
+  volume_scale_factor: &volume_scale_factor 10000
+
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
     no_intersection: 0
@@ -41,12 +43,13 @@ model_config:
   activation_function: relu
   dropout_rate: 0.0
   processed_data_path: *processed_data_path
+  volume_scale_factor: *volume_scale_factor
 
   architecture:
     use: mlp # mlp, deep_set
 
     mlp:
-      shared_layers: [12]
+      shared_layers: [1024]
       classification_head: []
       regression_head: [1]
 

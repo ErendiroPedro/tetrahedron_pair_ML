@@ -55,6 +55,7 @@ class ModelBuilder:
                 classification_head=mlp_config['classification_head'],
                 regression_head=mlp_config['regression_head'],
                 activation=self.config['activation_function'],
+                volume_scale_factor=self.config['volume_scale_factor'],
                 task=self.task
             )
         else:

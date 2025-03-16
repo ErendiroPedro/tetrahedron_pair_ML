@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 class BaseNet(nn.Module, ABC):
     """Base network with common functionality for all models"""
-    def __init__(self, activation, task):
+    def __init__(self, activation, task, volume_scale_factor=1):
         super().__init__()
         self.task = task
         self.activation_map = {
@@ -15,6 +15,7 @@ class BaseNet(nn.Module, ABC):
             'elu': nn.ELU
         }
         self.activation = self.activation_map[activation]()
+        self.volume_scale_factor = volume_scale_factor
         self.classifier_branch = None
         self.regressor_branch = None
 
@@ -23,13 +24,16 @@ class BaseNet(nn.Module, ABC):
         """To be implemented by child classes"""
         pass
 
-    def _build_branch(self, layer_dims):
+    def _build_branch(self, layer_dims, is_regression=False):
         """Helper to create sequential branches"""
         layers = []
         for i in range(len(layer_dims) - 1):
             layers.append(nn.Linear(layer_dims[i], layer_dims[i+1]))
             if i < len(layer_dims) - 2:  # No activation after last layer
                 layers.append(self.activation)
+        
+        if is_regression:
+            layers.append(nn.ReLU())
 
         return nn.Sequential(*layers)
 
@@ -60,17 +64,17 @@ class BaseNet(nn.Module, ABC):
             if self.task == 'binary_classification':
                 return (logits > 0.5).int().squeeze() 
             elif self.task == 'regression':
-                return logits.squeeze()
+                return logits.squeeze() / self.volume_scale_factor
             elif self.task == 'classification_and_regression':
                 cls_prediction = (logits[:, 0] > 0.5).int().squeeze()
-                reg_prediction = logits[:, 1].squeeze()
+                reg_prediction = logits[:, 1].squeeze() / self.volume_scale_factor
                 return torch.stack([cls_prediction, reg_prediction], dim=1)         
             raise ValueError(f"Unknown task: {self.task}")
 
 class MLP(BaseNet):
     def __init__(self, input_dim, shared_layers, classification_head, regression_head, 
-                 activation, task):
-        super().__init__(activation, task)
+                 activation, task, volume_scale_factor=1):
+        super().__init__(activation, task, volume_scale_factor=volume_scale_factor)
         
         # Build shared layers
         shared_dims = [input_dim] + shared_layers
@@ -80,7 +84,7 @@ class MLP(BaseNet):
         
         # Initialize branches
         self.classifier_branch = self._build_branch([shared_dims[-1]] + classification_head)
-        self.regressor_branch = self._build_branch([shared_dims[-1]] + regression_head)
+        self.regressor_branch = self._build_branch([shared_dims[-1]] + regression_head, is_regression=True)
 
     def _forward_shared(self, x):
         """MLP-specific shared forward pass"""

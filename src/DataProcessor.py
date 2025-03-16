@@ -318,6 +318,12 @@ class DataProcessor:
 
             data = pd.concat([transformed_features, labels], axis=1)
 
+        volume_scale_factor = config.get("volume_scale_factor", 1)
+        if volume_scale_factor != 1:
+            volume_column_idx = data.columns.get_loc("IntersectionVolume")
+            if volume_column_idx >= 0:
+                data.iloc[:, volume_column_idx] = data.iloc[:, volume_column_idx] * volume_scale_factor
+
         return data
 
     def _save_data(self):
