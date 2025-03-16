@@ -56,7 +56,6 @@ class ModelBuilder:
                 regression_head=mlp_config['regression_head'],
                 activation=self.config['activation_function'],
                 dropout_rate=self.config['dropout_rate'],
-                regression_scale_factor=self.config['regression_scaling_factor'],
                 task=self.task
             )
         else:
