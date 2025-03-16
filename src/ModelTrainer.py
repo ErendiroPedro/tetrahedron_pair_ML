@@ -146,9 +146,7 @@ class ModelTrainer:
         return loss_functions_map.get(task_name, F.binary_cross_entropy_with_logits)
     
     def _mape_loss(self, output, target):
-        epsilon = 1e-8
-        clipped_target = torch.clamp(target, min=epsilon)
-        return torch.mean(torch.abs((clipped_target - output) / clipped_target))
+        return torch.mean(torch.abs((target - output) / target))
 
     def _combined_loss(self, output, target):
         """Balanced combined loss with dynamic weighting"""
@@ -163,7 +161,7 @@ class ModelTrainer:
         )
         
         # Regression loss with input validation
-        valid_reg = reg_target > 1e-8  # Filter invalid small values
+        valid_reg = reg_target > 1e-12  # Filter invalid small values
         if valid_reg.any():
             reg_loss = F.mse_loss(
                 output[:, 1][valid_reg], 
