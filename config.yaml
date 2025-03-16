@@ -1,4 +1,4 @@
-home: &home_path /home/sei/tetrahedron_pair_ML # all other paths are relative to home
+home: &home_path /home/erendiro/repos/tetrahedron_pair_ML # all other paths are relative to home
 
 artifacts_config:
   save_artifacts_to: artifacts 
@@ -9,10 +9,10 @@ processor_config:
     raw_data: data/raw          
     processed_data: &processed_data_path data/processed
 
-  num_train_samples: 20000
-  num_val_samples: 20000
+  num_train_samples: 100000
+  num_val_samples: 100000
 
-  volume_scale_factor: &volume_scale_factor 10000
+  volume_scale_factor: &volume_scale_factor 1
 
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
@@ -27,7 +27,7 @@ processor_config:
 
   augmentations: &augmentations_config
     sort: null
-    larger_tetrahedron_first: false
+    volume_sorting: larger # larger, smaller
 
     # Note: Augmentation percentages should sum at most to 50
     point_wise_permutation_augmentation_pct: 0
@@ -39,7 +39,7 @@ processor_config:
 model_config:
 
   skip_building: false
-  task: &task_type regression # binary_classification, regression, classification_and_regression
+  task: &task_type binary_classification # binary_classification, regression, classification_and_regression
   activation_function: relu
   dropout_rate: 0.0
   processed_data_path: *processed_data_path
@@ -49,9 +49,9 @@ model_config:
     use: mlp # mlp, deep_set
 
     mlp:
-      shared_layers: [1024]
-      classification_head: []
-      regression_head: [1]
+      shared_layers: [12]
+      classification_head: [1]
+      regression_head: []
 
     deep_set:
       num_residual_blocks_per_tet: 1
