@@ -69,9 +69,8 @@ class BaseNet(nn.Module, ABC):
 
 class MLP(BaseNet):
     def __init__(self, input_dim, shared_layers, classification_head, regression_head, 
-                 activation, dropout_rate, task):
+                 activation, task):
         super().__init__(activation, task)
-        self.dropout = nn.Dropout(dropout_rate)
         
         # Build shared layers
         shared_dims = [input_dim] + shared_layers
@@ -88,7 +87,6 @@ class MLP(BaseNet):
         for layer in self.shared_layers:
             x = layer(x)
             x = self.activation(x)
-            x = self.dropout(x)
         return x
 
 class ResidualBlock(nn.Module):

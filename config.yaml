@@ -9,19 +9,19 @@ processor_config:
     raw_data: data/raw          
     processed_data: &processed_data_path data/processed
 
-  num_train_samples: 1000
-  num_val_samples: 1000
+  num_train_samples: 20000
+  num_val_samples: 20000
 
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
-    no_intersection: 50
+    no_intersection: 0
     point_intersection: 0
     segment_intersection: 0
     polygon_intersection: 0
-    polyhedron_intersection: 50
+    polyhedron_intersection: 100
 
   volume_range: [0, 0.01]
-  number_of_bins: 500
+  number_of_bins: 100
 
   augmentations: &augmentations_config
     sort: null
@@ -41,21 +41,20 @@ model_config:
   activation_function: relu
   dropout_rate: 0.0
   processed_data_path: *processed_data_path
-  regression_scaling_factor: 1
 
   architecture:
     use: mlp # mlp, deep_set
 
     mlp:
-      shared_layers: [128]
-      classification_head: [1]
+      shared_layers: [12]
+      classification_head: []
       regression_head: [1]
 
     deep_set:
       num_residual_blocks_per_tet: 1
       num_residual_blocks_post_concat: 1
-      classification_head: [128, 64, 32, 1]
-      regression_head: [128, 64, 32, 1]
+      classification_head: []
+      regression_head: []
 
 trainer_config:
   skip_training: false

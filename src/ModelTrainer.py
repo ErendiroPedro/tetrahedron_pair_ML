@@ -150,27 +150,20 @@ class ModelTrainer:
 
     def _combined_loss(self, output, target):
         """Balanced combined loss with dynamic weighting"""
-        # Ensure proper target types
-        cls_target = target[:, 0].float()  # Classification targets
-        reg_target = target[:, 1].float()  # Regression targets
+
+        cls_target = target[:, 0].float()
+        reg_target = target[:, 1].float()
         
-        # Classification loss (with label smoothing)
         cls_loss = F.binary_cross_entropy_with_logits(
             output[:, 0], 
             cls_target
         )
-        
-        # Regression loss with input validation
-        valid_reg = reg_target > 1e-12  # Filter invalid small values
-        if valid_reg.any():
-            reg_loss = F.mse_loss(
-                output[:, 1][valid_reg], 
-                reg_target[valid_reg]
-            )
-        else:
-            reg_loss = torch.tensor(0.0).to(output.device)
-        
-        # Automatic weight balancing
+
+        reg_loss = self._mape_loss(
+            output[:, 1], 
+            reg_target
+        )
+   
         total_loss = 0.5 * cls_loss + 0.5 * reg_loss
         return total_loss
 
