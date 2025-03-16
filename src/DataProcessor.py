@@ -183,71 +183,83 @@ class DataProcessor:
         return raw_data.sample(frac=1, random_state=42).reset_index(drop=True)
 
     def _uniform_sample_by_volume(self, raw_data, percentage, num_train_samples, num_val_samples):
-        """Uniformly samples data based on intersection volume with fallback to random sampling."""
+        """Uniformly samples data based on intersection volume with dynamic bin allocation."""
         volume_range = self.config["volume_range"]
         nbins = self.config["number_of_bins"]
-
-        # Calculate target samples for this intersection type
-        total_train_samples = int((percentage / 100) * num_train_samples)
-        total_val_samples = int((percentage / 100) * num_val_samples)
-
+        
         # Create volume bins
         bin_edges = np.linspace(volume_range[0], volume_range[1], nbins + 1)
+        raw_data['bin'] = pd.cut(raw_data["IntersectionVolume"], bins=bin_edges, labels=False)
         
-        # Initialize storage
-        train_samples, val_samples = [], []
-        leftover_pool = []
-
-        # Phase 1: Uniform sampling from bins
-        for i in range(nbins):
-            # Get bin data
-            bin_mask = (raw_data["IntersectionVolume"] >= bin_edges[i]) & \
-                    (raw_data["IntersectionVolume"] < bin_edges[i+1])
-            bin_data = raw_data[bin_mask]
-            
-            # Calculate target samples per bin
-            train_target = total_train_samples // nbins
-            val_target = total_val_samples // nbins
-
-            # Sample training data
-            n_train = min(train_target, len(bin_data))
-            bin_train = bin_data.sample(n=n_train, replace=False, random_state=42+i)
-            train_samples.append(bin_train)
-            
-            # Sample validation data from remaining
-            remaining = bin_data.drop(bin_train.index)
-            n_val = min(val_target, len(remaining))
-            bin_val = remaining.sample(n=n_val, replace=False, random_state=42+nbins+i)
-            val_samples.append(bin_val)
-            
-            # Collect leftovers
-            leftover_pool.append(remaining.drop(bin_val.index))
-
-        # Combine initial samples
-        train_data = pd.concat(train_samples, ignore_index=True)
-        val_data = pd.concat(val_samples, ignore_index=True)
-
-        # Phase 2: Fill remaining needs from leftover pool
-        leftover_pool = pd.concat(leftover_pool, ignore_index=True).sample(frac=1, random_state=44)
+        # Calculate total targets
+        total_train = int((percentage / 100) * num_train_samples)
+        total_val = int((percentage / 100) * num_val_samples)
         
-        # Calculate remaining needs
-        remaining_train = max(0, total_train_samples - len(train_data))
-        remaining_val = max(0, total_val_samples - len(val_data))
+        # Phase 1: Initial proportional allocation
+        bin_counts = raw_data['bin'].value_counts().sort_index()
+        train_samples = []
+        val_samples = []
+        
+        # Calculate ideal samples per bin
+        train_per_bin = total_train / nbins
+        val_per_bin = total_val / nbins
+        
+        # Dynamic allocation with redistribution
+        remaining_train = total_train
+        remaining_val = total_val
+        
+        for bin_idx in range(nbins):
+            bin_population = bin_counts.get(bin_idx, 0)
+            
+            # Calculate actual possible allocation
+            train_alloc = min(bin_population, max(1, int(train_per_bin)))
+            val_alloc = min(bin_population - train_alloc, max(1, int(val_per_bin)))
+            
+            # Sample from bin
+            bin_data = raw_data[raw_data['bin'] == bin_idx]
+            
+            # Train samples
+            train = bin_data.sample(n=train_alloc, random_state=42+bin_idx)
+            train_samples.append(train)
+            remaining_train -= train_alloc
+            
+            # Validation samples
+            remaining_in_bin = bin_data.drop(train.index)
+            val = remaining_in_bin.sample(n=val_alloc, random_state=24+bin_idx)
+            val_samples.append(val)
+            remaining_val -= val_alloc
+            
+            # Remove used data
+            raw_data = raw_data.drop(train.index).drop(val.index)
+        
+        # Phase 2: Redistribute remaining needs
+        if remaining_train > 0 or remaining_val > 0:
+            # Calculate weights based on remaining population
+            weights = raw_data['bin'].map(bin_counts - train_per_bin - val_per_bin).fillna(0)
+            weights = weights / weights.sum()
+            
+            # Sample remaining train
+            if remaining_train > 0:
+                add_train = raw_data.sample(n=remaining_train, weights=weights, 
+                                        random_state=52, replace=False)
+                train_samples.append(add_train)
+                raw_data = raw_data.drop(add_train.index)
+            
+            # Sample remaining val
+            if remaining_val > 0:
+                add_val = raw_data.sample(n=remaining_val, weights=weights, 
+                                        random_state=62, replace=False)
+                val_samples.append(add_val)
+        
+        # Combine and shuffle
+        train_data = pd.concat(train_samples).sample(frac=1, random_state=42)
+        val_data = pd.concat(val_samples).sample(frac=1, random_state=42)
 
-        # Fill training first
-        if remaining_train > 0:
-            add_train = leftover_pool.iloc[:remaining_train]
-            train_data = pd.concat([train_data, add_train], ignore_index=True)
-            leftover_pool = leftover_pool.iloc[remaining_train:]
-
-        # Then fill validation
-        if remaining_val > 0:
-            add_val = leftover_pool.iloc[:remaining_val]
-            val_data = pd.concat([val_data, add_val], ignore_index=True)
-
-        # Final shuffle
-        return (train_data.sample(frac=1, random_state=42).reset_index(drop=True),
-                val_data.sample(frac=1, random_state=43).reset_index(drop=True))
+        # Drop the bin column before returning
+        train_data = train_data.drop(columns=['bin'])
+        val_data = val_data.drop(columns=['bin'])
+        
+        return train_data.reset_index(drop=True), val_data.reset_index(drop=True)
 
     def _sample_data(self, raw_data, percentage, num_train_samples, num_val_samples):
         """Samples data based on the given percentage."""
