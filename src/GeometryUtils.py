@@ -57,7 +57,7 @@ def volume_reordering(data: pd.DataFrame, larger=True) -> pd.DataFrame:
         vol2 = calculate_tetrahedron_volume(T2)
         
         # Reorder if necessary
-        if vol2 > vol1 and larger:
+        if (vol2 > vol1 and larger) or (vol1 > vol2 and not larger):
             X = np.concatenate([T2, T1])
         
         return X
