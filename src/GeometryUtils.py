@@ -39,10 +39,9 @@ def permute_points_within_tetrahedrons(X: torch.Tensor) -> torch.Tensor:
         permuted_tetra2.view(batch_size, 12)
     ], dim=1)
 
-def larger_tetrahedron_first(data: pd.DataFrame) -> pd.DataFrame:
+def volume_reordering(data: pd.DataFrame, larger=True) -> pd.DataFrame:
     """
-    Reorders tetrahedron pairs in each row of the DataFrame so the larger tetrahedron comes first.
-    Assumes the first 24 columns are features (two tetrahedrons) and the last two columns are labels.
+    Reorder the tetrahedrons in the dataset based on their volumes.
     """
     features = data.iloc[:, :-2]
     labels = data.iloc[:, -2:]
@@ -58,7 +57,7 @@ def larger_tetrahedron_first(data: pd.DataFrame) -> pd.DataFrame:
         vol2 = calculate_tetrahedron_volume(T2)
         
         # Reorder if necessary
-        if vol2 > vol1:
+        if vol2 > vol1 and larger:
             X = np.concatenate([T2, T1])
         
         return X

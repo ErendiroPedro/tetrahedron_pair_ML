@@ -280,20 +280,26 @@ class DataProcessor:
 
         sort_type = config["augmentations"]["sort"]
         if sort_type:
-            if sort_type == "x":
+            if sort_type == "x_whole_dataset":
                 data = gu.sort_by_x_coordinate(data)
-            elif sort_type == "morton_code":
+            elif sort_type == "morton_code_whole_dataset":
                 data = gu.sort_by_morton_code(data)
-            elif sort_type == "x_alt":
+            elif sort_type == "x_each_tetrahedron":
                 data = gu.sort_by_x_coordinate_alt(data)
-            elif sort_type == "morton_code_alt":
+            elif sort_type == "morton_code_each_tetrahedron":
                 data = gu.sort_by_morton_code_alt(data)
 
             else:
                 raise ValueError("Invalid sort augmentation specified.")
             
-        if config["augmentations"]["larger_tetrahedron_first"]:
-            data = gu.larger_tetrahedron_first(data)
+        volume_sorting = config["augmentations"]["volume_sorting"]
+        if volume_sorting:
+            if volume_sorting == "larger":
+                data = gu.volume_reordering(data, True)
+            elif volume_sorting == "smaller":
+                data = gu.volume_reordering(data, False)
+            else:
+                raise ValueError("Invalid volume sorting augmentation specified.")
 
         return data
 
