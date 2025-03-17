@@ -1,0 +1,240 @@
+{
+    "task_type": "binary_classification",
+    "model_parameters": {
+        "total": 313,
+        "trainable": 313,
+        "non_trainable": 0
+    },
+    "dataset_reports": {
+        "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "repetitions": 50,
+                "accuracy": 0.9658,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "confusion_matrix": [
+                    [
+                        96580.0,
+                        3420.0
+                    ],
+                    [
+                        0.0,
+                        0.0
+                    ]
+                ]
+            },
+            "point_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.97202,
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.95871,
+                "total_samples": 100000
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce RTX 3080",
+                    "cuda_driver_version": "12.4",
+                    "cuda_capability": [
+                        8,
+                        6
+                    ],
+                    "cuda_memory": "10.49 GB"
+                },
+                "repetitions": 50,
+                "augmentation_time_seconds": 0.0221254825592041,
+                "transformation_time_seconds": 5.245208740234375e-06,
+                "inference_time_seconds": 0.00022557695984840392,
+                "total_time_seconds": 0.02235630472779274,
+                "avg_time_per_sample_seconds": 2.235630472779274e-07,
+                "samples_per_second": 4473011.135676764
+            }
+        },
+        "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "repetitions": 50,
+                "accuracy": 0.27817,
+                "precision": 1.0,
+                "recall": 0.27817,
+                "f1": 0.43526291494871566,
+                "confusion_matrix": [
+                    [
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        72183.0,
+                        27817.0
+                    ]
+                ]
+            },
+            "point_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.85068,
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.77426,
+                "total_samples": 100000
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce RTX 3080",
+                    "cuda_driver_version": "12.4",
+                    "cuda_capability": [
+                        8,
+                        6
+                    ],
+                    "cuda_memory": "10.49 GB"
+                },
+                "repetitions": 50,
+                "augmentation_time_seconds": 0.024721145629882812,
+                "transformation_time_seconds": 3.0994415283203125e-06,
+                "inference_time_seconds": 0.00021991615802049636,
+                "total_time_seconds": 0.02494416122943163,
+                "avg_time_per_sample_seconds": 2.494416122943163e-07,
+                "samples_per_second": 4008954.202958324
+            }
+        },
+        "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "repetitions": 50,
+                "accuracy": 0.37211999999999995,
+                "precision": 1.0,
+                "recall": 0.37211999999999995,
+                "f1": 0.5424015392239746,
+                "confusion_matrix": [
+                    [
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        62788.0,
+                        37212.0
+                    ]
+                ]
+            },
+            "point_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.81087,
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.73282,
+                "total_samples": 100000
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce RTX 3080",
+                    "cuda_driver_version": "12.4",
+                    "cuda_capability": [
+                        8,
+                        6
+                    ],
+                    "cuda_memory": "10.49 GB"
+                },
+                "repetitions": 50,
+                "augmentation_time_seconds": 0.023047208786010742,
+                "transformation_time_seconds": 2.6226043701171875e-06,
+                "inference_time_seconds": 0.0002239302372932434,
+                "total_time_seconds": 0.023273761627674104,
+                "avg_time_per_sample_seconds": 2.3273761627674103e-07,
+                "samples_per_second": 4296684.034139678
+            }
+        },
+        "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "repetitions": 50,
+                "accuracy": 0.3346100000000001,
+                "precision": 1.0,
+                "recall": 0.3346100000000001,
+                "f1": 0.5014348761061282,
+                "confusion_matrix": [
+                    [
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        66539.0,
+                        33461.0
+                    ]
+                ]
+            },
+            "point_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.83027,
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.75858,
+                "total_samples": 100000
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce RTX 3080",
+                    "cuda_driver_version": "12.4",
+                    "cuda_capability": [
+                        8,
+                        6
+                    ],
+                    "cuda_memory": "10.49 GB"
+                },
+                "repetitions": 50,
+                "augmentation_time_seconds": 0.023064851760864258,
+                "transformation_time_seconds": 2.6226043701171875e-06,
+                "inference_time_seconds": 0.0002208038368821144,
+                "total_time_seconds": 0.02328827820211649,
+                "avg_time_per_sample_seconds": 2.328827820211649e-07,
+                "samples_per_second": 4294005.728208442
+            }
+        },
+        "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv": {
+            "classification_performance": {
+                "repetitions": 50,
+                "accuracy": 0.5783899999999998,
+                "precision": 1.0,
+                "recall": 0.5783899999999998,
+                "f1": 0.7328860421061967,
+                "confusion_matrix": [
+                    [
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        42161.0,
+                        57839.0
+                    ]
+                ]
+            },
+            "point_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.74973,
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.66784,
+                "total_samples": 100000
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce RTX 3080",
+                    "cuda_driver_version": "12.4",
+                    "cuda_capability": [
+                        8,
+                        6
+                    ],
+                    "cuda_memory": "10.49 GB"
+                },
+                "repetitions": 50,
+                "augmentation_time_seconds": 0.020975351333618164,
+                "transformation_time_seconds": 2.384185791015625e-06,
+                "inference_time_seconds": 0.0002205209565162659,
+                "total_time_seconds": 0.021198256475925447,
+                "avg_time_per_sample_seconds": 2.1198256475925448e-07,
+                "samples_per_second": 4717369.096537187
+            }
+        }
+    }
+}
