@@ -117,6 +117,9 @@ class ModelTrainer:
 
                 output = self.model(batch_x)
 
+                with open("debug.txt", "a") as myfile:
+                    myfile.write(f"Real Volumes |Outputs {batch_volume} {output}\n")
+
                 # Compute loss based on the task
                 if self.config["loss_function"] == "binary_classification":
                     loss = self.loss_function(output, batch_status)
