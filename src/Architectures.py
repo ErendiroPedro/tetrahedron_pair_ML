@@ -24,16 +24,13 @@ class BaseNet(nn.Module, ABC):
         """To be implemented by child classes"""
         pass
 
-    def _build_branch(self, layer_dims, is_regression=False):
+    def _build_branch(self, layer_dims):
         """Helper to create sequential branches"""
         layers = []
         for i in range(len(layer_dims) - 1):
             layers.append(nn.Linear(layer_dims[i], layer_dims[i+1]))
             if i < len(layer_dims) - 2:  # No activation after last layer
                 layers.append(self.activation)
-        
-        if is_regression:
-            layers.append(nn.ReLU())
 
         return nn.Sequential(*layers)
 
@@ -51,7 +48,8 @@ class BaseNet(nn.Module, ABC):
             return self.classifier_branch(shared_out)
 
         elif self.task == 'regression':
-            return self.regressor_branch(shared_out) 
+            output = self.regressor_branch(shared_out)
+            return output
 
         raise ValueError(f"Unknown task: {self.task}")
 
@@ -84,13 +82,14 @@ class MLP(BaseNet):
         
         # Initialize branches
         self.classifier_branch = self._build_branch([shared_dims[-1]] + classification_head)
-        self.regressor_branch = self._build_branch([shared_dims[-1]] + regression_head, is_regression=True)
+        self.regressor_branch = self._build_branch([shared_dims[-1]] + regression_head)
 
     def _forward_shared(self, x):
         """MLP-specific shared forward pass"""
         for layer in self.shared_layers:
             x = layer(x)
             x = self.activation(x)
+
         return x
 
 class ResidualBlock(nn.Module):

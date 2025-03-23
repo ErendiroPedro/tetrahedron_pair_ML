@@ -83,6 +83,9 @@ class ModelTrainer:
             self.optimizer.zero_grad()
             output = self.model(batch_x)
 
+            with open("debug_train.txt", "a") as myfile:
+                    myfile.write(f"Real Volumes {batch_volume} | Ouputs {output}\n")
+
             if self.config["loss_function"] == "binary_classification":
                 loss = self.loss_function(output, batch_status)
             elif self.config["loss_function"] == "regression":
@@ -117,8 +120,8 @@ class ModelTrainer:
 
                 output = self.model(batch_x)
 
-                with open("debug.txt", "a") as myfile:
-                    myfile.write(f"Real Volumes |Outputs {batch_volume} {output}\n")
+                with open("debug_val.txt", "a") as myfile:
+                    myfile.write(f"Real Volumes {batch_volume} | Ouputs {output}\n")
 
                 # Compute loss based on the task
                 if self.config["loss_function"] == "binary_classification":
@@ -143,11 +146,18 @@ class ModelTrainer:
         """
         loss_functions_map = {
             "binary_classification": F.binary_cross_entropy_with_logits,
-            "regression": self._mape_loss,
+            "regression": self._rmlse,# self._mape_loss,
             "classification_and_regression": self._combined_loss
         }
         return loss_functions_map.get(task_name, F.binary_cross_entropy_with_logits)
     
+    def _rmlse(self, output, target):
+        log_true = torch.log1p(target)  # log(1 + y)
+        log_pred = torch.log1p(output)  # log(1 + y_hat)
+        
+        loss = torch.sqrt(torch.mean((log_true - log_pred) ** 2))
+        return loss
+
     def _mape_loss(self, output, target):
         return torch.mean(torch.abs((target - output) / target))
 
