@@ -288,6 +288,8 @@ class DataProcessor:
                 data = gu.sort_by_x_coordinate_alt(data)
             elif sort_type == "morton_code_each_tetrahedron":
                 data = gu.sort_by_morton_code_alt(data)
+            elif sort_type == "sort_by_intersection_volume_whole_dataset":
+                data = gu.sort_by_intersection_volume_whole_dataset(data)
 
             else:
                 raise ValueError("Invalid sort augmentation specified.")

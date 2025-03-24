@@ -159,6 +159,12 @@ def sort_by_morton_code_alt(data: pd.DataFrame, scale_factor: float = 1e18) -> p
 
     return pd.concat([t1_sorted, t2_sorted, data[metadata_columns]], axis=1)
 
+def sort_by_intersection_volume_whole_dataset(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Sort the dataset by the intersection volume in ascending order.
+    """
+    return data.sort_values(by='IntersectionVolume').reset_index(drop=True)
+
 def apply_affine_linear_transformation(tetrahedron_pair_vertices_flat: pd.Series) -> pd.Series:
     """Transform second tetrahedron's vertices relative to the first one"""
     input_tensor = torch.tensor(tetrahedron_pair_vertices_flat.values, dtype=torch.float32).flatten()
