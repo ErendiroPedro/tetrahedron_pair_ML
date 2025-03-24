@@ -24,7 +24,7 @@ class BaseNet(nn.Module, ABC):
         """To be implemented by child classes"""
         pass
 
-    def _build_branch(self, layer_dims):
+    def _build_branch(self, layer_dims, is_regression=False):
         """Helper to create sequential branches"""
         layers = []
         for i in range(len(layer_dims) - 1):
@@ -32,12 +32,15 @@ class BaseNet(nn.Module, ABC):
             if i < len(layer_dims) - 2:  # No activation after last layer
                 layers.append(self.activation)
 
+        if is_regression:
+            layers.append(nn.ReLU())  # Ensure positive volume predictions
+
         return nn.Sequential(*layers)
 
     def forward(self, x):
         """Common forward logic for all networks"""
         shared_out = self._forward_shared(x)
-        
+
         if self.task == 'classification_and_regression':
             return torch.cat([
                 self.classifier_branch(shared_out),
@@ -82,10 +85,11 @@ class MLP(BaseNet):
         
         # Initialize branches
         self.classifier_branch = self._build_branch([shared_dims[-1]] + classification_head)
-        self.regressor_branch = self._build_branch([shared_dims[-1]] + regression_head)
+        self.regressor_branch = self._build_branch([shared_dims[-1]] + regression_head, is_regression=True)
 
     def _forward_shared(self, x):
         """MLP-specific shared forward pass"""
+
         for layer in self.shared_layers:
             x = layer(x)
             x = self.activation(x)
