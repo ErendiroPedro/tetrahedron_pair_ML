@@ -161,9 +161,16 @@ def sort_by_morton_code_alt(data: pd.DataFrame, scale_factor: float = 1e18) -> p
 
 def sort_by_intersection_volume_whole_dataset(data: pd.DataFrame) -> pd.DataFrame:
     """
-    Sort the dataset by the intersection volume in ascending order.
+    Sorts the dataset by IntersectionVolume while keeping HasIntersection=0 entries in their original order.
+    HasIntersection=1 entries are sorted by IntersectionVolume in ascending order.
     """
-    return data.sort_values(by='IntersectionVolume').reset_index(drop=True)
+    # Separate the rows where HasIntersection is 0 and 1
+    no_intersection = data[data['HasIntersection'] == 0]
+    has_intersection = data[data['HasIntersection'] == 1].sort_values(by='IntersectionVolume', ascending=True)
+
+    # Concatenate back while preserving original order of no_intersection
+    return pd.concat([no_intersection, has_intersection]).reset_index(drop=True)
+
 
 def apply_affine_linear_transformation(tetrahedron_pair_vertices_flat: pd.Series) -> pd.Series:
     """Transform second tetrahedron's vertices relative to the first one"""
