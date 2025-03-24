@@ -111,7 +111,7 @@ class Evaluator:
                         start = time.time()
                         df = self.dp.transform_data(df, self.config)
                         transformation_time_ms = (time.time() - start) * 1000
-                
+
                     
                     self.datasets.append({
                         'name': f"{folder}/{file}",

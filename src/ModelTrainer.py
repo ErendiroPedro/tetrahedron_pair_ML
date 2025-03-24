@@ -23,7 +23,7 @@ class ModelTrainer:
         self.loss_function = self._setup_loss_functions(config.get("loss_function", "binary_classification"))
         self.learning_rate = config.get("learning_rate", 0.001)
         self.batch_size = config.get("batch_size", 32)
-        self.epochs = config.get("epochs", 10)
+        self.epochs = config.get("epochs", 5)
         self.processed_data_path = config.get("processed_data_path", ".")
 
         self.model = None # Will be set up during training
@@ -82,9 +82,6 @@ class ModelTrainer:
 
             self.optimizer.zero_grad()
             output = self.model(batch_x)
-
-            with open("debug_train.txt", "a") as myfile:
-                    myfile.write(f"Real Volumes {batch_volume} | Ouputs {output}\n")
 
             if self.config["loss_function"] == "binary_classification":
                 loss = self.loss_function(output, batch_status)

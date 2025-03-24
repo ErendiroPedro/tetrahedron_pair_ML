@@ -176,7 +176,6 @@ def sort_by_intersection_volume_whole_dataset(data: pd.DataFrame) -> pd.DataFram
     
     return data_sorted
 
-
 def apply_affine_linear_transformation(tetrahedron_pair_vertices_flat: pd.Series) -> pd.Series:
     """Transform second tetrahedron's vertices relative to the first one"""
     input_tensor = torch.tensor(tetrahedron_pair_vertices_flat.values, dtype=torch.float32).flatten()
