@@ -8,7 +8,7 @@ import json
 import yaml
 
 
-class ArtifactsManager:
+class CArtifactsManager:
     def __init__(self, config):
         self.config = config
         self.artifacts_path = self._create_experiment_folder()

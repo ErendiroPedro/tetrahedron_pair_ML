@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import pymorton
 
-
 def swap_tetrahedrons(X):
     """
     Swap the order of tetrahedrons in the input tensor.
@@ -204,6 +203,48 @@ def apply_affine_linear_transformation(tetrahedron_pair_vertices_flat: pd.Series
     # Convert back to a Pandas Series
     result = torch.stack(transformed).flatten().detach().numpy()
     return pd.Series(result, index=[f'v{i//3 + 1}_{"xyz"[i % 3]}' for i in range(12)])
+
+def apply_rigid_transformation(tetrahedron_pair_vertices_flat: pd.Series) -> pd.Series:
+    """
+    Apply a rigid transformation to both tetrahedrons to bring them into a canonical pose,
+    preserving their relative configuration (and intersection status).
+    The canonical frame is defined by tetrahedron 1's (t1) centroid and its principal axes.
+    """
+    # Convert input series to a tensor and reshape into two tetrahedrons (4 vertices each, 3 coordinates)
+    input_tensor = torch.tensor(tetrahedron_pair_vertices_flat.values, dtype=torch.float32).flatten()
+    tetra1 = input_tensor[:12].reshape(4, 3)
+    tetra2 = input_tensor[12:].reshape(4, 3)
+    
+    # Compute t1's centroid
+    centroid1 = tetra1.mean(dim=0)
+    tetra1_centered = tetra1 - centroid1
+
+    # Use PCA on tetra1 to obtain principal axes:
+    # Compute the covariance matrix of t1's centered vertices
+    cov_matrix = tetra1_centered.T @ tetra1_centered
+    # Get eigenvalues and eigenvectors (the eigenvectors form the rotation basis)
+    eigenvalues, eigenvectors = torch.linalg.eigh(cov_matrix)
+    # Sort eigenvectors by eigenvalues in descending order (largest variance first)
+    sorted_indices = torch.argsort(eigenvalues, descending=True)
+    R_canonical = eigenvectors[:, sorted_indices]  # each column is one principal axis
+
+    # Define the transformation: subtract t1's centroid and rotate using R_canonical^T
+    transform = lambda x: (R_canonical.T @ (x - centroid1).T).T
+
+    # Apply the same transformation to both tetrahedrons
+    tetra1_transformed = transform(tetra1)
+    tetra2_transformed = transform(tetra2)
+
+    result_t1 = tetra1_transformed.flatten().detach().numpy()
+    result_t2 = tetra2_transformed.flatten().detach().numpy()
+    result = np.concatenate((result_t1, result_t2))
+    
+    index = [f'T{i+1}_v{j+1}_{axis}' 
+             for i in range(2) 
+             for j in range(4) 
+             for axis in "xyz"]
+    
+    return pd.Series(result, index=index)
 
 def calculate_tetrahedron_volume(tetrahedron: np.ndarray) -> float:
     """Calculate tetrahedron volume using signed tetrahedral volume formula."""

@@ -10,12 +10,12 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
 import GeometryUtils as gu
-import DataProcessor as dp
+import src.CDataProcessor as dp
 
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.metrics import accuracy_score, precision_score, recall_score,f1_score, confusion_matrix
 
-class Evaluator:
+class CEvaluator:
     def __init__(self, config):
         self.config = config
         self.task_type = config.get('task', 'binary_classification')
@@ -23,7 +23,7 @@ class Evaluator:
         self.datasets = []
         self.intersection_status_column_name = 'HasIntersection'
         self.intersection_volume_column_name = 'IntersectionVolume'
-        self.dp = dp.DataProcessor(config)
+        self.dp = dp.CDataProcessor(config)
         
         self.test_registry = {
             'binary_classification': [self.classification_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.inference_speed],
@@ -363,6 +363,7 @@ class Evaluator:
                 result = {
                     "classification_consistency_rate": consistency_rate_cls,
                     "regression_consistency_rate": consistency_rate_reg,
+                    "mean_absolute_difference": mad_reg,
                     "consistency_thresholds": {"rtol": rtol, "atol": atol},
                     "total_samples": X.shape[0]
                 }

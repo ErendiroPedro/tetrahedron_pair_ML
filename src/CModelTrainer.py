@@ -10,7 +10,8 @@ import time
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 
-class ModelTrainer:
+class CModelTrainer:
+
     def __init__(self, config: Dict):
         """
         Initialize the ModelTrainer with configuration settings.
@@ -116,9 +117,6 @@ class ModelTrainer:
                 batch_volume = batch_volume.to(self.device)
 
                 output = self.model(batch_x)
-
-                with open("debug_val.txt", "a") as myfile:
-                    myfile.write(f"Real Volumes {batch_volume} | Ouputs {output}\n")
 
                 # Compute loss based on the task
                 if self.config["loss_function"] == "binary_classification":

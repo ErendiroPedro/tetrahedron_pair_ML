@@ -4,7 +4,7 @@ import numpy as np
 import src.GeometryUtils as gu
 import torch
 
-class DataProcessor:
+class CDataProcessor:
     def __init__(self, processor_config):
         self.config = processor_config
         self.train_data = None
@@ -309,21 +309,32 @@ class DataProcessor:
     def transform_data(data: pd.DataFrame, config) -> pd.DataFrame:
         """Transforms data based on the configuration."""
 
-        if config["transformations"]["affine_linear_transformation"]:
+        transformation_type = config["transformations"]
 
+        if transformation_type:
+            
             features = data.iloc[:, :-2]
             labels = data.iloc[:, -2:]
-            
-            transformed_features = features.apply(
-                gu.apply_affine_linear_transformation, 
-                axis=1,
-                result_type='expand'
-            )
-            
-            transformed_features.columns = [
-                f'v{i//3 + 1}_{"xyz"[i % 3]}' for i in range(12)
-            ]
+            transformed_features = pd.DataFrame()
 
+            if transformation_type == "affine_linear_transformation":    
+                transformed_features = features.apply(
+                    gu.apply_affine_linear_transformation, 
+                    axis=1,
+                    result_type='expand'
+                )
+
+            elif transformation_type == "rigid_transformation":               
+                transformed_features = features.apply(
+                    gu.apply_rigid_transformation, 
+                    axis=1,
+                    result_type='expand'
+                )
+
+            else:
+                raise ValueError("Invalid transformation type specified.")
+                
+            
             data = pd.concat([transformed_features, labels], axis=1)
 
         volume_scale_factor = config.get("volume_scale_factor", 1)

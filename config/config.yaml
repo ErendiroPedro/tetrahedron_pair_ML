@@ -1,4 +1,4 @@
-home: &home_path /home/erendiro/repos/tetrahedron_pair_ML # all other paths are relative to home
+home: &home_path /home/sei/tetrahedron_pair_ML # all other paths are relative to home
 
 artifacts_config:
   save_artifacts_to: artifacts 
@@ -9,32 +9,31 @@ processor_config:
     raw_data: data/raw          
     processed_data: &processed_data_path data/processed
 
-  num_train_samples: 100000
-  num_val_samples: 100000
+  num_train_samples: 10000
+  num_val_samples: 10000
 
-  volume_scale_factor: &volume_scale_factor 1
+  volume_scale_factor: &volume_scale_factor 100000
 
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
-    no_intersection: 0
+    no_intersection: 50
     point_intersection: 0
     segment_intersection: 0
     polygon_intersection: 0
-    polyhedron_intersection: 100
+    polyhedron_intersection: 50
 
   volume_range: [0, 0.01]
   number_of_bins: 100
 
   augmentations: &augmentations_config
     sort: null
-    volume_sorting: larger # larger, smaller
+    volume_sorting: null # larger, smaller
 
     # Note: Augmentation percentages should sum at most to 50
     point_wise_permutation_augmentation_pct: 0
     tetrahedron_wise_permutation_augmentation_pct: 0
 
-  transformations: &transformations_config
-    affine_linear_transformation: false
+  transformations: &transformations_config affine_linear_transformation # null, affine_linear_transformation, rigid_transformation
 
 model_config:
 

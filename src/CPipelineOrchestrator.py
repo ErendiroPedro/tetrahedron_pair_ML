@@ -1,27 +1,36 @@
 import yaml
 import os
-from src.DataProcessor import DataProcessor
-from src.ModelBuilder import ModelBuilder
-from src.ModelTrainer import ModelTrainer
-from src.ArtifactsManager import ArtifactsManager
-from src.evaluator.Evaluator import Evaluator
+from src.CDataProcessor import CDataProcessor
+from src.CModelBuilder import CModelBuilder
+from src.CModelTrainer import CModelTrainer
+from src.CArtifactsManager import CArtifactsManager
+from src.evaluator.CEvaluator import CEvaluator
 
-class PipelineOrchestrator:
-    def __init__(self, config_file="config.yaml"):
+class CPipelineOrchestrator:
+    def __init__(self, config_file="config/config.yaml"):
         self.config = self._load_config(config_file)
-        self.artifacts_manager = ArtifactsManager(self.config)
-        self.data_processor = DataProcessor(self.config["processor_config"])
-        self.model_builder = ModelBuilder(self.config["model_config"])
-        self.model_trainer = ModelTrainer(self.config["trainer_config"])
-        self.evaluator = Evaluator(self.config["evaluator_config"])
+        self.artifacts_manager = CArtifactsManager(self.config)
+        self.data_processor = CDataProcessor(self.config["processor_config"])
+        self.model_builder = CModelBuilder(self.config["model_config"])
+        self.model_trainer = CModelTrainer(self.config["trainer_config"])
+        self.evaluator = CEvaluator(self.config["evaluator_config"])
 
+    def run(self):
+        print("- Running Pipeline -")
+        state = {}
+        self._process_data_step(state)
+        self._build_model_step(state)
+        self._train_model_step(state)
+        self._evaluate_model_step(state)
+        print("- Pipeline Done -")
+        return state
+    
     def _load_config(self, config_file):
 
         with open(config_file, "r") as file:
             print("- Configuration Loaded -")
             config = yaml.safe_load(file)
 
-        # Retrieve the base home path.
         home = config.get('home')
         if not home:
             raise ValueError("The 'home' path is missing from the configuration.")
@@ -49,16 +58,6 @@ class PipelineOrchestrator:
             evaluator['test_data_path'] = join_with_home(evaluator['test_data_path'])
 
         return config
-
-    
-    def run(self):
-        print("- Running Pipeline -")
-        state = {}
-        self._process_data_step(state)
-        self._build_model_step(state)
-        self._train_model_step(state)
-        self._evaluate_model_step(state)
-        print("- Pipeline Done -")
 
     def _process_data_step(self, state):
         if self.config['processor_config'].get("skip_processing", True):
@@ -95,5 +94,3 @@ class PipelineOrchestrator:
         evaluation_report = self.evaluator.evaluate(trained_model)
         self.artifacts_manager.save_artifacts(evaluation_report)
         state["evaluation_report"] = evaluation_report
-
-PipelineOrchestrator().run()

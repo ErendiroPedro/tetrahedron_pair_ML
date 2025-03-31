@@ -1,9 +1,7 @@
-import torch.nn.functional as F
-from src.Architectures import MLP, DeepSet
 import pandas as pd
 import os
 
-class ModelBuilder:
+class CModelBuilder:
     def __init__(self, config):
         """
         Initialize the model builder with the provided configuration.
@@ -34,6 +32,8 @@ class ModelBuilder:
         Returns:
             nn.Module: Constructed neural network
         """
+
+        from src.CArchitectureManager import CArchitectureManager
         
         print("-- Building Architecture --")
 
@@ -49,7 +49,7 @@ class ModelBuilder:
             if not mlp_config:
                 raise ValueError("MLP configuration missing in architecture settings.")
 
-            model = MLP(
+            model = CArchitectureManager.MLP(
                 input_dim=input_shape,
                 shared_layers=mlp_config['shared_layers'],
                 classification_head=mlp_config['classification_head'],
