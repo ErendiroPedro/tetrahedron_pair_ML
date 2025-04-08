@@ -76,6 +76,13 @@ class CEvaluator:
             
             report['dataset_reports'][dataset['name']] = dataset_report
 
+        if self.task_type in ['binary_classification', 'classification_and_regression']:
+            report['aggregate_metrics'] = self._calculate_aggregate_classification_metrics(report)
+    
+        if self.task_type in ['regression', 'classification_and_regression']:
+            report['aggregate_regression_metrics'] = self._calculate_aggregate_regression_metrics(report)
+
+
         print("---- Finished Evaluation ----")
 
         return report
@@ -345,6 +352,7 @@ class CEvaluator:
                 result = {
                     "regression_consistency_rate": consistency_rate,
                     "consistency_thresholds": {"rtol": rtol, "atol": atol},
+                    "mean_absolute_difference": mad,
                     "total_samples": X.shape[0]
                 }
             elif self.task_type == 'classification_and_regression':
@@ -450,3 +458,173 @@ class CEvaluator:
             return {"error": "Missing attribute or function", "details": str(ae)}
         except Exception as e:
             return {"error": "Unexpected error", "details": str(e)}
+
+    def _calculate_aggregate_classification_metrics(self, report):
+        """Calculate aggregate classification metrics across all datasets"""
+        datasets = report['dataset_reports']
+        
+        # Prepare containers for metrics
+        all_metrics = {'total_samples': 0, 'weighted_correct': 0}
+        
+        # Dataset groups for weighted metrics
+        priority_group = ['polyhedron_intersection', 'no_intersection']
+        secondary_group = ['point_intersection', 'segment_intersection', 'polygon_intersection']
+        
+        group_metrics = {
+            'priority': {'total_samples': 0, 'correct_samples': 0},
+            'secondary': {'total_samples': 0, 'correct_samples': 0}
+        }
+        
+        # Collect metrics from all classification datasets
+        for dataset_name, dataset_report in datasets.items():
+            if 'classification_performance' not in dataset_report:
+                continue
+                
+            # Get dataset type from dataset name (e.g., 'no_intersection/file.csv' -> 'no_intersection')
+            dataset_type = dataset_name.split('/')[0]
+            
+            perf = dataset_report['classification_performance']
+            if isinstance(perf, dict) and 'accuracy' in perf:
+                # Get total sample count
+                dataset_index = next((i for i, d in enumerate(self.datasets) if d['name'] == dataset_name), None)
+                if dataset_index is None:
+                    continue
+                    
+                dataset = self.datasets[dataset_index]
+                n_samples = len(dataset['intersection_status'])
+                
+                # Add to overall metrics
+                all_metrics['total_samples'] += n_samples
+                all_metrics['weighted_correct'] += perf['accuracy'] * n_samples
+                
+                # Add to group metrics
+                if dataset_type in priority_group:
+                    group_metrics['priority']['total_samples'] += n_samples
+                    group_metrics['priority']['correct_samples'] += perf['accuracy'] * n_samples
+                elif dataset_type in secondary_group:
+                    group_metrics['secondary']['total_samples'] += n_samples
+                    group_metrics['secondary']['correct_samples'] += perf['accuracy'] * n_samples
+        
+        # Calculate overall accuracy
+        if all_metrics['total_samples'] > 0:
+            all_metrics['overall_accuracy'] = all_metrics['weighted_correct'] / all_metrics['total_samples']
+        else:
+            all_metrics['overall_accuracy'] = None
+        
+        # Calculate group accuracies
+        for group in ['priority', 'secondary']:
+            if group_metrics[group]['total_samples'] > 0:
+                group_metrics[group]['accuracy'] = (
+                    group_metrics[group]['correct_samples'] / 
+                    group_metrics[group]['total_samples']
+                )
+            else:
+                group_metrics[group]['accuracy'] = None
+        
+        # Calculate weighted metrics (80/20 and 20/80)
+        weighted_metrics = {}
+        
+        # 80/20 weighting (80% priority, 20% secondary)
+        if (group_metrics['priority']['accuracy'] is not None and 
+            group_metrics['secondary']['accuracy'] is not None):
+            weighted_metrics['80_20_accuracy'] = (
+                0.8 * group_metrics['priority']['accuracy'] + 
+                0.2 * group_metrics['secondary']['accuracy']
+            )
+        else:
+            weighted_metrics['80_20_accuracy'] = None
+        
+        # 20/80 weighting (20% priority, 80% secondary)
+        if (group_metrics['priority']['accuracy'] is not None and 
+            group_metrics['secondary']['accuracy'] is not None):
+            weighted_metrics['20_80_accuracy'] = (
+                0.2 * group_metrics['priority']['accuracy'] + 
+                0.8 * group_metrics['secondary']['accuracy']
+            )
+        else:
+            weighted_metrics['20_80_accuracy'] = None
+        
+        # Combine results
+        return {
+            'overall_accuracy': all_metrics['overall_accuracy'],
+            'total_samples': all_metrics['total_samples'],
+            'priority_group_accuracy': group_metrics['priority']['accuracy'],
+            'priority_group_samples': group_metrics['priority']['total_samples'],
+            'secondary_group_accuracy': group_metrics['secondary']['accuracy'],
+            'secondary_group_samples': group_metrics['secondary']['total_samples'],
+            'weighted_80_20_accuracy': weighted_metrics['80_20_accuracy'],
+            'weighted_20_80_accuracy': weighted_metrics['20_80_accuracy']
+        }
+
+    def _calculate_aggregate_regression_metrics(self, report):
+        """Calculate aggregate regression metrics across all datasets using existing results"""
+        aggregate_metrics = {
+            'total_samples': 0,
+            'bin_accuracy': {},
+            'overall_mae': 0,
+            'overall_mse': 0,
+            'weighted_samples': 0
+        }
+        
+        # Define the intervals as used in regression_performance
+        intervals = np.linspace(0, 0.01, 6)  # 5 intervals
+        for i in range(len(intervals)-1):
+            interval_key = f'{intervals[i]:.3f}-{intervals[i+1]:.3f}'
+            aggregate_metrics['bin_accuracy'][interval_key] = {
+                'total_samples': 0,
+                'mae': 0,
+                'mse': 0,
+                'weighted_mae': 0,
+                'weighted_mse': 0
+            }
+        
+        # Process all regression datasets
+        for dataset_name, dataset_report in report['dataset_reports'].items():
+            if 'regression_performance' not in dataset_report:
+                continue
+                
+            perf = dataset_report['regression_performance']
+            if not isinstance(perf, dict):
+                continue
+            
+            # Process each interval
+            for interval_key, interval_metrics in perf.items():
+                # Skip overall bin accuracy key
+                if interval_key == 'overall_bin_accuracy':
+                    continue
+                    
+                # Skip invalid or empty intervals
+                if not isinstance(interval_metrics, dict) or 'samples' not in interval_metrics:
+                    continue
+                    
+                samples = interval_metrics.get('samples', 0)
+                mae = interval_metrics.get('mae')
+                mse = interval_metrics.get('mse')
+                
+                if samples > 0 and mae is not None and mse is not None:
+                    # Update interval metrics
+                    aggregate_metrics['bin_accuracy'][interval_key]['total_samples'] += samples
+                    aggregate_metrics['bin_accuracy'][interval_key]['weighted_mae'] += mae * samples
+                    aggregate_metrics['bin_accuracy'][interval_key]['weighted_mse'] += mse * samples
+                    
+                    # Update overall metrics
+                    aggregate_metrics['total_samples'] += samples
+                    aggregate_metrics['weighted_samples'] += samples
+                    aggregate_metrics['overall_mae'] += mae * samples
+                    aggregate_metrics['overall_mse'] += mse * samples
+        
+        # Calculate aggregated metrics
+        if aggregate_metrics['weighted_samples'] > 0:
+            aggregate_metrics['overall_mae'] /= aggregate_metrics['weighted_samples']
+            aggregate_metrics['overall_mse'] /= aggregate_metrics['weighted_samples']
+        
+        # Calculate per-interval average metrics
+        for interval_key, metrics in aggregate_metrics['bin_accuracy'].items():
+            if metrics['total_samples'] > 0:
+                metrics['mae'] = metrics['weighted_mae'] / metrics['total_samples']
+                metrics['mse'] = metrics['weighted_mse'] / metrics['total_samples']
+                # Remove temporary weighted values
+                metrics.pop('weighted_mae')
+                metrics.pop('weighted_mse')
+        
+        return aggregate_metrics
