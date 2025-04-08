@@ -8,6 +8,7 @@ class CModelBuilder:
         """
         self.config = config
         self.task = config['task']
+        self.dropout_rate = config['dropout_rate']
 
     def _infer_input_shape(self):
         """
@@ -32,49 +33,84 @@ class CModelBuilder:
         Returns:
             nn.Module: Constructed neural network
         """
-
         from src.CArchitectureManager import CArchitectureManager
         
         print("-- Building Architecture --")
-
-        model = None
+        
+        # Get common parameters
         input_shape = self._infer_input_shape()
-
-        architecture_use = self.config['architecture'].get('use')
+        common_params = {
+            'input_dim': input_shape,
+            'activation': self.config['activation_function'],
+            'task': self.task,
+            'volume_scale_factor': self.config['volume_scale_factor'],
+        }
+        
+        # Define architecture builder functions
+        architecture_builders = {
+            'mlp': self._build_mlp,
+            'tpnet': self._build_tpnet,
+            'deepset': self._build_deepset
+        }
+        
+        # Get selected architecture
+        architecture_use = self.config['architecture'].get('use', '').lower()
         if not architecture_use:
             raise ValueError("Architecture 'use' not specified in config.")
-
-        if architecture_use == 'mlp':
-            mlp_config = self.config['architecture'].get('mlp')
-            if not mlp_config:
-                raise ValueError("MLP configuration missing in architecture settings.")
-
-            model = CArchitectureManager.MLP(
-                input_dim=input_shape,
-                shared_layers=mlp_config['shared_layers'],
-                classification_head=mlp_config['classification_head'],
-                regression_head=mlp_config['regression_head'],
-                activation=self.config['activation_function'],
-                volume_scale_factor=self.config['volume_scale_factor'],
-                task=self.task
-            )
+        
+        # Build the model
+        if architecture_use in architecture_builders:
+            model = architecture_builders[architecture_use](CArchitectureManager, common_params)
         else:
             raise ValueError(f"Unsupported architecture: {architecture_use}")
-
-        # elif self.config['architecture'] == 'deepset':
-        #     model = DeepSet(
-        #         input_dim=input_shape,
-        #         activation=self.config['activation_function'],
-        #         dropout_rate=self.config['dropout_rate'],
-        #         task=self.task
-        #     )
-        # elif self.config['architecture'] == 'pointnet':
-        #     model = TetrahedraPointNet(
-        #         dropout_rate=self.config['dropout_rate'],
-        #         task=self.task
-        #     )
-        # else:
-        #     raise ValueError(f"Unsupported architecture: {self.config['architecture']}")
         
         print("---- Architecture Built ----")
         return model
+
+    def _build_mlp(self, manager, common_params):
+        """Build an MLP model with the specified parameters."""
+        mlp_config = self.config['architecture'].get('mlp')
+        if not mlp_config:
+            raise ValueError("MLP configuration missing in architecture settings.")
+        
+        return manager.MLP(
+            **common_params,
+            shared_layers=mlp_config['shared_layers'],
+            classification_head=mlp_config['classification_head'],
+            regression_head=mlp_config['regression_head'],
+        )
+
+    def _build_tpnet(self, manager, common_params):
+        """Build a TPNet model with the specified parameters."""
+        tpnet_config = self.config['architecture'].get('tpnet')
+        if not tpnet_config:
+            raise ValueError("TPNet configuration missing in architecture settings.")
+        
+        return manager.TPNet(
+            **common_params,
+            per_tet_layers=tpnet_config['per_tet_layers'],
+            shared_layers=tpnet_config['shared_layers'],
+            classification_head=tpnet_config['classification_head'],
+            regression_head=tpnet_config['regression_head'],
+        )
+
+    def _build_deepset(self, manager, common_params):
+        """Build a DeepSet model with the specified parameters."""
+        deepset_config = self.config['architecture'].get('deepset')
+        if not deepset_config:
+            raise ValueError("DeepSet configuration missing in architecture settings.")
+        
+        # Package DeepSet parameters into a dictionary
+        deep_set_params = {
+            'hidden_dim': deepset_config.get('hidden_dim', 64),
+            'output_dim': deepset_config.get('output_dim', 32),
+            'num_blocks': deepset_config.get('num_blocks', 1),
+            'dropout_rate': self.dropout_rate
+        }
+        
+        return manager.DeepSet(
+            **common_params,
+            deep_set_params=deep_set_params,
+            classification_head=deepset_config['classification_head'],
+            regression_head=deepset_config['regression_head']
+        )
