@@ -139,7 +139,7 @@ class CPipelineOrchestrator:
             # If a model path is specified, load the model
             loaded_model = self._load_model_step(state)
             state["model"] = loaded_model
-            print("---- Model Loaded Successfully ----")
+            print(f"---- Will train model with {self.config['evaluator_config']['model_path']} ----")
         
         assert model_architecture is not None, "Model must be provided for training."
 
