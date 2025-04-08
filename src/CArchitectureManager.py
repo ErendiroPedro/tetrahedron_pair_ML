@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from abc import ABC, abstractmethod
 
 class CArchitectureManager:
@@ -22,7 +21,7 @@ class CArchitectureManager:
 
     class BaseNet(nn.Module, ABC):
         """Base network with common functionality for all models"""
-        def __init__(self, activation, task, volume_scale_factor=1):
+        def __init__(self, activation, task, shared_dim, classification_head, regression_head, volume_scale_factor=1):
             super().__init__()
             self.task = task
             self.activation_map = {
@@ -33,20 +32,21 @@ class CArchitectureManager:
             }
             self.activation = self.activation_map[activation]()
             self.volume_scale_factor = volume_scale_factor
-            self.classifier_branch = None
-            self.regressor_branch = None
+
+            self.classifier_head= self._build_task_head([shared_dim] + classification_head)
+            self.regressor_head= self._build_task_head([shared_dim] + regression_head, is_regression=True)
 
         @abstractmethod
-        def _forward_shared(self, x):
+        def _forward(self, x):
             """To be implemented by child classes"""
             pass
 
-        def _build_branch(self, layer_dims, is_regression=False):
+        def _build_task_head(self, hidden_layers, is_regression=False):
             """Helper to create sequential branches"""
             layers = []
-            for i in range(len(layer_dims) - 1):
-                layers.append(nn.Linear(layer_dims[i], layer_dims[i+1]))
-                if i < len(layer_dims) - 2:  # No activation after last layer
+            for i in range(len(hidden_layers) - 1):
+                layers.append(nn.Linear(hidden_layers[i], hidden_layers[i+1]))
+                if i < len(hidden_layers) - 2:  # No activation after last layer
                     layers.append(self.activation)
 
             if is_regression:
@@ -56,19 +56,19 @@ class CArchitectureManager:
 
         def forward(self, x):
             """Common forward logic for all networks"""
-            shared_out = self._forward_shared(x)
+            shared_out = self._forward(x)
 
             if self.task == 'classification_and_regression':
                 return torch.cat([
-                    self.classifier_branch(shared_out),
-                    self.regressor_branch(shared_out)
+                    self.classifier_head(shared_out),
+                    self.regressor_head(shared_out)
                 ], dim=1)
             
             elif self.task == 'binary_classification':
-                return self.classifier_branch(shared_out)
+                return self.classifier_head(shared_out)
 
             elif self.task == 'regression':
-                output = self.regressor_branch(shared_out)
+                output = self.regressor_head(shared_out)
                 return output
 
             raise ValueError(f"Unknown task: {self.task}")
@@ -77,122 +77,333 @@ class CArchitectureManager:
             """Common prediction logic for all networks"""
             self.eval()
             with torch.no_grad():
-                logits = self(x)
+
+                processed_embeddings = self(x) 
 
                 if self.task == 'binary_classification':
-                    return (logits > 0.5).int().squeeze() 
+                    return (processed_embeddings > 0.5).int().squeeze() # Using binary cross-entropy with logits, sgimoid is applied in the loss function
                 elif self.task == 'regression':
-                    return logits.squeeze() / self.volume_scale_factor
+                    return processed_embeddings.squeeze() / self.volume_scale_factor
                 elif self.task == 'classification_and_regression':
-                    cls_prediction = (logits[:, 0] > 0.5).int().squeeze()
-                    reg_prediction = logits[:, 1].squeeze() / self.volume_scale_factor
+                    cls_prediction = (processed_embeddings[:, 0] > 0.5).int().squeeze() # Using binary cross-entropy with logits, sgimoid is applied in the loss function
+                    reg_prediction = processed_embeddings[:, 1].squeeze() / self.volume_scale_factor
                     return torch.stack([cls_prediction, reg_prediction], dim=1)         
                 raise ValueError(f"Unknown task: {self.task}")
+    
     class MLP(BaseNet):
         def __init__(self, input_dim, shared_layers, classification_head, regression_head, 
                     activation, task, volume_scale_factor=1):
-            super().__init__(activation, task, volume_scale_factor=volume_scale_factor)
+            super().__init__(activation, task, shared_layers[-1], classification_head, regression_head, volume_scale_factor=volume_scale_factor)
             
-            # Build shared layers
-            shared_dims = [input_dim] + shared_layers
-            self.shared_layers = nn.ModuleList()
-            for i in range(len(shared_dims)-1):
-                self.shared_layers.append(nn.Linear(shared_dims[i], shared_dims[i+1]))
-            
-            # Initialize branches
-            self.classifier_branch = self._build_branch([shared_dims[-1]] + classification_head)
-            self.regressor_branch = self._build_branch([shared_dims[-1]] + regression_head, is_regression=True)
+            self.shared_layers = self._build_shared_network(input_dim, shared_layers)
 
-        def _forward_shared(self, x):
-            """MLP-specific shared forward pass"""
+        def _build_shared_network(self, input_dim, layer_sizes):
+            dimensions = [input_dim] + layer_sizes
+            layers = []
+            # Pair consecutive dimensions (input_dim, layer1), (layer1, layer2)...
+            for i, (in_dim, out_dim) in enumerate(zip(dimensions, dimensions[1:])):
+                layers.append(nn.Linear(in_dim, out_dim))
+                # Only add activation if it's NOT the last layer
+                # if i < len(layer_sizes) - 1:
+                #     layers.append(self.activation)
+            return nn.Sequential(*layers)
+        def _forward(self, x):
+            return self.shared_layers(x)
+   
+    class TPNet(BaseNet):
+        def __init__(self, input_dim, per_tet_layers, shared_layers, classification_head, regression_head, activation, task, volume_scale_factor=1):
+            super().__init__(activation, task, shared_layers[-1], classification_head, regression_head, volume_scale_factor=volume_scale_factor)
+            
+            self.input_dim = input_dim
+            self.per_tet_layers = self._build_tetrahedronwise_tet_network(per_tet_layers)
+            self.shared_layers = self._build_shared_network(shared_layers[0], shared_layers)
+            self.tuple_network = nn.Linear(input_dim, shared_layers[-1])
+        
+        def _build_tetrahedronwise_tet_network(self, layer_sizes):
+            """Single residual block covering whole tetrahedron processing"""
+            class TetrahedronwiseNetwork(nn.Module):
+                def __init__(self, layer_sizes, activation):
+                    super().__init__()
+                    # Ensure final output matches input dimensions (12)
+                    processing_dims = [12] + layer_sizes + [12]
+                    
+                    # Main processing sequence
+                    self.processor = nn.Sequential(
+                        *sum([[nn.Linear(in_d, out_d), activation] 
+                            for in_d, out_d in zip(processing_dims[:-2], processing_dims[1:-1])], []),
+                        nn.Linear(processing_dims[-2], processing_dims[-1])
+                    )
+                    
+                    # Final activation after residual
+                    self.final_activation = activation
 
-            for layer in self.shared_layers:
-                x = layer(x)
-                x = self.activation(x)
+                def forward(self, x):
+                    # Original input for residual
+                    identity = x
+                    
+                    # Process entire tetrahedron
+                    processed = self.processor(x)
+                    
+                    # Add residual and apply final activation
+                    return self.final_activation(processed + identity)
 
-            return x
-    class ResidualBlock(nn.Module):
-        def __init__(self, input_dim, output_dim):
-            super().__init__()
-            # Main path components
-            self.norm1 = nn.LayerNorm(input_dim)
-            self.relu1 = nn.ReLU()
-            self.fc1 = nn.Linear(input_dim, output_dim)
+            return TetrahedronwiseNetwork(layer_sizes, self.activation)
+
+
+        def _build_pointwise_tet_network(self, layer_sizes):
+            """Build network with correct residual projections"""
+            class PointwiseTetNetwork(nn.Module):
+                def __init__(self, layer_sizes, activation):
+                    super().__init__()
+                    # Per-point processing
+                    per_point_dims = [3] + layer_sizes
+                    self.point_layers = nn.Sequential(
+                        *sum([[nn.Linear(in_d, out_d), activation] 
+                            for in_d, out_d in zip(per_point_dims[:-1], per_point_dims[1:])], [])
+                    )
+                    
+                    # CORRECTED RESIDUAL PROJECTION
+                    self.point_res_proj = (
+                        nn.Linear(3, layer_sizes[-1]) 
+                        if layer_sizes[-1] != 3 
+                        else nn.Identity()
+                    )
+                    
+                    # Post-pool processing
+                    self.post_pool = nn.Sequential(
+                        nn.Linear(layer_sizes[-1], 24),
+                        activation,
+                        nn.Linear(24, 12)
+                    )
+
+                def forward(self, x):
+                    # Original input for final residual
+                    input_residual = x
+                    
+                    # Process points
+                    points = x.view(-1, 4, 3)
+                    processed = self.point_layers(points)
+                    
+                    residual = self.point_res_proj(points)  # [batch, 4, layer_size]
+                    processed = processed + residual  # [batch, 4, layer_size]
+                    
+                    # Aggregate and process
+                    pooled = torch.max(processed, dim=1)[0]  # [batch, layer_size]
+                    output = self.post_pool(pooled)  # [batch, 12]
+                    
+                    # Final residual connection
+                    return output + input_residual  # [batch, 12]
+
+            return PointwiseTetNetwork(layer_sizes, self.activation)
+
+        def _build_shared_network(self, input_dim, layer_sizes):
+            """Shared network with residual connections"""
+
+            class ResidualBlock(nn.Module):
+                def __init__(self, in_dim, out_dim, activation):
+                    super().__init__()
+                    self.linear = nn.Linear(in_dim, out_dim)
+                    self.activation = activation
+                    self.res_proj = nn.Linear(in_dim, out_dim) if in_dim != out_dim else nn.Identity()
+                    
+                def forward(self, x):
+                    return self.activation(self.linear(x) + self.res_proj(x))
             
-            self.norm2 = nn.LayerNorm(output_dim)
-            self.relu2 = nn.ReLU()
-            self.fc2 = nn.Linear(output_dim, output_dim)
+            layers = []
+            current_dim = input_dim
             
-            # Skip connection (identity or projection)
-            self.skip = nn.Linear(input_dim, output_dim) if input_dim != output_dim else nn.Identity()
+            for out_dim in layer_sizes:
+                layers.append(ResidualBlock(current_dim, out_dim, self.activation))
+                current_dim = out_dim
             
-        def forward(self, x):
-            # Skip connection
-            residual = self.skip(x)
+            return nn.Sequential(*layers)
+
+
+        
+        def process_tetrahedron(self, x):
+            """
+            Process a single tetrahedron.
             
-            # Main path with pre-activation pattern
-            # First block: norm -> activation -> weight
-            out = self.norm1(x)
-            out = self.relu1(out)
-            out = self.fc1(out)
+            Args:
+                x: Tensor of shape [batch_size, 12] (4 points × 3 coordinates)
             
-            # Second block: norm -> activation -> weight
-            # out = self.norm2(out)
-            # out = self.relu2(out)
-            # out = self.fc2(out)
+            Returns:
+                Tensor of shape [batch_size, per_tet_layers[-1]]
+            """
+            # Process through the per-tetrahedron network
+            features = self.per_tet_layers(x)
             
-            # Add skip connection to output
-            return out + residual
-    class DeepSet(BaseNet):
-        """DeepSet architecture with shared base"""
-        def __init__(self, input_dim, activation, dropout_rate, task):
-            super().__init__(activation, task)
+            return features
+        
+        def process_combined_features(self, x):
+            """
+            Process combined features through shared layers.
             
-            # Determine number of tetrahedrons based on input_dim.
-            # 24 means two tetrahedrons (2*4*3), 12 means one tetrahedron (1*4*3).
-            if input_dim == 24:
-                self.num_tets = 2
-                # For two tetrahedrons, the concatenated feature vector is 2*128 = 256.
-                self.post_concat_residual = ResidualBlock(input_dim=32, output_dim=16, dropout_rate=dropout_rate)
-            elif input_dim == 12:
-                self.num_tets = 1
-                # For a single tetrahedron, the feature vector is 128.
-                self.post_concat_residual = ResidualBlock(input_dim=128, output_dim=64, dropout_rate=dropout_rate)
+            Args:
+                x: Tensor of combined features
+                
+            Returns:
+                Processed features
+            """
+            return self.shared_layers(x)
+        
+        def _forward(self, x):
+            """
+            TPNet forward pass.
+            
+            Expected input format: batch of flat tensors with shape [batch_size, input_dim]
+            Where input_dim is either:
+            - 12 (single tetrahedron: 4 points × 3 coordinates)
+            - 24 (two tetrahedra: 8 points × 3 coordinates)
+            """
+            
+            # Store original inputs for tuple branch
+            original_inputs = x.clone()
+            
+            # Determine if we're processing one or two tetrahedra based on input dimension
+            if self.input_dim == 12:  # Single tetrahedron case
+                # Process single tetrahedron
+                tet_features = self.process_tetrahedron(x)
+                
+                # No need for max pooling in single tetrahedron case
+                pooled_features = tet_features
+                
+            elif self.input_dim == 24:  # Two tetrahedra case
+                # Split into two tetrahedra
+                t1 = x[:, :12]  # First tetrahedron: first 12 values (4 points × 3 coordinates)
+                t2 = x[:, 12:]  # Second tetrahedron: last 12 values (4 points × 3 coordinates)
+                
+                # Process each tetrahedron independently
+                t1_features = self.process_tetrahedron(t1)
+                t2_features = self.process_tetrahedron(t2)
+                
+                # Max pooling operation (element-wise max)
+                pooled_features = torch.max(t1_features, t2_features)
+                
             else:
-                raise ValueError("input_dim must be either 12 or 24")
+                raise ValueError(f"Input dimension must be either 12 or 24, got {self.input_dim}")
+            
+            # Process combined features
+            combined_embeddings = self.process_combined_features(pooled_features)
+            
+            # Process original inputs through tuple branch
+            tuple_embeddings = self.tuple_network(original_inputs)
+            
+            # Final embeddings: combined embeddings + tuple embeddings
+            final_embeddings = combined_embeddings + tuple_embeddings
+            
+            return final_embeddings
 
-            self.tetra_residual = ResidualBlock(input_dim=3, output_dim=128, dropout_rate=dropout_rate)
-            self.final_fc = nn.Linear(64, 64)
-            self.final_activation = nn.ReLU()
+    # Helper class
+    class ResidualBlock(nn.Module):
+        def __init__(self, in_dim, out_dim, activation, dropout_rate=0.1):
+            super().__init__()
+            self.linear1 = nn.Linear(in_dim, out_dim)
+            self.ln1 = nn.LayerNorm(out_dim)
+            self.activation = activation
+            self.dropout = nn.Dropout(dropout_rate)
+            self.linear2 = nn.Linear(out_dim, out_dim)
+            self.ln2 = nn.LayerNorm(out_dim)
+            self.proj = nn.Linear(in_dim, out_dim) if in_dim != out_dim else nn.Identity()
 
-            # Initialize task branches
-            self._init_branches()
+        def forward(self, x):
+            out = self.linear1(x)
+            out = self.ln1(out)
+            out = self.activation(out)
+            out = self.dropout(out)
+            out = self.linear2(out)
+            out = self.ln2(out)
+            skip = self.proj(x)
+            return self.activation(out + skip)
 
-        def _init_branches(self):
-            """Initialize task-specific branches"""
-            self.classifier_branch = self._build_branch([64, 32, 16, 1])
-            self.regressor_branch = self._build_branch([64, 64, 1])
+    class DeepSetEncoder(nn.Module):
+        def __init__(self, input_dim, hidden_dim, output_dim, activation, dropout_rate=0.1):
+            """
+            Parameters:
+            - input_dim: 12 for a single tetrahedron or 24 for two tetrahedra.
+            - hidden_dim: number of units used in the residual blocks.
+            - output_dim: final embedding dimension (will be used as shared_dim).
+            - activation: an activation module (e.g. nn.ReLU()).
+            - dropout_rate: dropout rate in residual blocks.
+            """
+            super().__init__()
+            self.input_dim = input_dim
+            self.activation = activation
+            
+            # Initialize with dummy modules
+            self.res_block1 = nn.Identity()
+            self.res_block2 = nn.Identity()
+            self.res_block_pool = nn.Identity()
+            self.res_block3 = nn.Identity()
+            self.final_fc = nn.Linear(1, output_dim)  # Minimum valid Linear layer
+            
+                
+            # Create the blocks based on input dimension
+            if input_dim == 12:
+                # Single tetrahedron case
+                self.res_block1 = CArchitectureManager.ResidualBlock(3, hidden_dim, activation, dropout_rate)
+                self.res_block2 = CArchitectureManager.ResidualBlock(hidden_dim, hidden_dim, activation, dropout_rate)
+                self.final_fc = nn.Linear(hidden_dim, output_dim)
+            elif input_dim == 24:
+                # Two tetrahedra case
+                self.res_block1 = CArchitectureManager.ResidualBlock(3, hidden_dim, activation, dropout_rate)
+                self.res_block_pool = CArchitectureManager.ResidualBlock(hidden_dim, hidden_dim, activation, dropout_rate)
+                self.res_block3 = CArchitectureManager.ResidualBlock(2 * hidden_dim, hidden_dim, activation, dropout_rate)
+                self.final_fc = nn.Linear(hidden_dim, output_dim)
+            else:
+                raise ValueError("input_dim must be either 12 (single tet) or 24 (two tets)")
 
-        def _forward_shared(self, x):
-            """Shared DeepSet processing with dynamic tetrahedron count"""
-            if self.num_tets == 2:
-                # Reshape to (batch, 2, 4, 3) for two tetrahedrons.
-                x = x.view(-1, 2, 4, 3)
-                tet1 = self.tetra_residual(x[:, 0, :, :])
-                tet1 = torch.max(tet1, dim=1)[0]
-                tet2 = self.tetra_residual(x[:, 1, :, :])
-                tet2 = torch.max(tet2, dim=1)[0]
-                x = torch.cat([tet1, tet2], dim=1)
-            else:  # self.num_tets == 1
-                # Reshape to (batch, 4, 3) for a single tetrahedron.
-                x = x.view(-1, 4, 3)
-                tet1 = self.tetra_residual(x)
-                tet1 = torch.max(tet1, dim=1)[0]
-                x = tet1
+        def forward(self, x):
+            if self.input_dim == 12:
+                # Single tetrahedron processing
+                batch = x.size(0)
+                x = x.view(batch, 4, 3)
+                x_vertex = x.view(-1, 3)
+                x_processed = self.res_block1(x_vertex)
+                x_processed = x_processed.view(batch, 4, -1)
+                x_pool, _ = torch.max(x_processed, dim=1)
+                x_pool = self.res_block2(x_pool)
+                out = self.final_fc(x_pool)
+                return self.activation(out)
+            elif self.input_dim == 24:
+                # Two tetrahedra processing
+                batch = x.size(0)
+                x = x.view(batch, 2, 4, 3)
+                x = x.view(batch * 2, 4, 3)
+                x_vertex = x.view(-1, 3)
+                x_processed = self.res_block1(x_vertex)
+                x_processed = x_processed.view(batch * 2, 4, -1)
+                x_pool, _ = torch.max(x_processed, dim=1)
+                x_pool = self.res_block_pool(x_pool)
+                x_pool = x_pool.view(batch, 2, -1)
+                x_cat = x_pool.view(batch, -1)
+                x_out = self.res_block3(x_cat)
+                out = self.final_fc(x_out)
+                return self.activation(out)
+            else:
+                raise ValueError(f"Unexpected input_dim: {self.input_dim}")
 
-            x = self.post_concat_residual(x)
-            return self.final_activation(self.final_fc(x))
+    # DeepSet model using the DeepSetEncoder inside the BaseNet framework
+    class DeepSet(BaseNet):
+        def __init__(self, input_dim, deep_set_params, classification_head, regression_head, 
+                    activation, task, volume_scale_factor=1):
+            """
+            deep_set_params is a dict containing:
+            - 'hidden_dim': number of hidden units used in residual blocks.
+            - 'output_dim': desired output dimension of the deep set encoder.
+            - Optional: 'dropout_rate' (default 0.1)
+            """
+            self.input_dim = input_dim
+            output_dim = deep_set_params['output_dim']
+            super().__init__(activation, task, output_dim, classification_head, regression_head,
+                            volume_scale_factor=volume_scale_factor)
+            hidden_dim = deep_set_params['hidden_dim']
+            dropout_rate = deep_set_params.get('dropout_rate', 0.1)
+            self.deep_set_encoder = CArchitectureManager.DeepSetEncoder(input_dim, hidden_dim, output_dim, self.activation, dropout_rate)
 
+        def _forward(self, x):
+            return self.deep_set_encoder(x)
+            
     # class GeometricAffineModule(nn.Module):
     #     """Implements the geometric normalization with learnable affine parameters."""
     #     def __init__(self, num_features, epsilon=1e-6):
@@ -237,71 +448,3 @@ class CArchitectureManager:
     #         out = self.net(x_flat)
     #         out += self.skip(x_flat)
     #         return out.view(batch, groups, points, -1)
-
-    # class TetrahedraPointNet(nn.Module):
-    #     """PointNet architecture with geometric affine residual blocks."""
-    #     def __init__(self, task='classification', dropout_rate=0.1):
-    #         super().__init__()
-    #         self.task = task
-            
-    #         # Tetrahedron processing blocks
-    #         self.tetra_processor = nn.Sequential(
-    #             ResidualBlock(3, 256, dropout_rate, use_affine=True),
-    #             ResidualBlock(256, 256, dropout_rate, use_affine=True)
-    #         )
-            
-    #         # Post-concatenation processing
-    #         self.post_process = nn.Sequential(
-    #             ResidualBlock(512, 128, dropout_rate, use_affine=False),
-    #             nn.Linear(128, 128),
-    #             nn.ReLU()
-    #         )
-            
-    #         # Task heads
-    #         self.classifier = nn.Sequential(
-    #             nn.Linear(128, 64),
-    #             nn.ReLU(),
-    #             nn.Linear(64, 32),
-    #             nn.ReLU(),
-    #             nn.Linear(32, 1)
-    #         )
-    #         self.regressor = nn.Linear(128, 1)
-
-    #     def forward(self, x):
-    #         # Reshape input: (batch, 24) -> (batch, 2, 4, 3)
-    #         x = x.view(-1, 2, 4, 3)
-            
-    #         # Process both tetrahedrons
-    #         features = []
-    #         for i in range(2):
-    #             tetra = x[:, i:i+1, :, :]  # (batch, 1, 4, 3)
-    #             processed = self.tetra_processor(tetra)  # (batch, 1, 4, 256)
-    #             pooled = torch.max(processed, dim=2)[0]  # (batch, 1, 256)
-    #             features.append(pooled.squeeze(1))  # (batch, 256)
-                
-    #         # Combine and process
-    #         x = torch.cat(features, dim=1)  # (batch, 512)
-    #         x = x.unsqueeze(1).unsqueeze(2)  # Add dummy dimensions
-    #         x = self.post_process(x).squeeze()  # (batch, 128)
-            
-    #         # Task-specific outputs
-    #         if self.task == 'classification_and_regression':
-    #             cls = torch.sigmoid(self.classifier(x))
-    #             reg = self.regressor(x)
-    #             return torch.cat([cls, reg], dim=1)
-    #         elif self.task == 'binary_classification':
-    #             return torch.sigmoid(self.classifier(x))
-    #         elif self.task == 'regression':
-    #             return self.regressor(x)
-
-    #     def predict(self, x):
-    #         self.eval()
-    #         with torch.no_grad():
-    #             out = self(x)
-    #             if self.task == 'binary_classification':
-    #                 return (out > 0.5).int().squeeze()
-    #             elif self.task == 'regression':
-    #                 return out.squeeze()
-    #             elif self.task == 'classification_and_regression':
-    #                 return (out[:, 0] > 0.5).int().squeeze(), out[:, 1].squeeze()
-
