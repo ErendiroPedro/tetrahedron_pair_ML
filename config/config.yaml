@@ -9,70 +9,75 @@ processor_config:
     raw_data: data/raw          
     processed_data: &processed_data_path data/processed
 
-  num_train_samples: 10000
-  num_val_samples: 10000
+  num_train_samples: 1000
+  num_val_samples: 1000
 
-  volume_scale_factor: &volume_scale_factor 100000
+  volume_scale_factor: &volume_scale_factor 1000000
 
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
-    no_intersection: 50
+    no_intersection: 0
     point_intersection: 0
     segment_intersection: 0
     polygon_intersection: 0
-    polyhedron_intersection: 50
+    polyhedron_intersection: 100
 
-  volume_range: [0, 0.01]
+  volume_range: [0,0.01] 
   number_of_bins: 100
 
   augmentations: &augmentations_config
-    sort: null
+    sort: null #
     volume_sorting: null # larger, smaller
 
     # Note: Augmentation percentages should sum at most to 50
     point_wise_permutation_augmentation_pct: 0
     tetrahedron_wise_permutation_augmentation_pct: 0
 
-  transformations: &transformations_config affine_linear_transformation # null, affine_linear_transformation, rigid_transformation
+  transformations: &transformations_config null # null, affine_linear_transformation, rigid_transformation
 
 model_config:
 
   skip_building: false
-  task: &task_type binary_classification # binary_classification, regression, classification_and_regression
+  task: &task_type regression # binary_classification, regression, classification_and_regression
   activation_function: relu
   dropout_rate: 0.0
   processed_data_path: *processed_data_path
   volume_scale_factor: *volume_scale_factor
 
   architecture:
-    use: mlp # mlp, deep_set
+    use: deepset # mlp, tpnet, deepset
 
     mlp:
       shared_layers: [12]
-      classification_head: [1]
+      classification_head: [ 1]
       regression_head: []
 
-    deep_set:
-      num_residual_blocks_per_tet: 1
-      num_residual_blocks_post_concat: 1
-      classification_head: []
-      regression_head: []
+    deepset:
+      hidden_dim: 24             # Hidden dimension for residual blocks
+      output_dim: 12             # Final output dimension (shared_dim)
+      num_blocks: 2              # Number of residual blocks
+      classification_head: []    # For classification tasks
+      regression_head: [12, 12, 12, 1]  # For regression tasks
+
+    tpnet: 
+      per_tet_layers: [12, 12, 12]  # Layers for processing individual tetrahedron
+      shared_layers: [12,12, 12]  # Layers for processing combined features
+      classification_head: []  # For classification tasks
+      regression_head: [12,12, 1]  # For regression tasks
 
 trainer_config:
   skip_training: false
   processed_data_path: *processed_data_path
 
   loss_function: *task_type
-  evaluation_metric: accuracy
   optimizer: adamw # adam, adamw, sgd
   learning_rate: 0.001
   epochs: 5
   batch_size: 32
-  learning_rate_schedule: null
-  early_stopping_patience: 10
 
 evaluator_config:
   skip_evaluation: false
+  model_path: /home/sei/tetrahedron_pair_ML/artifacts/id-20250408-065815_deepset_regression_100000-train_100000-val_vol-0-0.01_epochs-5_adamw-0.001_distributions-polyhedron_intersection-100/model.pt
   task: *task_type
   test_data_path: src/evaluator/test_data 
   augmentations: *augmentations_config
