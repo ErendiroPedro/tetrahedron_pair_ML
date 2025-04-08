@@ -42,7 +42,7 @@ This project is an exploration of that idea. It’s a fusion of **computational 
 
 # Pipeline Overview
 
-![Architecture](resources/architecture.png)  
+![Architecture](site/resources/architecture.png)  
 *Figure 1: The pipeline orchestrator manages the workflow, handling configuration loading, data processing (sampling, transformations, augmentations), model building, and training. An artifacts manager handles saving and loading of configurations, trained models, and evaluation reports for reproducibility.*
 
 ## Key Components
