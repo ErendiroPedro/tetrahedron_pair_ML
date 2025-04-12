@@ -1,0 +1,92 @@
+{
+    "task_type": "regression",
+    "model_parameters": {
+        "total": 2113,
+        "trainable": 2113,
+        "non_trainable": 0
+    },
+    "dataset_reports": {
+        "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv": {
+            "regression_performance": {
+                "0.000-0.002": {
+                    "repetitions": 50,
+                    "mae": 0.0010403430787846446,
+                    "mse": 2.564350552347605e-06,
+                    "samples": 20028,
+                    "correct_bin_predictions": 13313,
+                    "bin_accuracy": 0.66471939285001
+                },
+                "0.002-0.004": {
+                    "repetitions": 50,
+                    "mae": 0.0013750401558354497,
+                    "mse": 3.0829396564513445e-06,
+                    "samples": 19875,
+                    "correct_bin_predictions": 8318,
+                    "bin_accuracy": 0.41851572327044034
+                },
+                "0.004-0.006": {
+                    "repetitions": 50,
+                    "mae": 0.0011711148545145988,
+                    "mse": 2.168781747968751e-06,
+                    "samples": 20028,
+                    "correct_bin_predictions": 9965,
+                    "bin_accuracy": 0.49755342520471346
+                },
+                "0.006-0.008": {
+                    "repetitions": 50,
+                    "mae": 0.0013488257536664605,
+                    "mse": 2.797925162667525e-06,
+                    "samples": 20033,
+                    "correct_bin_predictions": 9003,
+                    "bin_accuracy": 0.4494084760145759
+                },
+                "0.008-0.010": {
+                    "repetitions": 50,
+                    "mae": 0.0023184139281511307,
+                    "mse": 6.7395067162578925e-06,
+                    "samples": 20036,
+                    "correct_bin_predictions": 2557,
+                    "bin_accuracy": 0.12762028348971852
+                },
+                "overall_bin_accuracy": 0.43156
+            },
+            "point_wise_permutation_consistency": {
+                "regression_consistency_rate": 0.19965,
+                "consistency_thresholds": {
+                    "rtol": 0.01,
+                    "atol": 1e-08
+                },
+                "mean_absolute_difference": 0.0001478762860642746,
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "regression_consistency_rate": 0.46337,
+                "consistency_thresholds": {
+                    "rtol": 0.01,
+                    "atol": 1e-08
+                },
+                "mean_absolute_difference": 5.498916289070621e-05,
+                "total_samples": 100000
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce MX330",
+                    "cuda_driver_version": "12.1",
+                    "cuda_capability": [
+                        6,
+                        1
+                    ],
+                    "cuda_memory": "2.10 GB"
+                },
+                "repetitions": 50,
+                "augmentation_time_seconds": 1.1205673217773438e-05,
+                "transformation_time_seconds": 45.908538818359375,
+                "inference_time_seconds": 0.039814450683593745,
+                "total_time_seconds": 45.948364474716186,
+                "avg_time_per_sample_seconds": 0.00045948364474716186,
+                "samples_per_second": 2176.356027971933
+            }
+        }
+    }
+}
