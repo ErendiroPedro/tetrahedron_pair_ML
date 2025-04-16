@@ -24,7 +24,7 @@ class CDataProcessor:
 
         self._save_data()
 
-        print("---- Data Processed ----")
+        print("-- Data Processed --")
 
     def _load_data(self):
         """Main method to load and sample raw data with augmentations."""
