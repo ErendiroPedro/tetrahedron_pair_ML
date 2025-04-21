@@ -1,7 +1,7 @@
 import yaml
 import os
 from src.CDataProcessor import CDataProcessor
-from src.CModelBuilder import CModelBuilder
+from src.CArchitectureManager import CArchitectureManager
 from src.CModelTrainer import CModelTrainer
 from src.CArtifactsManager import CArtifactsManager
 from src.evaluator.CEvaluator import CEvaluator
@@ -9,9 +9,9 @@ from src.evaluator.CEvaluator import CEvaluator
 class CPipelineOrchestrator:
     def __init__(self, config_file="config/config.yaml"):
         self.config = self._load_config(config_file)
-        self.artifacts_manager = CArtifactsManager(self.config)
+        self.artifacts_manager = CArtifactsManager(self.config) 
+        self.architecture_manager = CArchitectureManager(self.config["model_config"])
         self.data_processor = CDataProcessor(self.config["processor_config"])
-        self.model_builder = CModelBuilder(self.config["model_config"])
         self.model_trainer = CModelTrainer(self.config["trainer_config"])
         self.evaluator = CEvaluator(self.config["evaluator_config"])
 
@@ -97,8 +97,8 @@ class CPipelineOrchestrator:
         if self.config['model_config'].get("skip_building", True):
             print("-- Skipped building architecture --")
             return
-        model_architecture = self.model_builder.build()
-        state["model_architecture"] = model_architecture
+        model_architecture = self.architecture_manager.get_model()
+        state["model"] = model_architecture
 
     def _load_model_step(self, state):
         """Load a model from the specified path"""
@@ -116,9 +116,34 @@ class CPipelineOrchestrator:
                 
                 # Load the model
                 import torch
+                class TorchScriptWrapper:
+                    def __init__(self, model):
+                        self.model = model
+                        self.task = model.task
+                        self.volume_scale_factor = model.volume_scale_factor
+
+                    
+                    def predict(self, x):
+                        """Common prediction logic for all networks"""
+                        self.model.eval()
+                        with torch.no_grad():
+
+                            processed_embeddings = self.model.forward(x) 
+
+                            if self.task == 'binary_classification':
+                                return (processed_embeddings > 0.5).int().squeeze() # Using binary cross-entropy with logits, sgimoid is applied in the loss function
+                            elif self.task == 'regression':
+                                return processed_embeddings.squeeze() / self.volume_scale_factor
+                            elif self.task == 'classification_and_regression':
+                                cls_prediction = (processed_embeddings[:, 0] > 0.5).int().squeeze() # Using binary cross-entropy with logits, sgimoid is applied in the loss function
+                                reg_prediction = processed_embeddings[:, 1].squeeze() / self.volume_scale_factor
+                                return torch.stack([cls_prediction, reg_prediction], dim=1)         
+                            raise ValueError(f"Unknown task: {self.task}")
+            
                 loaded_model = torch.jit.load(full_model_path)
-                loaded_model.eval()  # Set to evaluation mode
-                return loaded_model
+                loaded_model_with_predict = TorchScriptWrapper(loaded_model)
+
+                return loaded_model_with_predict
             except Exception as e:
                 print(f"Error loading model: {e}")
         else:
@@ -126,22 +151,23 @@ class CPipelineOrchestrator:
 
     def _train_model_step(self, state):
         """Train or load a model based on configuration"""
-        # Get the model from the state
-        model_architecture = state.get("model_architecture")
 
-        if model_architecture is None:
+        model = state.get("model", None)
+
+        if model is None and self.config['trainer_config']['skip_training'] and self.config['evaluator_config']['model_path']:
+                # If a model path is specified, load the model
+                loaded_model = self._load_model_step(state)
+                state["model"] = loaded_model
+                print(f"---- Will train model with {self.config['evaluator_config']['model_path']} ----")
+
+        else:
             # If no model is provided, build a new one
-            model = self.model_builder.build()
-            state["model"] = model
+            self._build_model_step(state)
+            model = state.get("model", None)
             print("---- Model Built Successfully ----")
+            
 
-        elif self.config['evaluator_config']['model_path']:
-            # If a model path is specified, load the model
-            loaded_model = self._load_model_step(state)
-            state["model"] = loaded_model
-            print(f"---- Will train model with {self.config['evaluator_config']['model_path']} ----")
-        
-        assert model_architecture is not None, "Model must be provided for training."
+        assert model, "Model must be provided for training."
 
         # Train the model
         trained_model, training_report = self.model_trainer.train_and_validate(state["model"])

@@ -44,8 +44,8 @@ class CArtifactsManager:
         id = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         
         # Extract relevant configuration details
-        model_architecture = self.config['model_config']['architecture']['use']
-        task = self.config['model_config']['task']
+        model_architecture = self.config['model_config']['architecture']['use_model']
+        task = self.config['model_config']['common_paramers']['task']
         num_train_samples = self.config['processor_config']['num_train_samples']
         num_val_samples = self.config['processor_config']['num_val_samples']
         volume_range = "-".join(map(str, self.config['processor_config']['volume_range']))
