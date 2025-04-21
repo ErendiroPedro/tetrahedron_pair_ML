@@ -177,6 +177,7 @@ def sort_by_intersection_volume_whole_dataset(data: pd.DataFrame) -> pd.DataFram
 
 def apply_affine_linear_transformation(tetrahedron_pair_vertices_flat: pd.Series) -> pd.Series:
     """Transform second tetrahedron's vertices relative to the first one"""
+    # Convert to tensor only once
     input_tensor = torch.tensor(tetrahedron_pair_vertices_flat.values, dtype=torch.float32).flatten()
     
     # Reshape into two tetrahedrons
@@ -184,8 +185,8 @@ def apply_affine_linear_transformation(tetrahedron_pair_vertices_flat: pd.Series
     tetra2_vertices = input_tensor[12:].reshape(4, 3)
     
     # Get first tetrahedron's basis vectors
-    v0, v1, v2, v3 = tetra1_vertices[0], tetra1_vertices[1], tetra1_vertices[2], tetra1_vertices[3]
-    edge_vectors = torch.stack([v1 - v0, v2 - v0, v3 - v0])
+    v0 = tetra1_vertices[0]
+    edge_vectors = tetra1_vertices[1:] - v0.unsqueeze(0)  # More efficient way to get edges
     
     # Calculate inverse transformation matrix
     try:
@@ -193,16 +194,13 @@ def apply_affine_linear_transformation(tetrahedron_pair_vertices_flat: pd.Series
     except RuntimeError:
         raise ValueError("The tetrahedron basis matrix is singular and cannot be inverted")
     
-    # Transform second tetrahedron's vertices
-    transformed = []
-    for vertex in tetra2_vertices:
-        translated = vertex - v0
-        transformed_vert = inv_transform.T @ translated.unsqueeze(-1)
-        transformed.append(transformed_vert.squeeze())
+    # Vectorized transformation - no loop needed
+    translated = tetra2_vertices - v0.unsqueeze(0)  # Broadcasting for all vertices at once
+    transformed_verts = translated @ inv_transform  # Matrix multiplication for all vertices
     
-    # Convert back to a Pandas Series
-    result = torch.stack(transformed).flatten().detach().numpy()
-    return pd.Series(result, index=[f'v{i//3 + 1}_{"xyz"[i % 3]}' for i in range(12)])
+    # Convert back to a Pandas Series - only one conversion
+    column_names = [f'T1_v{i//3 + 1}_{"xyz"[i % 3]}' for i in range(12)]
+    return pd.Series(transformed_verts.flatten().detach().numpy(), index=column_names)
 
 def apply_rigid_transformation(tetrahedron_pair_vertices_flat: pd.Series) -> pd.Series:
     """
