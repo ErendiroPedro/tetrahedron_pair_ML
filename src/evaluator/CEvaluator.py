@@ -63,7 +63,6 @@ class CEvaluator:
             'dataset_reports': {}
         }
 
-
         # Run tests for the specific task type
         for dataset in self.datasets:
             dataset_report = {}
@@ -77,11 +76,7 @@ class CEvaluator:
             report['dataset_reports'][dataset['name']] = dataset_report
 
         if self.task_type in ['binary_classification', 'classification_and_regression']:
-            report['aggregate_metrics'] = self._calculate_aggregate_classification_metrics(report)
-    
-        if self.task_type in ['regression', 'classification_and_regression']:
-            report['aggregate_regression_metrics'] = self._calculate_aggregate_regression_metrics(report)
-
+            report['aggregate_binary_classification_metrics'] = self._calculate_aggregate_classification_metrics(report)
 
         print("---- Finished Evaluation ----")
 
@@ -199,21 +194,36 @@ class CEvaluator:
                     for i in range(len(intervals)-1):
                         low = intervals[i]
                         high = intervals[i+1]
-                        mask = (y_true >= low) & (y_true < high)
+                        
+                        # Samples that truly belong in this bin
+                        true_bin_mask = (y_true >= low) & (y_true < high)
+                        # Samples predicted to be in this bin
+                        pred_bin_mask = (y_pred >= low) & (y_pred < high)
+                        
+                        # Count samples that are correctly placed in this bin
+                        true_bin_samples = np.sum(true_bin_mask)
+                        correct_bin_predictions = np.sum(true_bin_mask & pred_bin_mask)
+                        
+                        # Calculate bin prediction accuracy (percentage of samples correctly predicted in this bin)
+                        bin_accuracy = float(correct_bin_predictions / true_bin_samples) if true_bin_samples > 0 else 0.0
 
-                        if np.sum(mask) > 0:
-                            mae = mean_absolute_error(y_true[mask], y_pred[mask])
-                            mse = mean_squared_error(y_true[mask], y_pred[mask])
+                        if np.sum(true_bin_mask) > 0:
+                            mae = mean_absolute_error(y_true[true_bin_mask], y_pred[true_bin_mask])
+                            mse = mean_squared_error(y_true[true_bin_mask], y_pred[true_bin_mask])
                             interval_metrics[f'{low:.3f}-{high:.3f}'] = {
                                 'mae': float(mae),
                                 'mse': float(mse),
-                                'samples': int(np.sum(mask))
+                                'samples': int(np.sum(true_bin_mask)),
+                                'correct_bin_predictions': int(correct_bin_predictions),
+                                'bin_accuracy': bin_accuracy
                             }
                         else:
                             interval_metrics[f'{low:.3f}-{high:.3f}'] = {
                                 'mae': None,
                                 'mse': None,
-                                'samples': 0
+                                'samples': 0,
+                                'correct_bin_predictions': 0,
+                                'bin_accuracy': None
                             }
 
                     all_interval_metrics.append(interval_metrics)
@@ -230,26 +240,162 @@ class CEvaluator:
         for key in interval_keys:
             maes = []
             mses = []
+            accuracies = []
             samples = all_interval_metrics[0][key]['samples']
-
+            correct_preds = 0
+            
             for run in all_interval_metrics:
                 current = run[key]
                 if current['mae'] is not None:
                     maes.append(current['mae'])
                 if current['mse'] is not None:
                     mses.append(current['mse'])
-
+                if current['bin_accuracy'] is not None:
+                    accuracies.append(current['bin_accuracy'])
+                if 'correct_bin_predictions' in current:
+                    correct_preds += current['correct_bin_predictions']
+            
+            # Average over all runs
             avg_mae = np.mean(maes) if maes else None
             avg_mse = np.mean(mses) if mses else None
+            avg_bin_accuracy = np.mean(accuracies) if accuracies else None
+            
+            # For the average number of correct predictions, we divide by num_repeats
+            avg_correct_preds = correct_preds / num_repeats if num_repeats > 0 else 0
 
             avg_interval_metrics[key] = {
                 'repetitions': num_repeats,
                 'mae': avg_mae,
                 'mse': avg_mse,
-                'samples': samples
+                'samples': samples,
+                'correct_bin_predictions': int(avg_correct_preds),
+                'bin_accuracy': avg_bin_accuracy
             }
 
+        # Calculate overall bin accuracy across all intervals
+        total_samples = sum(m['samples'] for m in avg_interval_metrics.values())
+        total_correct = sum(m.get('correct_bin_predictions', 0) for m in avg_interval_metrics.values())
+        overall_bin_accuracy = total_correct / total_samples if total_samples > 0 else 0
+        
+        # Add overall bin accuracy to results
+        avg_interval_metrics['overall_bin_accuracy'] = overall_bin_accuracy
+
         return avg_interval_metrics
+
+    def _calculate_aggregate_regression_metrics(self, report):
+        """Calculate aggregate regression metrics across all datasets using existing results"""
+        aggregate_metrics = {
+            'total_samples': 0,
+            'bin_accuracy': {},
+            'overall_mae': 0,
+            'overall_mse': 0,
+            'weighted_samples': 0,
+            'error_datasets': 0,  # Track how many datasets had errors
+            'overall_bin_accuracy': 0  # New field for overall bin prediction accuracy
+        }
+        
+        # Define the intervals as used in regression_performance
+        intervals = np.linspace(0, 0.01, 6)  # 5 intervals
+        for i in range(len(intervals)-1):
+            interval_key = f'{intervals[i]:.3f}-{intervals[i+1]:.3f}'
+            aggregate_metrics['bin_accuracy'][interval_key] = {
+                'total_samples': 0,
+                'mae': 0,
+                'mse': 0,
+                'weighted_mae': 0,
+                'weighted_mse': 0,
+                'correct_bin_predictions': 0,
+                'weighted_bin_accuracy': 0  # For weighted average calculation
+            }
+        
+        # Variables to track overall bin accuracy
+        total_bin_correct = 0
+        
+        # Process all regression datasets
+        for dataset_name, dataset_report in report['dataset_reports'].items():
+            # Skip datasets without regression performance
+            if 'regression_performance' not in dataset_report:
+                continue
+                
+            perf = dataset_report['regression_performance']
+            
+            # Handle error datasets gracefully
+            if not isinstance(perf, dict) or 'error' in perf:
+                aggregate_metrics['error_datasets'] += 1
+                continue
+            
+            # Process each interval
+            for interval_key, interval_metrics in perf.items():
+                # Skip overall bin accuracy key
+                if interval_key == 'overall_bin_accuracy':
+                    continue
+                    
+                # Skip invalid or empty intervals
+                if not isinstance(interval_metrics, dict) or 'samples' not in interval_metrics:
+                    continue
+                    
+                samples = interval_metrics.get('samples', 0)
+                mae = interval_metrics.get('mae')
+                mse = interval_metrics.get('mse')
+                bin_accuracy = interval_metrics.get('bin_accuracy')
+                correct_bin_predictions = interval_metrics.get('correct_bin_predictions', 0)
+                
+                if samples > 0:
+                    # Update interval metrics
+                    aggregate_metrics['bin_accuracy'][interval_key]['total_samples'] += samples
+                    
+                    if mae is not None and mse is not None:
+                        aggregate_metrics['bin_accuracy'][interval_key]['weighted_mae'] += mae * samples
+                        aggregate_metrics['bin_accuracy'][interval_key]['weighted_mse'] += mse * samples
+                        
+                        # Update overall error metrics
+                        aggregate_metrics['weighted_samples'] += samples
+                        aggregate_metrics['overall_mae'] += mae * samples
+                        aggregate_metrics['overall_mse'] += mse * samples
+                    
+                    # Update bin accuracy metrics
+                    aggregate_metrics['bin_accuracy'][interval_key]['correct_bin_predictions'] += correct_bin_predictions
+                    if bin_accuracy is not None:
+                        aggregate_metrics['bin_accuracy'][interval_key]['weighted_bin_accuracy'] += bin_accuracy * samples
+                    
+                    # Update overall bin accuracy metrics
+                    total_bin_correct += correct_bin_predictions
+                    
+                    # Update total samples count
+                    aggregate_metrics['total_samples'] += samples
+        
+        # Calculate aggregated metrics
+        if aggregate_metrics['weighted_samples'] > 0:
+            aggregate_metrics['overall_mae'] /= aggregate_metrics['weighted_samples']
+            aggregate_metrics['overall_mse'] /= aggregate_metrics['weighted_samples']
+        
+        # Calculate overall bin accuracy
+        if aggregate_metrics['total_samples'] > 0:
+            aggregate_metrics['overall_bin_accuracy'] = total_bin_correct / aggregate_metrics['total_samples']
+        
+        # Calculate per-interval average metrics
+        for interval_key, metrics in aggregate_metrics['bin_accuracy'].items():
+            if metrics['total_samples'] > 0:
+                # Error metrics
+                if 'weighted_mae' in metrics and 'weighted_mse' in metrics:
+                    metrics['mae'] = metrics['weighted_mae'] / metrics['total_samples']
+                    metrics['mse'] = metrics['weighted_mse'] / metrics['total_samples']
+                    
+                # Bin accuracy metrics
+                if 'weighted_bin_accuracy' in metrics:
+                    metrics['bin_accuracy'] = metrics['weighted_bin_accuracy'] / metrics['total_samples']
+                else:
+                    metrics['bin_accuracy'] = metrics['correct_bin_predictions'] / metrics['total_samples']
+                
+                # Remove temporary weighted values
+                if 'weighted_mae' in metrics:
+                    metrics.pop('weighted_mae')
+                if 'weighted_mse' in metrics:
+                    metrics.pop('weighted_mse')
+                if 'weighted_bin_accuracy' in metrics:
+                    metrics.pop('weighted_bin_accuracy')
+        
+        return aggregate_metrics
 
     def inference_speed(self, model, dataset):
 
@@ -555,76 +701,3 @@ class CEvaluator:
             'weighted_80_20_accuracy': weighted_metrics['80_20_accuracy'],
             'weighted_20_80_accuracy': weighted_metrics['20_80_accuracy']
         }
-
-    def _calculate_aggregate_regression_metrics(self, report):
-        """Calculate aggregate regression metrics across all datasets using existing results"""
-        aggregate_metrics = {
-            'total_samples': 0,
-            'bin_accuracy': {},
-            'overall_mae': 0,
-            'overall_mse': 0,
-            'weighted_samples': 0
-        }
-        
-        # Define the intervals as used in regression_performance
-        intervals = np.linspace(0, 0.01, 6)  # 5 intervals
-        for i in range(len(intervals)-1):
-            interval_key = f'{intervals[i]:.3f}-{intervals[i+1]:.3f}'
-            aggregate_metrics['bin_accuracy'][interval_key] = {
-                'total_samples': 0,
-                'mae': 0,
-                'mse': 0,
-                'weighted_mae': 0,
-                'weighted_mse': 0
-            }
-        
-        # Process all regression datasets
-        for dataset_name, dataset_report in report['dataset_reports'].items():
-            if 'regression_performance' not in dataset_report:
-                continue
-                
-            perf = dataset_report['regression_performance']
-            if not isinstance(perf, dict):
-                continue
-            
-            # Process each interval
-            for interval_key, interval_metrics in perf.items():
-                # Skip overall bin accuracy key
-                if interval_key == 'overall_bin_accuracy':
-                    continue
-                    
-                # Skip invalid or empty intervals
-                if not isinstance(interval_metrics, dict) or 'samples' not in interval_metrics:
-                    continue
-                    
-                samples = interval_metrics.get('samples', 0)
-                mae = interval_metrics.get('mae')
-                mse = interval_metrics.get('mse')
-                
-                if samples > 0 and mae is not None and mse is not None:
-                    # Update interval metrics
-                    aggregate_metrics['bin_accuracy'][interval_key]['total_samples'] += samples
-                    aggregate_metrics['bin_accuracy'][interval_key]['weighted_mae'] += mae * samples
-                    aggregate_metrics['bin_accuracy'][interval_key]['weighted_mse'] += mse * samples
-                    
-                    # Update overall metrics
-                    aggregate_metrics['total_samples'] += samples
-                    aggregate_metrics['weighted_samples'] += samples
-                    aggregate_metrics['overall_mae'] += mae * samples
-                    aggregate_metrics['overall_mse'] += mse * samples
-        
-        # Calculate aggregated metrics
-        if aggregate_metrics['weighted_samples'] > 0:
-            aggregate_metrics['overall_mae'] /= aggregate_metrics['weighted_samples']
-            aggregate_metrics['overall_mse'] /= aggregate_metrics['weighted_samples']
-        
-        # Calculate per-interval average metrics
-        for interval_key, metrics in aggregate_metrics['bin_accuracy'].items():
-            if metrics['total_samples'] > 0:
-                metrics['mae'] = metrics['weighted_mae'] / metrics['total_samples']
-                metrics['mse'] = metrics['weighted_mse'] / metrics['total_samples']
-                # Remove temporary weighted values
-                metrics.pop('weighted_mae')
-                metrics.pop('weighted_mse')
-        
-        return aggregate_metrics
