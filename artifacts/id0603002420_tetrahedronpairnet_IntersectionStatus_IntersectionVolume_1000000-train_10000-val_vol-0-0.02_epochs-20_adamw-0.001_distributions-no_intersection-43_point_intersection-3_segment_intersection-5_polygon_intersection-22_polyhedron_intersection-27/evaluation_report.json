@@ -1,109 +1,115 @@
 {
     "task_type": "IntersectionStatus_IntersectionVolume",
     "model_parameters": {
-        "total": 77067,
-        "trainable": 77067,
+        "total": 4311,
+        "trainable": 4311,
         "non_trainable": 0
     },
     "dataset_reports": {
         "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv": {
             "classification_performance": {
                 "repetitions": 50,
-                "accuracy": 1.0,
+                "accuracy": 0.915,
                 "precision": 0.0,
                 "recall": 0.0,
                 "f1": 0.0,
                 "confusion_matrix": [
                     [
-                        100000.0
+                        91500.0,
+                        8500.0
+                    ],
+                    [
+                        0.0,
+                        0.0
                     ]
                 ]
             },
             "point_wise_permutation_consistency": {
-                "classification_consistency_rate": 1.0,
-                "IntersectionVolume_consistency_rate": 0.66734,
+                "classification_consistency_rate": 0.94775,
+                "IntersectionVolume_consistency_rate": 1.0,
+                "mean_absolute_difference": 0.02613404579460621,
                 "consistency_thresholds": {
-                    "rtol": 1e-05,
-                    "atol": 1e-10
+                    "rtol": 0.1,
+                    "atol": 0.01
                 },
                 "total_samples": 100000
             },
             "tetrahedron_wise_permutation_consistency": {
-                "classification_consistency_rate": 1.0,
-                "IntersectionVolume_consistency_rate": 0.00052,
-                "mean_absolute_difference": 0.004156321287155151,
+                "classification_consistency_rate": 0.89944,
+                "IntersectionVolume_consistency_rate": 1.0,
+                "mean_absolute_difference": 2.398356627963949e-05,
                 "consistency_thresholds": {
-                    "rtol": 1e-05,
-                    "atol": 1e-10
+                    "rtol": 0.1,
+                    "atol": 0.01
                 },
                 "total_samples": 100000
             },
             "IntersectionVolume_performance": {
                 "overall_IntersectionVolume_metrics": {
-                    "mae": 8.904946298571303e-06,
-                    "mse": 1.653901016140935e-08,
+                    "mae": 1.6819047232274897e-05,
+                    "mse": 5.513868828188606e-08,
                     "samples": 100000,
-                    "overall_bin_accuracy": 0.99713,
+                    "overall_bin_accuracy": 0.9972,
                     "samples_in_binned_range": 100000
                 },
                 "interval_metrics": {
-                    "0.000-0.001": {
-                        "mae": 8.904946298571303e-06,
-                        "mse": 1.653901016140935e-08,
+                    "0.000-0.002": {
+                        "mae": 1.6819047232274897e-05,
+                        "mse": 5.513868828188606e-08,
                         "samples": 100000,
-                        "correct_bin_predictions": 99713,
-                        "bin_accuracy": 0.99713
+                        "correct_bin_predictions": 99720,
+                        "bin_accuracy": 0.9972
                     },
-                    "0.001-0.002": {
+                    "0.002-0.004": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.002-0.003": {
+                    "0.004-0.007": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.003-0.004": {
+                    "0.007-0.009": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.004-0.006": {
+                    "0.009-0.011": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.006-0.007": {
+                    "0.011-0.013": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.007-0.008": {
+                    "0.013-0.016": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.008-0.009": {
+                    "0.016-0.018": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.009-0.010": {
+                    "0.018-0.020": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
@@ -124,117 +130,118 @@
                     "cuda_memory": "2.10 GB"
                 },
                 "repetitions": 50,
-                "augmentation_time_seconds": 9.059906005859375e-06,
-                "transformation_time_seconds": 37.72551774978638,
-                "inference_time_seconds": 0.07171131423950196,
-                "total_time_seconds": 37.79723812393188,
-                "avg_time_per_sample_seconds": 0.00037797238123931883,
-                "samples_per_second": 2645.695954612184
+                "augmentation_time_seconds": 7.867813110351562e-06,
+                "transformation_time_seconds": 2.6226043701171875e-06,
+                "inference_time_seconds": 0.029146213035583495,
+                "total_time_seconds": 0.029156703453063964,
+                "avg_time_per_sample_seconds": 2.915670345306396e-07,
+                "samples_per_second": 3429743.014705985
             }
         },
         "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv": {
             "classification_performance": {
                 "repetitions": 50,
-                "accuracy": 0.0,
-                "precision": 0.0,
-                "recall": 0.0,
-                "f1": 0.0,
+                "accuracy": 0.8498099999999998,
+                "precision": 1.0,
+                "recall": 0.8498099999999998,
+                "f1": 0.9188078775658041,
                 "confusion_matrix": [
                     [
                         0.0,
                         0.0
                     ],
                     [
-                        100000.0,
-                        0.0
+                        15019.0,
+                        84981.0
                     ]
                 ]
             },
             "point_wise_permutation_consistency": {
-                "classification_consistency_rate": 1.0,
-                "IntersectionVolume_consistency_rate": 0.59288,
+                "classification_consistency_rate": 0.92486,
+                "IntersectionVolume_consistency_rate": 1.0,
+                "mean_absolute_difference": 0.03757086023688316,
                 "consistency_thresholds": {
-                    "rtol": 1e-05,
-                    "atol": 1e-10
+                    "rtol": 0.1,
+                    "atol": 0.01
                 },
                 "total_samples": 100000
             },
             "tetrahedron_wise_permutation_consistency": {
-                "classification_consistency_rate": 1.0,
-                "IntersectionVolume_consistency_rate": 0.00277,
-                "mean_absolute_difference": 0.002704587997868657,
+                "classification_consistency_rate": 0.4677,
+                "IntersectionVolume_consistency_rate": 1.0,
+                "mean_absolute_difference": 5.6387334552709945e-06,
                 "consistency_thresholds": {
-                    "rtol": 1e-05,
-                    "atol": 1e-10
+                    "rtol": 0.1,
+                    "atol": 0.01
                 },
                 "total_samples": 100000
             },
             "IntersectionVolume_performance": {
                 "overall_IntersectionVolume_metrics": {
-                    "mae": 2.3739262360322755e-06,
-                    "mse": 3.1731886007690946e-09,
+                    "mae": 1.3893679806642467e-06,
+                    "mse": 3.634110568029314e-09,
                     "samples": 100000,
-                    "overall_bin_accuracy": 0.99917,
+                    "overall_bin_accuracy": 0.99977,
                     "samples_in_binned_range": 100000
                 },
                 "interval_metrics": {
-                    "0.000-0.001": {
-                        "mae": 2.3739262360322755e-06,
-                        "mse": 3.1731886007690946e-09,
+                    "0.000-0.002": {
+                        "mae": 1.3893679806642467e-06,
+                        "mse": 3.634110568029314e-09,
                         "samples": 100000,
-                        "correct_bin_predictions": 99917,
-                        "bin_accuracy": 0.99917
+                        "correct_bin_predictions": 99977,
+                        "bin_accuracy": 0.99977
                     },
-                    "0.001-0.002": {
+                    "0.002-0.004": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.002-0.003": {
+                    "0.004-0.007": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.003-0.004": {
+                    "0.007-0.009": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.004-0.006": {
+                    "0.009-0.011": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.006-0.007": {
+                    "0.011-0.013": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.007-0.008": {
+                    "0.013-0.016": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.008-0.009": {
+                    "0.016-0.018": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.009-0.010": {
+                    "0.018-0.020": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
@@ -255,117 +262,118 @@
                     "cuda_memory": "2.10 GB"
                 },
                 "repetitions": 50,
-                "augmentation_time_seconds": 3.5762786865234375e-06,
-                "transformation_time_seconds": 35.21384286880493,
-                "inference_time_seconds": 0.07184582595825195,
-                "total_time_seconds": 35.28569227104187,
-                "avg_time_per_sample_seconds": 0.0003528569227104187,
-                "samples_per_second": 2834.0098652979423
+                "augmentation_time_seconds": 1.049041748046875e-05,
+                "transformation_time_seconds": 4.76837158203125e-06,
+                "inference_time_seconds": 0.029146562461853025,
+                "total_time_seconds": 0.029161821250915525,
+                "avg_time_per_sample_seconds": 2.9161821250915525e-07,
+                "samples_per_second": 3429141.1067770855
             }
         },
         "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv": {
             "classification_performance": {
                 "repetitions": 50,
-                "accuracy": 0.0,
-                "precision": 0.0,
-                "recall": 0.0,
-                "f1": 0.0,
+                "accuracy": 0.8402299999999999,
+                "precision": 1.0,
+                "recall": 0.8402299999999999,
+                "f1": 0.913179330844514,
                 "confusion_matrix": [
                     [
                         0.0,
                         0.0
                     ],
                     [
-                        100000.0,
-                        0.0
+                        15977.0,
+                        84023.0
                     ]
                 ]
             },
             "point_wise_permutation_consistency": {
-                "classification_consistency_rate": 1.0,
-                "IntersectionVolume_consistency_rate": 0.36119,
+                "classification_consistency_rate": 0.91077,
+                "IntersectionVolume_consistency_rate": 1.0,
+                "mean_absolute_difference": 0.044622328132390976,
                 "consistency_thresholds": {
-                    "rtol": 1e-05,
-                    "atol": 1e-10
+                    "rtol": 0.1,
+                    "atol": 0.01
                 },
                 "total_samples": 100000
             },
             "tetrahedron_wise_permutation_consistency": {
-                "classification_consistency_rate": 1.0,
-                "IntersectionVolume_consistency_rate": 0.00206,
-                "mean_absolute_difference": 0.0028657601214945316,
+                "classification_consistency_rate": 0.5806,
+                "IntersectionVolume_consistency_rate": 1.0,
+                "mean_absolute_difference": 2.9031591111561283e-05,
                 "consistency_thresholds": {
-                    "rtol": 1e-05,
-                    "atol": 1e-10
+                    "rtol": 0.1,
+                    "atol": 0.01
                 },
                 "total_samples": 100000
             },
             "IntersectionVolume_performance": {
                 "overall_IntersectionVolume_metrics": {
-                    "mae": 1.0853392268472817e-05,
-                    "mse": 1.6903269894896766e-08,
+                    "mae": 1.129907468566671e-05,
+                    "mse": 3.4411311133908384e-08,
                     "samples": 100000,
-                    "overall_bin_accuracy": 0.99628,
+                    "overall_bin_accuracy": 0.99808,
                     "samples_in_binned_range": 100000
                 },
                 "interval_metrics": {
-                    "0.000-0.001": {
-                        "mae": 1.0853392268472817e-05,
-                        "mse": 1.6903269894896766e-08,
+                    "0.000-0.002": {
+                        "mae": 1.129907468566671e-05,
+                        "mse": 3.4411311133908384e-08,
                         "samples": 100000,
-                        "correct_bin_predictions": 99628,
-                        "bin_accuracy": 0.99628
+                        "correct_bin_predictions": 99808,
+                        "bin_accuracy": 0.99808
                     },
-                    "0.001-0.002": {
+                    "0.002-0.004": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.002-0.003": {
+                    "0.004-0.007": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.003-0.004": {
+                    "0.007-0.009": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.004-0.006": {
+                    "0.009-0.011": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.006-0.007": {
+                    "0.011-0.013": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.007-0.008": {
+                    "0.013-0.016": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.008-0.009": {
+                    "0.016-0.018": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.009-0.010": {
+                    "0.018-0.020": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
@@ -386,117 +394,118 @@
                     "cuda_memory": "2.10 GB"
                 },
                 "repetitions": 50,
-                "augmentation_time_seconds": 4.00543212890625e-05,
-                "transformation_time_seconds": 33.1467649936676,
-                "inference_time_seconds": 0.07204153366088867,
-                "total_time_seconds": 33.21884658164978,
-                "avg_time_per_sample_seconds": 0.00033218846581649776,
-                "samples_per_second": 3010.3393191032824
+                "augmentation_time_seconds": 4.5299530029296875e-06,
+                "transformation_time_seconds": 1.9073486328125e-06,
+                "inference_time_seconds": 0.02915479545593262,
+                "total_time_seconds": 0.02916123275756836,
+                "avg_time_per_sample_seconds": 2.916123275756836e-07,
+                "samples_per_second": 3429210.309157678
             }
         },
         "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv": {
             "classification_performance": {
                 "repetitions": 50,
-                "accuracy": 0.0,
-                "precision": 0.0,
-                "recall": 0.0,
-                "f1": 0.0,
+                "accuracy": 0.73944,
+                "precision": 1.0,
+                "recall": 0.73944,
+                "f1": 0.8502046635698843,
                 "confusion_matrix": [
                     [
                         0.0,
                         0.0
                     ],
                     [
-                        100000.0,
-                        0.0
+                        26056.0,
+                        73944.0
                     ]
                 ]
             },
             "point_wise_permutation_consistency": {
-                "classification_consistency_rate": 1.0,
-                "IntersectionVolume_consistency_rate": 0.26419,
+                "classification_consistency_rate": 0.86436,
+                "IntersectionVolume_consistency_rate": 1.0,
+                "mean_absolute_difference": 0.06784768402576447,
                 "consistency_thresholds": {
-                    "rtol": 1e-05,
-                    "atol": 1e-10
+                    "rtol": 0.1,
+                    "atol": 0.01
                 },
                 "total_samples": 100000
             },
             "tetrahedron_wise_permutation_consistency": {
-                "classification_consistency_rate": 1.0,
-                "IntersectionVolume_consistency_rate": 0.00182,
-                "mean_absolute_difference": 0.003038573544472456,
+                "classification_consistency_rate": 0.64819,
+                "IntersectionVolume_consistency_rate": 1.0,
+                "mean_absolute_difference": 7.507458940381184e-05,
                 "consistency_thresholds": {
-                    "rtol": 1e-05,
-                    "atol": 1e-10
+                    "rtol": 0.1,
+                    "atol": 0.01
                 },
                 "total_samples": 100000
             },
             "IntersectionVolume_performance": {
                 "overall_IntersectionVolume_metrics": {
-                    "mae": 2.5313998776255175e-05,
-                    "mse": 4.599007397132482e-08,
+                    "mae": 3.416619074414484e-05,
+                    "mse": 1.0995432120353144e-07,
                     "samples": 100000,
-                    "overall_bin_accuracy": 0.99085,
+                    "overall_bin_accuracy": 0.99401,
                     "samples_in_binned_range": 100000
                 },
                 "interval_metrics": {
-                    "0.000-0.001": {
-                        "mae": 2.5313998776255175e-05,
-                        "mse": 4.599007397132482e-08,
+                    "0.000-0.002": {
+                        "mae": 3.416619074414484e-05,
+                        "mse": 1.0995432120353144e-07,
                         "samples": 100000,
-                        "correct_bin_predictions": 99085,
-                        "bin_accuracy": 0.99085
+                        "correct_bin_predictions": 99401,
+                        "bin_accuracy": 0.99401
                     },
-                    "0.001-0.002": {
+                    "0.002-0.004": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.002-0.003": {
+                    "0.004-0.007": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.003-0.004": {
+                    "0.007-0.009": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.004-0.006": {
+                    "0.009-0.011": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.006-0.007": {
+                    "0.011-0.013": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.007-0.008": {
+                    "0.013-0.016": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.008-0.009": {
+                    "0.016-0.018": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
                         "correct_bin_predictions": 0,
                         "bin_accuracy": null
                     },
-                    "0.009-0.010": {
+                    "0.018-0.020": {
                         "mae": null,
                         "mse": null,
                         "samples": 0,
@@ -517,122 +526,123 @@
                     "cuda_memory": "2.10 GB"
                 },
                 "repetitions": 50,
-                "augmentation_time_seconds": 3.814697265625e-06,
-                "transformation_time_seconds": 31.253923416137695,
-                "inference_time_seconds": 0.07203629257202147,
-                "total_time_seconds": 31.325963523406983,
-                "avg_time_per_sample_seconds": 0.00031325963523406986,
-                "samples_per_second": 3192.2401979839915
+                "augmentation_time_seconds": 4.5299530029296875e-06,
+                "transformation_time_seconds": 2.1457672119140625e-06,
+                "inference_time_seconds": 0.02915805305480957,
+                "total_time_seconds": 0.029164728775024414,
+                "avg_time_per_sample_seconds": 2.9164728775024413e-07,
+                "samples_per_second": 3428799.2448479845
             }
         },
         "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv": {
             "classification_performance": {
                 "repetitions": 50,
-                "accuracy": 0.0,
-                "precision": 0.0,
-                "recall": 0.0,
-                "f1": 0.0,
+                "accuracy": 0.85396,
+                "precision": 1.0,
+                "recall": 0.85396,
+                "f1": 0.9212280739606034,
                 "confusion_matrix": [
                     [
                         0.0,
                         0.0
                     ],
                     [
-                        100000.0,
-                        0.0
+                        14604.0,
+                        85396.0
                     ]
                 ]
             },
             "point_wise_permutation_consistency": {
-                "classification_consistency_rate": 1.0,
-                "IntersectionVolume_consistency_rate": 0.00263,
+                "classification_consistency_rate": 0.91876,
+                "IntersectionVolume_consistency_rate": 0.99999,
+                "mean_absolute_difference": 0.041179999709129333,
                 "consistency_thresholds": {
-                    "rtol": 1e-05,
-                    "atol": 1e-10
+                    "rtol": 0.1,
+                    "atol": 0.01
                 },
                 "total_samples": 100000
             },
             "tetrahedron_wise_permutation_consistency": {
-                "classification_consistency_rate": 1.0,
-                "IntersectionVolume_consistency_rate": 1e-05,
-                "mean_absolute_difference": 0.0035902890376746655,
+                "classification_consistency_rate": 0.87239,
+                "IntersectionVolume_consistency_rate": 0.9999,
+                "mean_absolute_difference": 0.0014982267748564482,
                 "consistency_thresholds": {
-                    "rtol": 1e-05,
-                    "atol": 1e-10
+                    "rtol": 0.1,
+                    "atol": 0.01
                 },
                 "total_samples": 100000
             },
             "IntersectionVolume_performance": {
                 "overall_IntersectionVolume_metrics": {
-                    "mae": 0.0022900679614394903,
-                    "mse": 8.337686267623212e-06,
+                    "mae": 0.003416921943426132,
+                    "mse": 1.7563224901095964e-05,
                     "samples": 100000,
-                    "overall_bin_accuracy": 0.18498,
+                    "overall_bin_accuracy": 0.28161,
                     "samples_in_binned_range": 100000
                 },
                 "interval_metrics": {
-                    "0.000-0.001": {
-                        "mae": 0.0012541869655251503,
-                        "mse": 3.2902728435146855e-06,
-                        "samples": 11130,
-                        "correct_bin_predictions": 6382,
-                        "bin_accuracy": 0.5734052111410602
+                    "0.000-0.002": {
+                        "mae": 0.0012617635075002909,
+                        "mse": 2.859939513655263e-06,
+                        "samples": 22254,
+                        "correct_bin_predictions": 19348,
+                        "bin_accuracy": 0.8694167340702795
                     },
-                    "0.001-0.002": {
-                        "mae": 0.0016914067091420293,
-                        "mse": 4.185967554803938e-06,
-                        "samples": 11124,
-                        "correct_bin_predictions": 1735,
-                        "bin_accuracy": 0.1559690758719885
+                    "0.002-0.004": {
+                        "mae": 0.0026224972680211067,
+                        "mse": 8.361278560187202e-06,
+                        "samples": 22091,
+                        "correct_bin_predictions": 3352,
+                        "bin_accuracy": 0.15173600108641527
                     },
-                    "0.002-0.003": {
-                        "mae": 0.0015935421688482165,
-                        "mse": 3.66297786058567e-06,
-                        "samples": 10972,
-                        "correct_bin_predictions": 2193,
-                        "bin_accuracy": 0.19987240247903754
+                    "0.004-0.007": {
+                        "mae": 0.0036840387620031834,
+                        "mse": 1.727663038764149e-05,
+                        "samples": 22273,
+                        "correct_bin_predictions": 3212,
+                        "bin_accuracy": 0.1442104790553585
                     },
-                    "0.003-0.004": {
-                        "mae": 0.001532824244350195,
-                        "mse": 3.720708718901733e-06,
-                        "samples": 11119,
-                        "correct_bin_predictions": 2670,
-                        "bin_accuracy": 0.240129508049285
+                    "0.007-0.009": {
+                        "mae": 0.004858382511883974,
+                        "mse": 2.9673292374354787e-05,
+                        "samples": 22249,
+                        "correct_bin_predictions": 1949,
+                        "bin_accuracy": 0.08759944267158075
                     },
-                    "0.004-0.006": {
-                        "mae": 0.0016519201453775167,
-                        "mse": 4.529029411060037e-06,
-                        "samples": 11135,
-                        "correct_bin_predictions": 2616,
-                        "bin_accuracy": 0.23493488998652895
-                    },
-                    "0.006-0.007": {
-                        "mae": 0.0021108868531882763,
-                        "mse": 6.8796848609053995e-06,
-                        "samples": 11138,
-                        "correct_bin_predictions": 1724,
-                        "bin_accuracy": 0.1547854192853295
-                    },
-                    "0.007-0.008": {
-                        "mae": 0.002751455642282963,
-                        "mse": 1.030564362736186e-05,
-                        "samples": 11121,
-                        "correct_bin_predictions": 828,
-                        "bin_accuracy": 0.07445373617480443
-                    },
-                    "0.008-0.009": {
-                        "mae": 0.0035622005816549063,
-                        "mse": 1.5613240975653753e-05,
-                        "samples": 11128,
-                        "correct_bin_predictions": 276,
-                        "bin_accuracy": 0.02480230050323508
-                    },
-                    "0.009-0.010": {
-                        "mae": 0.00445166602730751,
-                        "mse": 2.278026113344822e-05,
+                    "0.009-0.011": {
+                        "mae": 0.005886157043278217,
+                        "mse": 4.158491356065497e-05,
                         "samples": 11133,
-                        "correct_bin_predictions": 74,
-                        "bin_accuracy": 0.006646905595975927
+                        "correct_bin_predictions": 300,
+                        "bin_accuracy": 0.026946914578280787
+                    },
+                    "0.011-0.013": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.013-0.016": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.016-0.018": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.018-0.020": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
                     }
                 }
             },
@@ -648,29 +658,29 @@
                     "cuda_memory": "2.10 GB"
                 },
                 "repetitions": 50,
-                "augmentation_time_seconds": 3.337860107421875e-06,
-                "transformation_time_seconds": 31.306010961532593,
-                "inference_time_seconds": 0.0720927751159668,
-                "total_time_seconds": 31.378107074508666,
-                "avg_time_per_sample_seconds": 0.00031378107074508667,
-                "samples_per_second": 3186.9353929650915
+                "augmentation_time_seconds": 4.76837158203125e-06,
+                "transformation_time_seconds": 2.1457672119140625e-06,
+                "inference_time_seconds": 0.02916646984100342,
+                "total_time_seconds": 0.029173383979797365,
+                "avg_time_per_sample_seconds": 2.9173383979797363e-07,
+                "samples_per_second": 3427781.983373963
             }
         }
     },
     "aggregate_IntersectionStatus_metrics": {
-        "overall_accuracy": 0.2,
+        "overall_accuracy": 0.839688,
         "total_samples": 500000,
-        "priority_group_accuracy": 0.5,
+        "priority_group_accuracy": 0.88448,
         "priority_group_samples": 200000,
-        "secondary_group_accuracy": 0.0,
+        "secondary_group_accuracy": 0.8098266666666666,
         "secondary_group_samples": 300000,
-        "weighted_80_20_accuracy": 0.4,
-        "weighted_20_80_accuracy": 0.1
+        "weighted_80_20_accuracy": 0.8695493333333334,
+        "weighted_20_80_accuracy": 0.8247573333333333
     },
     "aggregate_IntersectionVolume_metrics": {
-        "overall_mae": 0.0004675028450037644,
-        "overall_mse": 1.6840583620503225e-06,
-        "overall_bin_accuracy": 0.833682,
+        "overall_mae": 0.0006961191248137765,
+        "overall_mse": 3.553272666456664e-06,
+        "overall_bin_accuracy": 0.854134,
         "total_samples": 500000,
         "total_samples_in_binned_range": 500000
     }
