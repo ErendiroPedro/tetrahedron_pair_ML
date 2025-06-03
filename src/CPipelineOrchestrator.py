@@ -31,20 +31,18 @@ class CPipelineOrchestrator:
             self._build_model_step(state)
             print("-- Model Building Complete ---")
 
-        # Train the model
+
         if not self.config['model_config'].get('skip_training', False):
             self._train_model_step(state)
             print("---- Model Training Complete ----")
-        # Load the model if specified
+
         elif self.config['model_config'].get('model_path'):
             self._load_model_step(state)
             print("---- Model Loaded Successfully ----")
-            # Continue with evaluation if loading was successful
         else:
-            print("-- Skipped Model Training --")
+            raise ValueError("No model path specified and training is skipped. Cannot proceed without a model.")
 
 
-        # Evaluate the model
         if not self.config['evaluator_config'].get('skip_evaluation', False):
             self._evaluate_model_step(state)
         else:
@@ -130,11 +128,11 @@ class CPipelineOrchestrator:
 
                             processed_embeddings = self.model.forward(x) 
 
-                            if self.task == 'binary_classification':
+                            if self.task == 'IntersectionStatus':
                                 return (processed_embeddings > 0.5).int().squeeze() # Using binary cross-entropy with logits, sgimoid is applied in the loss function
-                            elif self.task == 'regression':
+                            elif self.task == 'IntersectionVolume':
                                 return processed_embeddings.squeeze() / self.volume_scale_factor
-                            elif self.task == 'classification_and_regression':
+                            elif self.task == 'IntersectionStatus_IntersectionVolume':
                                 cls_prediction = (processed_embeddings[:, 0] > 0.5).int().squeeze() # Using binary cross-entropy with logits, sgimoid is applied in the loss function
                                 reg_prediction = processed_embeddings[:, 1].squeeze() / self.volume_scale_factor
                                 return torch.stack([cls_prediction, reg_prediction], dim=1)         
@@ -154,23 +152,17 @@ class CPipelineOrchestrator:
 
         model = state.get("model", None)
 
-        if model is None and self.config['trainer_config']['skip_training'] and self.config['evaluator_config']['model_path']:
-                # If a model path is specified, load the model
-                loaded_model = self._load_model_step(state)
-                state["model"] = loaded_model
-                print(f"---- Will train model with {self.config['evaluator_config']['model_path']} ----")
+        if not model or (self.config['trainer_config']['skip_training'] and self.config['evaluator_config']['model_path']):
+            # If a model path is specified, load the model
+            loaded_model = self._load_model_step(state)
+            state["model"] = loaded_model
+            print(f"---- Will train model with {self.config['evaluator_config']['model_path']} ----")
 
-        else:
-            # If no model is provided, build a new one
-            self._build_model_step(state)
-            model = state.get("model", None)
-            print("---- Model Built Successfully ----")
-            
 
         assert model, "Model must be provided for training."
 
         # Train the model
-        trained_model, training_report = self.model_trainer.train_and_validate(state["model"])
+        trained_model, training_report = self.model_trainer.train_and_validate(model)
         if trained_model is None:
             raise ValueError("Training failed. No trained model was returned.")
         if training_report is None:

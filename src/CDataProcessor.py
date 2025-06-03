@@ -116,37 +116,32 @@ class CDataProcessor:
         self.config["num_val_samples"] = num_val_samples
 
     def _apply_augmentations(self, split, point_augmented_count, tetra_augmented_count):
+
         if split == 'train':
             original_data = self.train_data
         else:
             original_data = self.val_data
 
-        if original_data is None or original_data.shape[0] == 0:
-            return
+        if original_data is None or original_data.empty:
+            raise ValueError(f"No data available for {split} split.")
 
         original_count = original_data.shape[0]
         total_augmented = point_augmented_count + tetra_augmented_count
 
-        # Check if we have enough original samples
         if total_augmented > original_count:
             raise ValueError(f"Not enough original {split} samples to generate augmentations. Needed {total_augmented}, have {original_count}.")
 
-        # Shuffle the original data
         indices = np.random.permutation(original_count)
 
-        # Split indices for each augmentation
         point_indices = indices[:point_augmented_count]
         tetra_indices = indices[point_augmented_count : point_augmented_count + tetra_augmented_count]
 
-        # Extract samples for augmentation (excluding the last two columns which are labels)
         point_samples = original_data.iloc[point_indices, :-2]
         tetra_samples = original_data.iloc[tetra_indices, :-2]
 
-        # Extract corresponding labels
         point_labels = original_data.iloc[point_indices, -2:]
         tetra_labels = original_data.iloc[tetra_indices, -2:]
 
-        # Convert feature samples to tensors for augmentation
         point_tensor = torch.tensor(point_samples.values, dtype=torch.float32)
         tetra_tensor = torch.tensor(tetra_samples.values, dtype=torch.float32)
 
@@ -168,12 +163,14 @@ class CDataProcessor:
         # Shuffle to mix augmented and original samples
         combined_data = combined_data.sample(frac=1, random_state=42).reset_index(drop=True)
 
+        assert combined_data.shape[0] == original_count + total_augmented, "Data size mismatch after augmentation."
+        
         # Update the appropriate dataset
         if split == 'train':
             self.train_data = combined_data
-        else:
+        elif split == 'val':
             self.val_data = combined_data
-
+        
     def _load_data_for_intersection_type(self, raw_data_path, intersection_type):
         """Loads raw data for a specific intersection type."""
         folder_path = os.path.join(raw_data_path, intersection_type)
@@ -309,24 +306,56 @@ class CDataProcessor:
     def transform_data(data: pd.DataFrame, config) -> pd.DataFrame:
         """Transforms data based on the configuration."""
 
-        transformation_type = config["transformations"]
+        transformation_config = config.get("transformations", None)
 
-        if transformation_type:
-            
-            features = data.iloc[:, :-2]
-            labels = data.iloc[:, -2:]
-            transformed_features = pd.DataFrame()
+        volume_scale_factor = config.get("volume_scale_factor", 1)
+        if volume_scale_factor != 1:
+            volume_column_idx = data.columns.get_loc("IntersectionVolume")
+            if volume_column_idx >= 0:
+                data.iloc[:, volume_column_idx] = data.iloc[:, volume_column_idx] * volume_scale_factor
 
-            if transformation_type == "affine_linear_transformation":    
-                transformed_features = features.apply(
-                    gu.apply_affine_linear_transformation, 
+        if not transformation_config:
+            return data
+
+        if isinstance(transformation_config, str):
+            transformations_list = [transformation_config]
+        elif isinstance(transformation_config, list):
+            transformations_list = transformation_config
+        else:
+            raise TypeError("Transformations config must be a string or a list.")
+
+        if not transformations_list:
+            raise("No transformations specified.")
+                
+        
+        features = data.iloc[:, :-2]
+        labels = data.iloc[:, -2:]
+        transformed_features = features
+
+        if len(transformations_list) > 1:
+ 
+            order = {
+            "principal_axis_transformation": 0,
+            "unitary_tetrahedron_transformation": 1
+            }
+
+            transformations_list.sort(key=lambda x: order.get(x, float('inf')))
+
+            for t in transformations_list:
+                if t not in order:
+                    raise ValueError(f"Unknown or unsupported transformation type '{t}' found in config.")
+
+        for transformation_type in transformations_list:
+            if transformation_type == "unitary_tetrahedron_transformation":    
+                transformed_features = transformed_features.apply(
+                    gu.apply_unitary_tetrahedron_transformation, 
                     axis=1,
                     result_type='expand'
                 )
 
-            elif transformation_type == "rigid_transformation":               
-                transformed_features = features.apply(
-                    gu.apply_rigid_transformation, 
+            elif transformation_type == "principal_axis_transformation":               
+                transformed_features = transformed_features.apply(
+                    gu.apply_principal_axis_transformation, 
                     axis=1,
                     result_type='expand'
                 )
@@ -335,13 +364,7 @@ class CDataProcessor:
                 raise ValueError("Invalid transformation type specified.")
                 
             
-            data = pd.concat([transformed_features, labels], axis=1)
-
-        volume_scale_factor = config.get("volume_scale_factor", 1)
-        if volume_scale_factor != 1:
-            volume_column_idx = data.columns.get_loc("IntersectionVolume")
-            if volume_column_idx >= 0:
-                data.iloc[:, volume_column_idx] = data.iloc[:, volume_column_idx] * volume_scale_factor
+        data = pd.concat([transformed_features, labels], axis=1)
 
         return data
 

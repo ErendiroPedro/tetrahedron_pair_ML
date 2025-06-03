@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import pymorton
 
+
 def swap_tetrahedrons(X):
     """
     Swap the order of tetrahedrons in the input tensor.
@@ -15,28 +16,59 @@ def swap_tetrahedrons(X):
 
 def permute_points_within_tetrahedrons(X: torch.Tensor) -> torch.Tensor:
     """
-    Randomly permute points within each tetrahedron
+    Randomly permute points within each tetrahedron.
+    Handles input tensor representing one or two tetrahedrons per item.
+    
+    Args:
+        X: Tensor of shape (batch_size, 12) for single tetrahedrons,
+        or (batch_size, 24) for pairs of tetrahedrons.
+        Each tetrahedron has 4 vertices of 3 coordinates (x, y, z).
+        
+    Returns:
+        Tensor of the same shape as X, with vertices permuted within each tetrahedron.
     """
     batch_size = X.size(0)
+    if batch_size == 0:
+        return X
+
+    num_features = X.size(1)
     device = X.device
 
-    # Split into two tetrahedrons (12 features each)
-    tetra1 = X[:, :12].view(batch_size, 4, 3)  # (B, 4, 3)
-    tetra2 = X[:, 12:].view(batch_size, 4, 3)  # (B, 4, 3)
+    if num_features == 24:  # Standard case: a pair of tetrahedrons
+        # Split into two tetrahedrons
+        tetra1_data = X[:, :12].view(batch_size, 4, 3)  # (B, 4, 3)
+        tetra2_data = X[:, 12:].view(batch_size, 4, 3) # (B, 4, 3)
+        
+        # Generate permutations for the first tetrahedron in each pair
+        perm1 = torch.stack([torch.randperm(4, device=device) for _ in range(batch_size)])
+        perm1_expanded = perm1.unsqueeze(-1).expand(-1, 4, 3)
+        permuted_tetra1 = torch.gather(tetra1_data, 1, perm1_expanded)
+        
+        # Generate permutations for the second tetrahedron in each pair
+        perm2 = torch.stack([torch.randperm(4, device=device) for _ in range(batch_size)])
+        perm2_expanded = perm2.unsqueeze(-1).expand(-1, 4, 3)
+        permuted_tetra2 = torch.gather(tetra2_data, 1, perm2_expanded)
+        
+        # Reconstruct features
+        return torch.cat([
+            permuted_tetra1.view(batch_size, 12),
+            permuted_tetra2.view(batch_size, 12)
+        ], dim=1)
 
-    # Generate permutations for both tetrahedrons
-    perm1 = torch.stack([torch.randperm(4) for _ in range(batch_size)]).to(device)
-    perm2 = torch.stack([torch.randperm(4) for _ in range(batch_size)]).to(device)
-
-    # Apply permutations using gather
-    permuted_tetra1 = torch.gather(tetra1, 1, perm1.unsqueeze(-1).expand(-1, -1, 3))
-    permuted_tetra2 = torch.gather(tetra2, 1, perm2.unsqueeze(-1).expand(-1, -1, 3))
-
-    # Reconstruct features
-    return torch.cat([
-        permuted_tetra1.view(batch_size, 12),
-        permuted_tetra2.view(batch_size, 12)
-    ], dim=1)
+    elif num_features == 12:  # Case: a single tetrahedron
+        tetra_data = X.view(batch_size, 4, 3)  # (B, 4, 3)
+        
+        # Generate permutations for the single tetrahedron
+        perm = torch.stack([torch.randperm(4, device=device) for _ in range(batch_size)])
+        perm_expanded = perm.unsqueeze(-1).expand(-1, 4, 3)
+        permuted_tetra = torch.gather(tetra_data, 1, perm_expanded)
+        
+        # Reconstruct features
+        return permuted_tetra.view(batch_size, 12)
+        
+    else:
+        print(f"Warning: permute_points_within_tetrahedrons received input with {num_features} features. Expected 12 or 24. Returning input unchanged.")
+        return X
 
 def volume_reordering(data: pd.DataFrame, larger=True) -> pd.DataFrame:
     """
@@ -175,7 +207,7 @@ def sort_by_intersection_volume_whole_dataset(data: pd.DataFrame) -> pd.DataFram
     
     return data_sorted
 
-def apply_affine_linear_transformation(tetrahedron_pair_vertices_flat: pd.Series) -> pd.Series:
+def apply_unitary_tetrahedron_transformation(tetrahedron_pair_vertices_flat: pd.Series) -> pd.Series:
     """Transform second tetrahedron's vertices relative to the first one"""
     # Convert to tensor only once
     input_tensor = torch.tensor(tetrahedron_pair_vertices_flat.values, dtype=torch.float32).flatten()
@@ -202,7 +234,7 @@ def apply_affine_linear_transformation(tetrahedron_pair_vertices_flat: pd.Series
     column_names = [f'T1_v{i//3 + 1}_{"xyz"[i % 3]}' for i in range(12)]
     return pd.Series(transformed_verts.flatten().detach().numpy(), index=column_names)
 
-def apply_rigid_transformation(tetrahedron_pair_vertices_flat: pd.Series) -> pd.Series:
+def apply_principal_axis_transformation(tetrahedron_pair_vertices_flat: pd.Series) -> pd.Series:
     """
     Apply a rigid transformation to both tetrahedrons to bring them into a canonical pose,
     preserving their relative configuration (and intersection status).

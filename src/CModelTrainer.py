@@ -21,7 +21,7 @@ class CModelTrainer:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.config = config
-        self.loss_function = self._setup_loss_functions(config.get("loss_function", "binary_classification"))
+        self.loss_function = self._setup_loss_functions(config.get("loss_function", "IntersectionStatus"))
         self.learning_rate = config.get("learning_rate", 0.001)
         self.batch_size = config.get("batch_size", 32)
         self.epochs = config.get("epochs", 5)
@@ -84,11 +84,11 @@ class CModelTrainer:
             self.optimizer.zero_grad()
             output = self.model(batch_x)
 
-            if self.config["loss_function"] == "binary_classification":
+            if self.config["loss_function"] == "IntersectionStatus":
                 loss = self.loss_function(output, batch_status)
-            elif self.config["loss_function"] == "regression":
+            elif self.config["loss_function"] == "IntersectionVolume":
                 loss = self.loss_function(output, batch_volume)
-            elif self.config["loss_function"] == "classification_and_regression":
+            elif self.config["loss_function"] == "IntersectionStatus_IntersectionVolume":
                 loss = self.loss_function(output, torch.cat([batch_status, batch_volume], dim=1))
             else:
                 raise ValueError("Invalid loss function specified in configuration.")
@@ -119,11 +119,11 @@ class CModelTrainer:
                 output = self.model(batch_x)
 
                 # Compute loss based on the task
-                if self.config["loss_function"] == "binary_classification":
+                if self.config["loss_function"] == "IntersectionStatus":
                     loss = self.loss_function(output, batch_status)
-                elif self.config["loss_function"] == "regression":
+                elif self.config["loss_function"] == "IntersectionVolume":
                     loss = self.loss_function(output, batch_volume)
-                elif self.config["loss_function"] == "classification_and_regression":
+                elif self.config["loss_function"] == "IntersectionStatus_IntersectionVolume":
                     loss = self.loss_function(output, torch.cat([batch_status, batch_volume], dim=1))
                 else:
                     raise ValueError("Invalid loss function specified in configuration.")
@@ -136,20 +136,20 @@ class CModelTrainer:
         """
         Set up the appropriate loss function based on the task.
         
-        :param task_name: Name of the task (classification, regression, etc.)
+        :param task_name: Name of the task (classification, IntersectionVolume, etc.)
         :return: Loss function
         """
         loss_functions_map = {
-            "binary_classification": F.binary_cross_entropy_with_logits,
-            "regression": self._rmlse,# self._mape_loss,
-            "classification_and_regression": self._combined_loss
+            "IntersectionStatus": F.binary_cross_entropy_with_logits,
+            "IntersectionVolume": self._rmlse,# self._mape_loss,
+            "IntersectionStatus_IntersectionVolume": self._combined_loss
         }
         return loss_functions_map.get(task_name, F.binary_cross_entropy_with_logits)
     
     def _rmlse(self, output, target):
         log_true = torch.log1p(target)  # log(1 + y)
         log_pred = torch.log1p(output)  # log(1 + y_hat)
-        
+        assert log_pred.shape == log_true.shape, f"Shape mismatch: {log_pred.shape} vs {log_true.shape}"
         loss = torch.sqrt(torch.mean((log_true - log_pred) ** 2))
         return loss
 
@@ -167,7 +167,7 @@ class CModelTrainer:
             cls_target
         )
 
-        reg_loss = self._mape_loss(
+        reg_loss = self._rmlse(
             output[:, 1], 
             reg_target
         )
