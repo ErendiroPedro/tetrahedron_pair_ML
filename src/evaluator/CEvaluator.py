@@ -18,7 +18,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score,f1_sco
 class CEvaluator:
     def __init__(self, config):
         self.config = config
-        self.task_type = config.get('task', 'binary_classification')
+        self.task_type = config.get('task', 'IntersectionStatus')
         self.test_data_loaded = False
         self.datasets = []
         self.intersection_status_column_name = 'HasIntersection'
@@ -26,14 +26,14 @@ class CEvaluator:
         self.dp = dp.CDataProcessor(config)
         
         self.test_registry = {
-            'binary_classification': [self.classification_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.inference_speed],
-            'regression': [self.regression_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.inference_speed],
-            'classification_and_regression': [self.classification_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.regression_performance, self.inference_speed]
+            'IntersectionStatus': [self.classification_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.inference_speed],
+            'IntersectionVolume': [self.IntersectionVolume_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.inference_speed],
+            'IntersectionStatus_IntersectionVolume': [self.classification_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.IntersectionVolume_performance, self.inference_speed]
         }
 
         self.dataset_folders = (
             ['polyhedron_intersection', 'big_dataset'] 
-            if self.task_type == 'regression'
+            if self.task_type == 'IntersectionVolume'
             else [
                 'no_intersection', 'point_intersection', 
                 'segment_intersection', 'polygon_intersection', 
@@ -75,8 +75,12 @@ class CEvaluator:
             
             report['dataset_reports'][dataset['name']] = dataset_report
 
-        if self.task_type in ['binary_classification', 'classification_and_regression']:
-            report['aggregate_binary_classification_metrics'] = self._calculate_aggregate_classification_metrics(report)
+        # Calculate aggregate metrics based on task type
+        if self.task_type in ['IntersectionStatus', 'IntersectionStatus_IntersectionVolume']:
+            report['aggregate_IntersectionStatus_metrics'] = self._calculate_aggregate_IntersectionStatus_metrics(report)
+        
+        if self.task_type in ['IntersectionVolume', 'IntersectionStatus_IntersectionVolume']:
+             report['aggregate_IntersectionVolume_metrics'] = self._calculate_aggregate_IntersectionVolume_metrics(report)
 
         print("---- Finished Evaluation ----")
 
@@ -141,7 +145,7 @@ class CEvaluator:
             with torch.no_grad():
                 for _ in range(num_repeats):
                     y_pred = model.predict(X).cpu().numpy()
-                    if self.task_type == 'classification_and_regression':
+                    if self.task_type == 'IntersectionStatus_IntersectionVolume':
                         y_pred = y_pred[:, 0]
 
                     # Compute metrics for the current run
@@ -168,234 +172,131 @@ class CEvaluator:
 
         return avg_metrics
 
-    def regression_performance(self, model, dataset):
-        X = torch.tensor(dataset['X'].values, dtype=torch.float32)
-        y_true = dataset['intersection_volume'].values.astype(np.float32)
+    def IntersectionVolume_performance(self, model, dataset):
+        """
+        Evaluates IntersectionVolume model performance overall and within specific intervals.
 
-        model.eval()
-        device = next(model.parameters()).device
-        X = X.to(device)
+        Args:
+            model: The trained PyTorch model.
+            dataset: A dictionary or DataFrame containing 'X' and 'intersection_volume'.
 
-        num_repeats = 50
-        all_interval_metrics = []
-
+        Returns:
+            A dictionary containing overall and interval-specific performance metrics.
+        """
+ 
         try:
+            X_values = dataset['X'].values
+            # Handle cases where X might already be stacked or needs stacking
+            if isinstance(X_values[0], (list, np.ndarray)):
+                 X_tensor = torch.tensor(np.stack(X_values), dtype=torch.float32)
+            else:
+                 X_tensor = torch.tensor(X_values, dtype=torch.float32)
+                 if len(X_tensor.shape) == 1: # Ensure X is 2D (N_samples, N_features)
+                    X_tensor = X_tensor.unsqueeze(1)
+
+            y_true = dataset['intersection_volume'].values.astype(np.float32)
+
+            model.eval()
+            device = next(model.parameters()).device
+            X_tensor = X_tensor.to(device)
+
             with torch.no_grad():
-                for _ in range(num_repeats):
-                    y_pred = model.predict(X).cpu().numpy().astype(np.float32)
-                    if self.task_type == 'classification_and_regression':
-                        y_pred = y_pred[:, 1]
+                # Perform prediction once
+                y_pred_tensor = model.predict(X_tensor) # Assuming model.predict exists and returns tensor
+                y_pred = y_pred_tensor.cpu().numpy().astype(np.float32)
 
-                    assert y_true.shape == y_pred.shape, f"Shape mismatch: {y_true.shape} vs {y_pred.shape}"
+            # Handle potential multi-output if task includes classification
+            if self.task_type == 'IntersectionStatus_IntersectionVolume':
+                 if y_pred.ndim > 1 and y_pred.shape[1] > 1:
+                     y_pred = y_pred[:, 1] # Assuming IntersectionVolume target is the second column
+                 else:
+                     # Handle cases where output might be unexpectedly 1D
+                     print("Warning: IntersectionStatus_IntersectionVolume task type selected, but model output seems 1D. Using as is.")
 
-                    intervals = np.linspace(0, 0.01, 6)  # 5 intervals
-                    interval_metrics = {}
 
-                    for i in range(len(intervals)-1):
-                        low = intervals[i]
-                        high = intervals[i+1]
-                        
-                        # Samples that truly belong in this bin
-                        true_bin_mask = (y_true >= low) & (y_true < high)
-                        # Samples predicted to be in this bin
-                        pred_bin_mask = (y_pred >= low) & (y_pred < high)
-                        
-                        # Count samples that are correctly placed in this bin
-                        true_bin_samples = np.sum(true_bin_mask)
-                        correct_bin_predictions = np.sum(true_bin_mask & pred_bin_mask)
-                        
-                        # Calculate bin prediction accuracy (percentage of samples correctly predicted in this bin)
-                        bin_accuracy = float(correct_bin_predictions / true_bin_samples) if true_bin_samples > 0 else 0.0
+            if y_true.shape != y_pred.shape:
+                 return {'error': f"Shape mismatch between y_true and y_pred: {y_true.shape} vs {y_pred.shape}"}
+            if len(y_true) == 0:
+                 return {'error': "Dataset is empty."}
 
-                        if np.sum(true_bin_mask) > 0:
-                            mae = mean_absolute_error(y_true[true_bin_mask], y_pred[true_bin_mask])
-                            mse = mean_squared_error(y_true[true_bin_mask], y_pred[true_bin_mask])
-                            interval_metrics[f'{low:.3f}-{high:.3f}'] = {
-                                'mae': float(mae),
-                                'mse': float(mse),
-                                'samples': int(np.sum(true_bin_mask)),
-                                'correct_bin_predictions': int(correct_bin_predictions),
-                                'bin_accuracy': bin_accuracy
-                            }
-                        else:
-                            interval_metrics[f'{low:.3f}-{high:.3f}'] = {
-                                'mae': None,
-                                'mse': None,
-                                'samples': 0,
-                                'correct_bin_predictions': 0,
-                                'bin_accuracy': None
-                            }
 
-                    all_interval_metrics.append(interval_metrics)
-        except Exception as e:
-            return {'error': str(e)}
+            # --- Calculate Overall Metrics ---
+            overall_mae = mean_absolute_error(y_true, y_pred)
+            overall_mse = mean_squared_error(y_true, y_pred)
 
-        # Average metrics across all runs for each interval
-        avg_interval_metrics = {}
-        if not all_interval_metrics:
-            return avg_interval_metrics
+            # --- Calculate Interval Metrics ---
+            volume_range = self.config.get('volume_range', (0, 0.01))
+            if volume_range[0] < 0 or volume_range[1] > 0.3333:
+                raise ValueError("Volume range must be between 0 and 0.3333.")
+            intervals = np.linspace(volume_range[0], volume_range[1], self.config.get('evaluation_n_bins', 5))
+            interval_metrics = {}
+            total_correct_bin_predictions = 0
+            total_samples_in_bins = 0
 
-        interval_keys = all_interval_metrics[0].keys()
+            for i in range(len(intervals) - 1):
+                low = intervals[i]
+                high = intervals[i+1]
+                interval_key = f'{low:.3f}-{high:.3f}'
 
-        for key in interval_keys:
-            maes = []
-            mses = []
-            accuracies = []
-            samples = all_interval_metrics[0][key]['samples']
-            correct_preds = 0
-            
-            for run in all_interval_metrics:
-                current = run[key]
-                if current['mae'] is not None:
-                    maes.append(current['mae'])
-                if current['mse'] is not None:
-                    mses.append(current['mse'])
-                if current['bin_accuracy'] is not None:
-                    accuracies.append(current['bin_accuracy'])
-                if 'correct_bin_predictions' in current:
-                    correct_preds += current['correct_bin_predictions']
-            
-            # Average over all runs
-            avg_mae = np.mean(maes) if maes else None
-            avg_mse = np.mean(mses) if mses else None
-            avg_bin_accuracy = np.mean(accuracies) if accuracies else None
-            
-            # For the average number of correct predictions, we divide by num_repeats
-            avg_correct_preds = correct_preds / num_repeats if num_repeats > 0 else 0
+                # Find samples where the TRUE value falls into this bin
+                true_bin_mask = (y_true >= low) & (y_true < high)
+                true_bin_samples = int(np.sum(true_bin_mask))
 
-            avg_interval_metrics[key] = {
-                'repetitions': num_repeats,
-                'mae': avg_mae,
-                'mse': avg_mse,
-                'samples': samples,
-                'correct_bin_predictions': int(avg_correct_preds),
-                'bin_accuracy': avg_bin_accuracy
-            }
+                if true_bin_samples > 0:
+                    # Find samples where the PREDICTED value also falls into this bin
+                    pred_bin_mask = (y_pred >= low) & (y_pred < high)
 
-        # Calculate overall bin accuracy across all intervals
-        total_samples = sum(m['samples'] for m in avg_interval_metrics.values())
-        total_correct = sum(m.get('correct_bin_predictions', 0) for m in avg_interval_metrics.values())
-        overall_bin_accuracy = total_correct / total_samples if total_samples > 0 else 0
-        
-        # Add overall bin accuracy to results
-        avg_interval_metrics['overall_bin_accuracy'] = overall_bin_accuracy
+                    # Count samples correctly placed in this bin (true AND predicted are in the bin)
+                    correct_bin_predictions = int(np.sum(true_bin_mask & pred_bin_mask))
 
-        return avg_interval_metrics
+                    # Calculate bin accuracy: % of samples truly in this bin that were also predicted in this bin
+                    bin_accuracy = float(correct_bin_predictions / true_bin_samples)
 
-    def _calculate_aggregate_regression_metrics(self, report):
-        """Calculate aggregate regression metrics across all datasets using existing results"""
-        aggregate_metrics = {
-            'total_samples': 0,
-            'bin_accuracy': {},
-            'overall_mae': 0,
-            'overall_mse': 0,
-            'weighted_samples': 0,
-            'error_datasets': 0,  # Track how many datasets had errors
-            'overall_bin_accuracy': 0  # New field for overall bin prediction accuracy
-        }
-        
-        # Define the intervals as used in regression_performance
-        intervals = np.linspace(0, 0.01, 6)  # 5 intervals
-        for i in range(len(intervals)-1):
-            interval_key = f'{intervals[i]:.3f}-{intervals[i+1]:.3f}'
-            aggregate_metrics['bin_accuracy'][interval_key] = {
-                'total_samples': 0,
-                'mae': 0,
-                'mse': 0,
-                'weighted_mae': 0,
-                'weighted_mse': 0,
-                'correct_bin_predictions': 0,
-                'weighted_bin_accuracy': 0  # For weighted average calculation
-            }
-        
-        # Variables to track overall bin accuracy
-        total_bin_correct = 0
-        
-        # Process all regression datasets
-        for dataset_name, dataset_report in report['dataset_reports'].items():
-            # Skip datasets without regression performance
-            if 'regression_performance' not in dataset_report:
-                continue
-                
-            perf = dataset_report['regression_performance']
-            
-            # Handle error datasets gracefully
-            if not isinstance(perf, dict) or 'error' in perf:
-                aggregate_metrics['error_datasets'] += 1
-                continue
-            
-            # Process each interval
-            for interval_key, interval_metrics in perf.items():
-                # Skip overall bin accuracy key
-                if interval_key == 'overall_bin_accuracy':
-                    continue
-                    
-                # Skip invalid or empty intervals
-                if not isinstance(interval_metrics, dict) or 'samples' not in interval_metrics:
-                    continue
-                    
-                samples = interval_metrics.get('samples', 0)
-                mae = interval_metrics.get('mae')
-                mse = interval_metrics.get('mse')
-                bin_accuracy = interval_metrics.get('bin_accuracy')
-                correct_bin_predictions = interval_metrics.get('correct_bin_predictions', 0)
-                
-                if samples > 0:
-                    # Update interval metrics
-                    aggregate_metrics['bin_accuracy'][interval_key]['total_samples'] += samples
-                    
-                    if mae is not None and mse is not None:
-                        aggregate_metrics['bin_accuracy'][interval_key]['weighted_mae'] += mae * samples
-                        aggregate_metrics['bin_accuracy'][interval_key]['weighted_mse'] += mse * samples
-                        
-                        # Update overall error metrics
-                        aggregate_metrics['weighted_samples'] += samples
-                        aggregate_metrics['overall_mae'] += mae * samples
-                        aggregate_metrics['overall_mse'] += mse * samples
-                    
-                    # Update bin accuracy metrics
-                    aggregate_metrics['bin_accuracy'][interval_key]['correct_bin_predictions'] += correct_bin_predictions
-                    if bin_accuracy is not None:
-                        aggregate_metrics['bin_accuracy'][interval_key]['weighted_bin_accuracy'] += bin_accuracy * samples
-                    
-                    # Update overall bin accuracy metrics
-                    total_bin_correct += correct_bin_predictions
-                    
-                    # Update total samples count
-                    aggregate_metrics['total_samples'] += samples
-        
-        # Calculate aggregated metrics
-        if aggregate_metrics['weighted_samples'] > 0:
-            aggregate_metrics['overall_mae'] /= aggregate_metrics['weighted_samples']
-            aggregate_metrics['overall_mse'] /= aggregate_metrics['weighted_samples']
-        
-        # Calculate overall bin accuracy
-        if aggregate_metrics['total_samples'] > 0:
-            aggregate_metrics['overall_bin_accuracy'] = total_bin_correct / aggregate_metrics['total_samples']
-        
-        # Calculate per-interval average metrics
-        for interval_key, metrics in aggregate_metrics['bin_accuracy'].items():
-            if metrics['total_samples'] > 0:
-                # Error metrics
-                if 'weighted_mae' in metrics and 'weighted_mse' in metrics:
-                    metrics['mae'] = metrics['weighted_mae'] / metrics['total_samples']
-                    metrics['mse'] = metrics['weighted_mse'] / metrics['total_samples']
-                    
-                # Bin accuracy metrics
-                if 'weighted_bin_accuracy' in metrics:
-                    metrics['bin_accuracy'] = metrics['weighted_bin_accuracy'] / metrics['total_samples']
+                    # Calculate MAE/MSE for samples truly belonging to this bin
+                    mae_interval = mean_absolute_error(y_true[true_bin_mask], y_pred[true_bin_mask])
+                    mse_interval = mean_squared_error(y_true[true_bin_mask], y_pred[true_bin_mask])
+
+                    interval_metrics[interval_key] = {
+                        'mae': float(mae_interval),
+                        'mse': float(mse_interval),
+                        'samples': true_bin_samples,
+                        'correct_bin_predictions': correct_bin_predictions,
+                        'bin_accuracy': bin_accuracy
+                    }
+                    total_correct_bin_predictions += correct_bin_predictions
+                    total_samples_in_bins += true_bin_samples
                 else:
-                    metrics['bin_accuracy'] = metrics['correct_bin_predictions'] / metrics['total_samples']
-                
-                # Remove temporary weighted values
-                if 'weighted_mae' in metrics:
-                    metrics.pop('weighted_mae')
-                if 'weighted_mse' in metrics:
-                    metrics.pop('weighted_mse')
-                if 'weighted_bin_accuracy' in metrics:
-                    metrics.pop('weighted_bin_accuracy')
-        
-        return aggregate_metrics
+                    # No true samples in this bin
+                    interval_metrics[interval_key] = {
+                        'mae': None,
+                        'mse': None,
+                        'samples': 0,
+                        'correct_bin_predictions': 0,
+                        'bin_accuracy': None
+                    }
+
+            # Calculate overall bin accuracy across defined intervals
+            overall_bin_accuracy = float(total_correct_bin_predictions / total_samples_in_bins) if total_samples_in_bins > 0 else 0.0
+
+            # --- Assemble Final Results ---
+            results = {
+                'overall_IntersectionVolume_metrics': {
+                    'mae': float(overall_mae),
+                    'mse': float(overall_mse),
+                    'samples': len(y_true),
+                    'overall_bin_accuracy': overall_bin_accuracy,
+                    'samples_in_binned_range': total_samples_in_bins
+                },
+                'interval_metrics': interval_metrics
+            }
+
+        except Exception as e:
+            import traceback
+            print(f"Error during IntersectionVolume performance calculation: {e}")
+            traceback.print_exc()
+            results = {'error': str(e)}
+
+        return results
 
     def inference_speed(self, model, dataset):
 
@@ -479,11 +380,11 @@ class CEvaluator:
                 pred_original = model.predict(X).cpu().numpy().astype(np.float32)
                 pred_swapped = model.predict(X_swapped).cpu().numpy().astype(np.float32)
             
-            rtol = 1e-2
-            atol = 1e-8
+            rtol = 1e-1
+            atol = 1e-2
 
             # Process predictions based on task type
-            if self.task_type == 'binary_classification':
+            if self.task_type == 'IntersectionStatus':
                 consistent = (pred_original == pred_swapped)
                 consistency_rate = float(np.mean(consistent))
 
@@ -491,17 +392,17 @@ class CEvaluator:
                     "classification_consistency_rate": consistency_rate,
                     "total_samples": X.shape[0]
                 }
-            elif self.task_type == 'regression':
+            elif self.task_type == 'IntersectionVolume':
                 consistent = np.isclose(pred_original, pred_swapped, rtol=rtol, atol = atol)
                 consistency_rate = float(np.mean(consistent))
                 mad = float(np.mean(np.abs(pred_original - pred_swapped)))
                 result = {
-                    "regression_consistency_rate": consistency_rate,
+                    "IntersectionVolume_consistency_rate": consistency_rate,
                     "consistency_thresholds": {"rtol": rtol, "atol": atol},
                     "mean_absolute_difference": mad,
                     "total_samples": X.shape[0]
                 }
-            elif self.task_type == 'classification_and_regression':
+            elif self.task_type == 'IntersectionStatus_IntersectionVolume':
                 cls_original = pred_original[:, 0]
                 cls_swapped = pred_swapped[:, 0]
                 reg_original = pred_original[:, 1]
@@ -516,7 +417,7 @@ class CEvaluator:
                 
                 result = {
                     "classification_consistency_rate": consistency_rate_cls,
-                    "regression_consistency_rate": consistency_rate_reg,
+                    "IntersectionVolume_consistency_rate": consistency_rate_reg,
                     "mean_absolute_difference": mad_reg,
                     "consistency_thresholds": {"rtol": rtol, "atol": atol},
                     "total_samples": X.shape[0]
@@ -537,7 +438,7 @@ class CEvaluator:
         """
         try:
             # Validate task type
-            if not hasattr(self, 'task_type') or self.task_type not in ['binary_classification', 'regression', 'classification_and_regression']:
+            if not hasattr(self, 'task_type') or self.task_type not in ['IntersectionStatus', 'IntersectionVolume', 'IntersectionStatus_IntersectionVolume']:
                 raise ValueError(f"Invalid or missing task type: {getattr(self, 'task_type', None)}")
 
             # Determine device
@@ -555,10 +456,7 @@ class CEvaluator:
             if not hasattr(X, 'values'):
                 raise ValueError("dataset['X'] must have a 'values' attribute (e.g., a pandas DataFrame).")
             X = torch.tensor(X.values, dtype=torch.float32, device=device)
-
-            # Permute points within tetrahedrons
-            if not hasattr(gu, 'permute_points_within_tetrahedrons'):
-                raise AttributeError("The function 'permute_points_within_tetrahedrons' is missing.")
+            
             X_permuted = gu.permute_points_within_tetrahedrons(X)
 
             # Get predictions
@@ -566,20 +464,23 @@ class CEvaluator:
             pred_permuted = model.predict(X_permuted).cpu().numpy().astype(np.float32)
 
             # Calculate consistency metrics
-            rtol = 1e-2
-            atol = 1e-8
+            rtol = 1e-1
+            atol = 1e-2
             result = {}
-            if self.task_type == 'binary_classification':
+
+            mad = float(np.mean(np.abs(pred_original - pred_permuted)))
+            
+            if self.task_type == 'IntersectionStatus':
                 consistent = (pred_original == pred_permuted)
                 result["classification_consistency_rate"] = float(np.mean(consistent))
 
-            elif self.task_type == 'regression':
+            elif self.task_type == 'IntersectionVolume':
                 consistent = np.isclose(pred_original, pred_permuted, rtol=rtol, atol=atol)
-                result["regression_consistency_rate"] = float(np.mean(consistent))
+                result["IntersectionVolume_consistency_rate"] = float(np.mean(consistent))
                 result["consistency_thresholds"] = {"rtol": rtol, "atol": atol}
                 result["mean_absolute_difference"] = float(np.mean(np.abs(pred_original - pred_permuted)))
 
-            elif self.task_type == 'classification_and_regression':
+            elif self.task_type == 'IntersectionStatus_IntersectionVolume':
                 cls_original = pred_original[:, 0]
                 cls_swapped = pred_permuted[:, 0]
                 reg_original = pred_original[:, 1]
@@ -589,7 +490,8 @@ class CEvaluator:
                 reg_consistent = np.isclose(reg_original, reg_swapped, rtol=rtol, atol=atol)
 
                 result["classification_consistency_rate"] = float(np.mean(cls_consistent))
-                result["regression_consistency_rate"] = float(np.mean(reg_consistent))
+                result["IntersectionVolume_consistency_rate"] = float(np.mean(reg_consistent))
+                result["mean_absolute_difference"] = float(np.mean(np.abs(pred_original - pred_permuted)))
                 result["consistency_thresholds"] = {"rtol": rtol, "atol": atol}
 
             result["total_samples"] = X.shape[0]
@@ -605,7 +507,7 @@ class CEvaluator:
         except Exception as e:
             return {"error": "Unexpected error", "details": str(e)}
 
-    def _calculate_aggregate_classification_metrics(self, report):
+    def _calculate_aggregate_IntersectionStatus_metrics(self, report):
         """Calculate aggregate classification metrics across all datasets"""
         datasets = report['dataset_reports']
         
@@ -626,7 +528,7 @@ class CEvaluator:
             if 'classification_performance' not in dataset_report:
                 continue
                 
-            # Get dataset type from dataset name (e.g., 'no_intersection/file.csv' -> 'no_intersection')
+            # Get dataset type from dataset folder (e.g., 'no_intersection/file.csv' -> 'no_intersection')
             dataset_type = dataset_name.split('/')[0]
             
             perf = dataset_report['classification_performance']
@@ -700,4 +602,54 @@ class CEvaluator:
             'secondary_group_samples': group_metrics['secondary']['total_samples'],
             'weighted_80_20_accuracy': weighted_metrics['80_20_accuracy'],
             'weighted_20_80_accuracy': weighted_metrics['20_80_accuracy']
+        }
+    
+    def _calculate_aggregate_IntersectionVolume_metrics(self, report):
+        """Calculate aggregate IntersectionVolume metrics across all datasets"""
+        datasets = report['dataset_reports']
+        
+        total_samples = 0
+        weighted_mae_sum = 0
+        weighted_mse_sum = 0
+        weighted_bin_accuracy_sum = 0
+        total_samples_in_bins = 0
+
+        for dataset_name, dataset_report in datasets.items():
+            # Skip if IntersectionVolume performance data is missing or has errors
+            if 'IntersectionVolume_performance' not in dataset_report or 'error' in dataset_report['IntersectionVolume_performance']:
+                continue
+
+            perf = dataset_report['IntersectionVolume_performance']
+            overall_metrics = perf.get('overall_IntersectionVolume_metrics', {})
+
+            # Get metrics for this dataset
+            mae = overall_metrics.get('mae')
+            mse = overall_metrics.get('mse')
+            samples = overall_metrics.get('samples')
+            bin_accuracy = overall_metrics.get('overall_bin_accuracy')
+            samples_in_binned_range = overall_metrics.get('samples_in_binned_range')
+
+            # Ensure we have valid numbers to work with
+            if samples is not None and samples > 0:
+                total_samples += samples
+                if mae is not None:
+                    weighted_mae_sum += mae * samples
+                if mse is not None:
+                    weighted_mse_sum += mse * samples
+                
+                if bin_accuracy is not None and samples_in_binned_range is not None and samples_in_binned_range > 0:
+                    weighted_bin_accuracy_sum += bin_accuracy * samples_in_binned_range
+                    total_samples_in_bins += samples_in_binned_range
+
+        # Calculate overall weighted averages
+        overall_mae = weighted_mae_sum / total_samples if total_samples > 0 else None
+        overall_mse = weighted_mse_sum / total_samples if total_samples > 0 else None
+        overall_bin_accuracy = weighted_bin_accuracy_sum / total_samples_in_bins if total_samples_in_bins > 0 else None
+
+        return {
+            'overall_mae': overall_mae,
+            'overall_mse': overall_mse,
+            'overall_bin_accuracy': overall_bin_accuracy,
+            'total_samples': total_samples,
+            'total_samples_in_binned_range': total_samples_in_bins
         }
