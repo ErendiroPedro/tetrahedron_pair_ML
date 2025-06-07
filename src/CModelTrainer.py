@@ -21,6 +21,7 @@ class CModelTrainer:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.config = config
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.loss_function = self._setup_loss_functions(config.get("loss_function", "IntersectionStatus"))
         self.learning_rate = config.get("learning_rate", 0.001)
         self.batch_size = config.get("batch_size", 32)
@@ -201,13 +202,13 @@ class CModelTrainer:
         train_loader = DataLoader(
             train_dataset, 
             batch_size=self.batch_size, 
-            shuffle=False,
+            shuffle=True,
             num_workers=4
         )
         val_loader = DataLoader(
             val_dataset, 
             batch_size=self.batch_size, 
-            shuffle=False,
+            shuffle=True,
             num_workers=4
         )
         
@@ -233,16 +234,168 @@ class CModelTrainer:
         plt.close()
         
         return base64.b64encode(buffer.getvalue()).decode("utf-8")
-    
-class TetrahedronDataset(Dataset):
-    def __init__(self, data_path):
+
+    def fine_tune(self, model, fine_tune_data):
         """
-        Load data from a CSV file.
+        Fine-tune a pre-trained model with new data
         
-        :param data_path: Path to the CSV file
+        Args:
+            model: Pre-trained model to fine-tune
+            fine_tune_data: New dataset for fine-tuning
+            
+        Returns:
+            Tuple of (fine_tuned_model, training_report)
         """
-        # Load the CSV file
-        df = pd.read_csv(data_path)
+        print("Starting fine-tuning process...")
+        
+        # Prepare data loaders for fine-tuning data
+        train_loader, val_loader = self._prepare_fine_tune_dataloaders(fine_tune_data)
+        
+        # Set up optimizer with potentially lower learning rate for fine-tuning
+        fine_tune_lr = self.config.get('fine_tune_learning_rate', self.config.get('learning_rate', 0.001) * 0.1)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=fine_tune_lr)
+        
+        # Fine-tune for fewer epochs
+        fine_tune_epochs = self.config.get('fine_tune_epochs', 5)
+        
+        training_history = {
+            'train_loss': [],
+            'val_loss': [],
+            'epoch': []
+        }
+        
+        for epoch in range(fine_tune_epochs):
+            print(f"Fine-tuning Epoch {epoch+1}/{fine_tune_epochs}")
+            
+            # Training phase
+            model.train()
+            train_loss = self._train_epoch_fine_tune(model, train_loader, optimizer)
+            
+            # Validation phase
+            model.eval()
+            val_loss = self._validate_epoch_fine_tune(model, val_loader)  # Pass model as parameter
+            
+            training_history['train_loss'].append(train_loss)
+            training_history['val_loss'].append(val_loss)
+            training_history['epoch'].append(epoch + 1)
+            
+            print(f"Epoch {epoch+1}: Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+        
+        training_report = f"Fine-tuning completed. Final train loss: {train_loss:.4f}, Final val loss: {val_loss:.4f}"
+        
+        return model, training_report
+
+    def _prepare_fine_tune_dataloaders(self, fine_tune_data):
+        """Prepare data loaders for fine-tuning"""
+        # Split fine-tune data into train/val
+        from sklearn.model_selection import train_test_split
+        
+        train_data, val_data = train_test_split(
+            fine_tune_data, 
+            test_size=0.2, 
+            random_state=42
+        )
+        
+        # Create datasets and data loaders
+        train_dataset = TetrahedronDataset(train_data)
+        val_dataset = TetrahedronDataset(val_data)
+        
+        train_loader = DataLoader(
+            train_dataset, 
+            batch_size=self.config.get('batch_size', 32), 
+            shuffle=True
+        )
+        val_loader = DataLoader(
+            val_dataset, 
+            batch_size=self.config.get('batch_size', 32), 
+            shuffle=False
+        )
+        
+        return train_loader, val_loader
+
+    def _train_epoch_fine_tune(self, model, train_loader, optimizer):
+        """Training epoch specifically for fine-tuning"""
+        total_loss = 0
+        num_batches = 0
+        
+        # Ensure model is on correct device
+        model = model.to(self.device)
+        
+        for batch_x, batch_status, batch_volume in train_loader:
+            # Move all tensors to the same device as model
+            batch_x = batch_x.to(self.device)
+            batch_status = batch_status.to(self.device)
+            batch_volume = batch_volume.to(self.device)
+            
+            optimizer.zero_grad()
+            
+            # Forward pass
+            output = model(batch_x)
+            
+            # Calculate loss based on the task (same as regular training)
+            if self.config["loss_function"] == "IntersectionStatus":
+                loss = self.loss_function(output, batch_status)
+            elif self.config["loss_function"] == "IntersectionVolume":
+                loss = self.loss_function(output, batch_volume)
+            elif self.config["loss_function"] == "IntersectionStatus_IntersectionVolume":
+                loss = self.loss_function(output, torch.cat([batch_status, batch_volume], dim=1))
+            else:
+                raise ValueError("Invalid loss function specified in configuration.")
+            
+            # Backward pass
+            loss.backward()
+            optimizer.step()
+            
+            total_loss += loss.item()
+            num_batches += 1
+        
+        return total_loss / num_batches if num_batches > 0 else 0
+
+    def _validate_epoch_fine_tune(self, model, val_loader):
+        """Validation epoch specifically for fine-tuning"""
+        total_loss = 0
+        num_batches = 0
+        
+        model.eval()
+        with torch.no_grad():
+            for batch_x, batch_status, batch_volume in val_loader:
+                batch_x = batch_x.to(self.device)
+                batch_status = batch_status.to(self.device)
+                batch_volume = batch_volume.to(self.device)
+                
+                # Forward pass
+                output = model(batch_x)
+                
+                # Calculate loss based on the task
+                if self.config["loss_function"] == "IntersectionStatus":
+                    loss = self.loss_function(output, batch_status)
+                elif self.config["loss_function"] == "IntersectionVolume":
+                    loss = self.loss_function(output, batch_volume)
+                elif self.config["loss_function"] == "IntersectionStatus_IntersectionVolume":
+                    loss = self.loss_function(output, torch.cat([batch_status, batch_volume], dim=1))
+                else:
+                    raise ValueError("Invalid loss function specified in configuration.")
+                
+                total_loss += loss.item()
+                num_batches += 1
+        
+        return total_loss / num_batches if num_batches > 0 else 0
+
+class TetrahedronDataset(Dataset):
+    def __init__(self, data_source):
+        """
+        Load data from a CSV file path or pandas DataFrame.
+        
+        :param data_source: Path to CSV file (str) or pandas DataFrame
+        """
+        if isinstance(data_source, str):
+            # Load from CSV file
+            df = pd.read_csv(data_source)
+        elif isinstance(data_source, pd.DataFrame):
+            # Use DataFrame directly
+            df = data_source.copy()
+        else:
+            raise ValueError("data_source must be either a file path (str) or pandas DataFrame")
         
         # Extract features and targets
         self.features = df.iloc[:, :-2].values
