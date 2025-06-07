@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import pymorton
 
-
 def swap_tetrahedrons(X):
     """
     Swap the order of tetrahedrons in the input tensor.
@@ -280,3 +279,367 @@ def calculate_tetrahedron_volume(tetrahedron: np.ndarray) -> float:
     """Calculate tetrahedron volume using signed tetrahedral volume formula."""
     v0, v1, v2, v3 = tetrahedron.reshape(4, 3)
     return np.abs(np.linalg.det(np.stack([v1-v0, v2-v0, v3-v0]))) / 6
+
+def sort_by_difficulty(data: pd.DataFrame, easier_first: bool = True) -> pd.DataFrame:
+    """
+    Sort dataset by difficulty level while preserving random order of intersection types.
+    Within each intersection type, samples are sorted by difficulty.
+    
+    Args:
+        data: DataFrame with tetrahedron pairs and labels
+        easier_first: If True, easier samples first; if False, harder samples first
+        
+    Returns:
+        DataFrame sorted by difficulty within intersection type groups
+    """
+    data_with_difficulty = data.copy()
+    
+    # Calculate difficulty scores for all samples
+    difficulty_scores = []
+    
+    for idx, row in data.iterrows():
+        has_intersection = row['HasIntersection']
+        
+        if has_intersection == 0:
+            # Non-intersecting: difficulty based on centroid distance (closer = harder)
+            centroid_distance = _calculate_centroid_distance(row)
+            difficulty_scores.append(centroid_distance)
+        else:
+            # Intersecting: difficulty based on intersection volume (smaller = harder)
+            intersection_volume = row['IntersectionVolume']
+            difficulty_scores.append(intersection_volume)
+    
+    data_with_difficulty['_difficulty_score'] = difficulty_scores
+    
+    # Sort by difficulty score within intersection type
+    # For non-intersecting: bigger distance = easier (descending for easier_first)
+    # For intersecting: bigger volume = easier (descending for easier_first)
+    ascending_order = not easier_first
+    
+    # Separate and sort each intersection type independently
+    intersecting_mask = data_with_difficulty['HasIntersection'] == 1
+    
+    # Sort non-intersecting samples by difficulty
+    non_intersecting_data = data_with_difficulty[~intersecting_mask].sort_values(
+        by='_difficulty_score', ascending=ascending_order
+    ).reset_index(drop=True)
+    
+    # Sort intersecting samples by difficulty  
+    intersecting_data = data_with_difficulty[intersecting_mask].sort_values(
+        by='_difficulty_score', ascending=ascending_order
+    ).reset_index(drop=True)
+    
+    # Create mapping of original positions to sorted samples
+    non_intersecting_iter = iter(range(len(non_intersecting_data)))
+    intersecting_iter = iter(range(len(intersecting_data)))
+    
+    # Rebuild dataset maintaining original intersection type order
+    result_rows = []
+    
+    for original_idx, original_row in data.iterrows():
+        if original_row['HasIntersection'] == 0:
+            # Use next non-intersecting sample from sorted list
+            try:
+                sorted_idx = next(non_intersecting_iter)
+                sorted_row = non_intersecting_data.iloc[sorted_idx].drop('_difficulty_score')
+                result_rows.append(sorted_row)
+            except StopIteration:
+                break
+        else:
+            # Use next intersecting sample from sorted list
+            try:
+                sorted_idx = next(intersecting_iter)
+                sorted_row = intersecting_data.iloc[sorted_idx].drop('_difficulty_score')
+                result_rows.append(sorted_row)
+            except StopIteration:
+                break
+    
+    # Reconstruct DataFrame
+    result_data = pd.DataFrame(result_rows).reset_index(drop=True)
+    return result_data
+
+def sort_by_difficulty_stepwise(data: pd.DataFrame, easier_first: bool = True, num_steps: int = 10) -> pd.DataFrame:
+    """
+    Create discrete difficulty steps instead of smooth progression - optimized for large datasets
+    """
+    data_size = len(data)
+    
+    # Vectorized difficulty score calculation
+    has_intersection = data['HasIntersection'].values
+    intersection_volume = data['IntersectionVolume'].values
+    
+    # Calculate centroid distances vectorized for non-intersecting samples
+    non_intersecting_mask = has_intersection == 0
+    difficulty_scores = np.zeros(data_size)
+    
+    if non_intersecting_mask.any():
+        # Vectorized centroid distance calculation
+        coords = data.iloc[non_intersecting_mask, :-2].values.astype(np.float32)
+        tetra1_coords = coords[:, :12].reshape(-1, 4, 3)
+        tetra2_coords = coords[:, 12:].reshape(-1, 4, 3)
+        
+        centroid1 = tetra1_coords.mean(axis=1)
+        centroid2 = tetra2_coords.mean(axis=1)
+        centroid_distances = np.linalg.norm(centroid2 - centroid1, axis=1)
+        
+        difficulty_scores[non_intersecting_mask] = centroid_distances
+    
+    # For intersecting samples, use intersection volume directly
+    intersecting_mask = has_intersection == 1
+    if intersecting_mask.any():
+        difficulty_scores[intersecting_mask] = intersection_volume[intersecting_mask]
+    
+    # Sort indices instead of data
+    ascending_order = not easier_first
+    
+    non_int_indices = np.where(non_intersecting_mask)[0]
+    int_indices = np.where(intersecting_mask)[0]
+    
+    # Sort by difficulty scores
+    if len(non_int_indices) > 0:
+        non_int_sorted_idx = non_int_indices[np.argsort(difficulty_scores[non_int_indices])]
+        if not ascending_order:
+            non_int_sorted_idx = non_int_sorted_idx[::-1]
+    else:
+        non_int_sorted_idx = np.array([], dtype=int)
+    
+    if len(int_indices) > 0:
+        int_sorted_idx = int_indices[np.argsort(difficulty_scores[int_indices])]
+        if not ascending_order:
+            int_sorted_idx = int_sorted_idx[::-1]
+    else:
+        int_sorted_idx = np.array([], dtype=int)
+    
+    # Apply stepwise logic using indices
+    def create_stepwise_indices(sorted_indices, num_steps, easier_first):
+        if len(sorted_indices) == 0:
+            return np.array([], dtype=int)
+            
+        step_size = len(sorted_indices) // num_steps
+        if step_size == 0:
+            step_size = 1
+            num_steps = len(sorted_indices)
+        
+        result_indices = []
+        for step in range(num_steps):
+            start_idx = step * step_size
+            end_idx = (step + 1) * step_size if step < num_steps - 1 else len(sorted_indices)
+            
+            if easier_first:
+                # Alternate between easy and hard samples
+                if step % 2 == 0:
+                    # Easy samples (from beginning of sorted array)
+                    result_indices.extend(sorted_indices[start_idx:end_idx])
+                else:
+                    # Hard samples (from end of sorted array)
+                    hard_start = len(sorted_indices) - end_idx
+                    hard_end = len(sorted_indices) - start_idx
+                    result_indices.extend(sorted_indices[hard_start:hard_end])
+            else:
+                # harder_first: reverse the pattern
+                if step % 2 == 0:
+                    # Hard samples first
+                    hard_start = len(sorted_indices) - end_idx
+                    hard_end = len(sorted_indices) - start_idx
+                    result_indices.extend(sorted_indices[hard_start:hard_end])
+                else:
+                    # Easy samples
+                    result_indices.extend(sorted_indices[start_idx:end_idx])
+        
+        return np.array(result_indices)
+    
+    # Create stepwise indices for both groups
+    stepwise_non_int_idx = create_stepwise_indices(non_int_sorted_idx, num_steps, easier_first)
+    stepwise_int_idx = create_stepwise_indices(int_sorted_idx, num_steps, easier_first)
+    
+    # Rebuild using index mapping to maintain original intersection type order
+    stepwise_non_int_iter = iter(stepwise_non_int_idx)
+    stepwise_int_iter = iter(stepwise_int_idx)
+    
+    result_indices = []
+    for i in range(data_size):
+        if has_intersection[i] == 0:
+            try:
+                result_indices.append(next(stepwise_non_int_iter))
+            except StopIteration:
+                break
+        else:
+            try:
+                result_indices.append(next(stepwise_int_iter))
+            except StopIteration:
+                break
+    
+    # Single iloc operation instead of row-by-row reconstruction
+    return data.iloc[result_indices].reset_index(drop=True)
+
+def sort_by_difficulty_mixed(data: pd.DataFrame, easier_first: bool = True, mix_ratio: float = 0.5) -> pd.DataFrame:
+    """
+    Mix easy and hard samples instead of pure curriculum - optimized for large datasets
+    
+    Args:
+        data: DataFrame with tetrahedron pairs and labels
+        easier_first: If True, prioritize easier samples; if False, prioritize harder samples
+        mix_ratio: Proportion of hard samples to include (0.0 = all easy, 1.0 = all hard)
+        
+    Returns:
+        DataFrame with mixed difficulty ordering
+    """
+    data_size = len(data)
+    has_intersection = data['HasIntersection'].values
+    
+    # Step 1: Calculate difficulty scores for all samples
+    difficulty_scores = _calculate_difficulty_scores_vectorized(data, has_intersection)
+    
+    # Step 2: Sort samples by difficulty within each intersection type
+    non_int_sorted_idx, int_sorted_idx = _sort_samples_by_difficulty(
+        has_intersection, difficulty_scores, easier_first
+    )
+    
+    # Step 3: Mix easy and hard samples according to the specified ratio
+    mixed_non_int_idx = _mix_samples_by_difficulty(non_int_sorted_idx, False, mix_ratio)
+    mixed_int_idx = _mix_samples_by_difficulty(int_sorted_idx, easier_first, mix_ratio)
+    
+    # Step 4: Rebuild dataset maintaining original intersection type distribution
+    result_indices = _rebuild_original_order(
+        has_intersection, mixed_non_int_idx, mixed_int_idx, data_size
+    )
+    
+    return data.iloc[result_indices].reset_index(drop=True)
+
+
+def _calculate_difficulty_scores_vectorized(data: pd.DataFrame, has_intersection: np.ndarray) -> np.ndarray:
+    """Calculate difficulty scores for all samples using vectorized operations."""
+    data_size = len(data)
+    difficulty_scores = np.zeros(data_size)
+    
+    # For non-intersecting samples: difficulty = centroid distance (closer = harder)
+    non_intersecting_mask = has_intersection == 0
+    if non_intersecting_mask.any():
+        coords = data.iloc[non_intersecting_mask, :-2].values.astype(np.float32)
+        tetra1_coords = coords[:, :12].reshape(-1, 4, 3)
+        tetra2_coords = coords[:, 12:].reshape(-1, 4, 3)
+        
+        centroid1 = tetra1_coords.mean(axis=1)
+        centroid2 = tetra2_coords.mean(axis=1)
+        centroid_distances = np.linalg.norm(centroid2 - centroid1, axis=1)
+        
+        difficulty_scores[non_intersecting_mask] = centroid_distances
+    
+    # For intersecting samples: difficulty = intersection volume (smaller = harder)
+    intersecting_mask = has_intersection == 1
+    if intersecting_mask.any():
+        difficulty_scores[intersecting_mask] = data.loc[intersecting_mask, 'IntersectionVolume'].values
+    
+    return difficulty_scores
+
+
+def _sort_samples_by_difficulty(has_intersection: np.ndarray, difficulty_scores: np.ndarray, easier_first: bool) -> tuple:
+    """Sort sample indices by difficulty within each intersection type."""
+    ascending_order = not easier_first
+    
+    # Get indices for each intersection type
+    non_int_indices = np.where(has_intersection == 0)[0]
+    int_indices = np.where(has_intersection == 1)[0]
+    
+    # Sort non-intersecting samples
+    if len(non_int_indices) > 0:
+        sort_order = np.argsort(difficulty_scores[non_int_indices])
+        non_int_sorted_idx = non_int_indices[sort_order]
+        if not ascending_order:
+            non_int_sorted_idx = non_int_sorted_idx[::-1]
+    else:
+        non_int_sorted_idx = np.array([], dtype=int)
+    
+    # Sort intersecting samples
+    if len(int_indices) > 0:
+        sort_order = np.argsort(difficulty_scores[int_indices])
+        int_sorted_idx = int_indices[sort_order]
+        if not ascending_order:
+            int_sorted_idx = int_sorted_idx[::-1]
+    else:
+        int_sorted_idx = np.array([], dtype=int)
+    
+    return non_int_sorted_idx, int_sorted_idx
+
+
+def _mix_samples_by_difficulty(sorted_indices: np.ndarray, easier_first: bool, mix_ratio: float) -> np.ndarray:
+    """Mix easy and hard samples according to the specified ratio."""
+    if len(sorted_indices) == 0:
+        return np.array([], dtype=int)
+    
+    if easier_first:
+        easy_portion = 1.0 - mix_ratio
+        easy_count = int(len(sorted_indices) * easy_portion)
+        hard_count = len(sorted_indices) - easy_count
+        
+        if hard_count > 0:
+            # Take easy samples from beginning, hard samples from end
+            mixed_indices = np.concatenate([
+                sorted_indices[:easy_count],      # Easy samples
+                sorted_indices[-hard_count:]     # Hard samples
+            ])
+        else:
+            mixed_indices = sorted_indices[:easy_count]
+    else:
+        # harder_first
+        hard_portion = mix_ratio
+        hard_count = int(len(sorted_indices) * hard_portion)
+        easy_count = len(sorted_indices) - hard_count
+        
+        if hard_count > 0:
+            # Take hard samples from end, easy samples from beginning
+            mixed_indices = np.concatenate([
+                sorted_indices[-hard_count:],    # Hard samples first
+                sorted_indices[:easy_count]      # Easy samples
+            ])
+        else:
+            mixed_indices = sorted_indices[:easy_count]
+    
+    return mixed_indices
+
+def _rebuild_original_order(has_intersection: np.ndarray, mixed_non_int_idx: np.ndarray, 
+                           mixed_int_idx: np.ndarray, data_size: int) -> list:
+    """Rebuild dataset maintaining the original intersection type distribution."""
+    non_int_iter = iter(mixed_non_int_idx)
+    int_iter = iter(mixed_int_idx)
+    
+    result_indices = []
+    for i in range(data_size):
+        if has_intersection[i] == 0:
+            try:
+                result_indices.append(next(non_int_iter))
+            except StopIteration:
+                break
+        else:
+            try:
+                result_indices.append(next(int_iter))
+            except StopIteration:
+                break
+    
+    return result_indices
+
+def _calculate_centroid_distance(row: pd.Series) -> float:
+    """
+    Calculate Euclidean distance between centroids of two tetrahedra.
+    
+    Args:
+        row: DataFrame row containing tetrahedron pair coordinates
+        
+    Returns:
+        Euclidean distance between the two tetrahedron centroids
+    """
+    # Extract tetrahedron coordinates (skip first 2 columns if they're metadata)
+    tetrahedron_coords = row.iloc[:-2].values.astype(np.float32)
+    
+    # Split into two tetrahedra (12 coordinates each)
+    tetra1_coords = tetrahedron_coords[:12].reshape(4, 3)
+    tetra2_coords = tetrahedron_coords[12:].reshape(4, 3)
+    
+    # Calculate centroids
+    centroid1 = tetra1_coords.mean(axis=0)
+    centroid2 = tetra2_coords.mean(axis=0)
+    
+    # Calculate Euclidean distance
+    centroid_distance = np.linalg.norm(centroid2 - centroid1)
+    
+    return centroid_distance
