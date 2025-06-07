@@ -275,31 +275,50 @@ class CDataProcessor:
     def augment_data(data: pd.DataFrame, config) -> pd.DataFrame:
         """Applies augmentations to training data."""
 
-        sort_type = config["augmentations"]["sort"]
-        if sort_type:
-            if sort_type == "x_whole_dataset":
-                data = gu.sort_by_x_coordinate(data)
-            elif sort_type == "morton_code_whole_dataset":
-                data = gu.sort_by_morton_code(data)
-            elif sort_type == "x_each_tetrahedron":
-                data = gu.sort_by_x_coordinate_alt(data)
-            elif sort_type == "morton_code_each_tetrahedron":
-                data = gu.sort_by_morton_code_alt(data)
-            elif sort_type == "sort_by_intersection_volume_whole_dataset":
-                data = gu.sort_by_intersection_volume_whole_dataset(data)
+        y_sorting = config["augmentations"].get("y_sorting")
+        if y_sorting:
+            if "difficulty_based" in y_sorting and y_sorting["difficulty_based"] is not None:
+                difficulty_order = y_sorting["difficulty_based"]
+                if difficulty_order == "harder_first":
+                    data = gu.sort_by_difficulty_stepwise(data, easier_first=False)
+                elif difficulty_order == "easier_first":
+                    data = gu.sort_by_difficulty_stepwise(data, easier_first=True)  
+                else:
+                    raise ValueError("Invalid difficulty_order specified. Use 'harder_first' or 'easier_first'.")
+            elif "spatial_based" in y_sorting and y_sorting["spatial_based"] is not None:
+                # Placeholder for spatial-based sorting
+                pass
+                # data = gu.sort_by_spatial_based_y(data)
+            # If y_sorting exists but all values are null, do nothing (random order)
 
-            else:
-                raise ValueError("Invalid sort augmentation specified.")
+        # if sort_type:
+        #     if sort_type == "x_whole_dataset":
+        #         data = gu.sort_by_x_coordinate(data)
+        #     elif sort_type == "morton_code_whole_dataset":
+        #         data = gu.sort_by_morton_code(data)
+        #     elif sort_type == "x_each_tetrahedron":
+        #         data = gu.sort_by_x_coordinate_alt(data)
+        #     elif sort_type == "morton_code_each_tetrahedron":
+        #         data = gu.sort_by_morton_code_alt(data)
+        #     elif sort_type == "sort_by_intersection_volume_whole_dataset":
+        #         data = gu.sort_by_intersection_volume_whole_dataset(data)
+        #     else:
+        #         raise ValueError("Invalid sort augmentation specified.")
+                
+        x_sorting = config["augmentations"].get("x_sorting")
+        if x_sorting:
+            if "volume_based" in x_sorting and x_sorting["volume_based"] is not None:
+                volume_order = x_sorting["volume_based"]
+                if volume_order == "bigger_first":
+                    data = gu.volume_reordering(data, larger=True)
+                elif volume_order == "smaller_first":
+                    data = gu.volume_reordering(data, larger=False)
+                else:
+                    raise ValueError("Invalid volume_order specified. Use 'bigger_first' or 'smaller_first'.")
+            elif "spatial_based" in x_sorting and x_sorting["spatial_based"] is not None:
+                # Placeholder for spatial-based x sorting
+                pass
             
-        volume_sorting = config["augmentations"]["volume_sorting"]
-        if volume_sorting:
-            if volume_sorting == "larger":
-                data = gu.volume_reordering(data, True)
-            elif volume_sorting == "smaller":
-                data = gu.volume_reordering(data, False)
-            else:
-                raise ValueError("Invalid volume sorting augmentation specified.")
-
         return data
 
     @staticmethod
