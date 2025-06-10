@@ -1,4 +1,4 @@
-# Tetrahedron-Tetrahedron Intersection and Volume Computation Using Neural Networks
+# Learning Tetrahedron-Tetrahedron Intersection and Volume with Neural Networks
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -13,67 +13,85 @@
 
 ## The Problem
 
-Imagine two objects colliding in a video game, a sword slicing through water, a car crashing into a barrier, or a robot arm navigating a cluttered factory. Behind these moments lies a silent, invisible calculation: **did these shapes intersect, and if so, by how much?**
+Picture a sword slicing through water in a video game. Or a drone navigating debris. Or a medical simulation tracking tissue deformation.
 
-At the heart of this problem is the humble **tetrahedron**, the 3D building block of complex shapes. Tetrahedrons are everywhere: in **simulations, medical imaging, robotics, and game engines**. But when two tetrahedrons collide, answering two questions becomes critical:
+These moments all rely on a silent operation: **did these two 3D shapes intersect, and by how much?**
 
-- **Do they intersect?**
-- **What’s the volume of their overlap?**
+To answer that, we often break complex shapes down into **tetrahedrons**. They’re the atomic unit of 3D geometry—simple, rigid, and expressive. Whether you're simulating physics, running FEM analyses, or building collision systems, it often comes down to tetrahedron-tetrahedron interaction.
 
-This sounds simple. but tetrahedron-tetrahedron intersection is surprinsingly (and beautfiully) complex. 
+Two fundamental questions arise:
 
+- **Do the tetrahedrons intersect?**
+- **If so, what's the volume of that intersection?**
+
+It sounds trivial, but the geometry isn't forgiving. Tetrahedron-tetrahedron intersection is an edge case minefield—six faces, four points, endless configurations. The computation is clean in theory, but slow and branching in practice.
+
+Now scale that to millions of pairs per frame.
 
 ## Enter Machine Learning
 
-What if we could **teach a neural network** to predict intersections and volumes directly from data? Instead of solving equations step-by-step, imagine a model that **learns the geometric “rules” of tetrahedrons**, accelerating computations by orders of magnitude.
+Rather than solving the same geometric predicates again and again, what if we **learned the outcome directly from data**?
 
-This isn’t just about speed—it’s about unlocking new possibilities in **real-time simulations and beyond**.
+Instead of step-by-step logic trees, imagine a neural network trained to recognize intersection patterns. One that doesn’t follow rigid instructions but learns the behavior of tetrahedrons through thousands of examples. And instead of one CPU doing one pair at a time, we batch it—**processing thousands of pairs in parallel on a GPU**.
 
-This project is an exploration of that idea. It’s a fusion of **computational geometry and deep learning**, with a dash of curiosity:
+That's the core idea:  
+**Replace brittle logic with learned geometric intuition**, and exploit the parallel nature of deep learning for real-time scalability.
 
-**Can machines learn the language of shapes?**
+This approach shifts the bottleneck. It trades exactness for speed, while still delivering reliable estimates—especially useful in applications that demand high throughput: physics engines, medical scans, robotics planning.
+
+This project is a prototype of that vision. A fusion of **computational geometry and neural networks**, distilled into a single question:
+
+**Can a model learn to reason about shape?**
 
 # Pipeline Overview
 
-![Architecture](site/resources/architecture.png)  
-*Figure 1: The pipeline orchestrator manages the workflow, handling configuration loading, data processing (sampling, transformations, augmentations), model building, and training. An artifacts manager handles saving and loading of configurations, trained models, and evaluation reports for reproducibility.*
+To teach a neural network geometry, we need more than data—we need structure. This pipeline is that structure.
 
-## Key Components
+It takes raw tetrahedron pair data and turns it into trained models that can answer two fundamental questions: *do they intersect, and if so, by how much?*
 
-- **Data Processing**  
-- **Model Building**  
-- **Training & Evaluation**  
-- **Artifact Manager**
+Every stage is modular, traceable, and built with geometric learning in mind.
+
+![Training Flow](ch3/assets/training_flow.png)  
+*Figure: End-to-end training pipeline. Each stage is designed for experimentation—data representation, model configuration, training, and evaluation.*
+
+## Design Principles
+
+- **Geometric Awareness**  
+  Operations are aware of 3D structure. Sampling, augmentation, and validation all preserve spatial relationships.
+
+- **Modularity**  
+  Each part of the system—data prep, model building, training—is isolated, configurable, and swappable.
+
+- **Reproducibility**  
+  Every run is version-controlled. Seeds, configs, outputs—all logged, so experiments are replicable down to the byte.
+
+- **Evaluation Built-In**  
+  Confusion matrices, volume error histograms, training curves—generated automatically. Performance is always visible.
+
+## Components
+
+### `CPipelineOrchestrator`
+The controller. It reads a YAML config, sets paths, decides what to run, and executes it. From data preprocessing to training and evaluation, this class runs the show.
+
+### `CDataProcessor`
+Loads raw intersection data and prepares it for learning. Stratified sampling, tetrahedron permutations, spatial normalization, and curriculum sorting—all handled here.
+
+### `GeometryUtils`
+Handles low-level geometric operations. Includes transformations, Morton-based sorting, permutation logic, and alignment to canonical frames.
+
+### `CArchitectureManager`
+Builds the model based on config. Supports architectures like DeepSet, MLP, TPNet, and custom modules. Handles input dim inference, residual blocks, and task heads.
+
+### `CArtifactManager`
+Tracks outputs. Models are saved in TorchScript format for deployment. Metrics, plots, configs—all logged in timestamped folders, ready for inspection or export.
+
+### `CModelTrainer`
+Manages training. Supports classification, regression, or multi-task. Includes GPU acceleration, dynamic schedulers, geometric-aware losses, and auto-logging.
+
+### `CEvaluator`
+Runs detailed evaluation. Reports accuracy, F1, volume MAE, and more—stratified by intersection type and with full invariance checks. Also includes device-level profiling.
 
 ---
 
-# Installation Guide
-
-To set up the project, follow these steps:
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/your-username/tetrahedron-pair-ml.git
-   cd tetrahedron-pair-ml
-   ```
-
-2. **Install Git LFS (required for dataset access)**:
-   ```bash
-   sudo apt install git-lfs  # For Ubuntu/Debian
-   git lfs install
-   ```
-   > *Note: If you're using a different Linux distribution, install Git LFS using the appropriate package manager.*
-
-3. **Create a virtual environment (optional but recommended):**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
-    ```
-
-4. **Install the required dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-# How To Use
+Every experiment, transformation, and model choice is traceable and interchangeable.
 
