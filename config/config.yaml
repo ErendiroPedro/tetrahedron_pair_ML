@@ -4,7 +4,7 @@ artifacts_config:
   save_artifacts_to: artifacts 
 
 processor_config:
-  skip_processing: false
+  skip_processing: true
   dataset_paths:
     raw_data: data/raw          
     processed_data: &processed_data_path data/processed
@@ -16,64 +16,70 @@ processor_config:
 
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
-    no_intersection: 0
-    point_intersection: 0
-    segment_intersection: 0
-    polygon_intersection: 0
-    polyhedron_intersection: 100
+    no_intersection: 50
+    point_intersection: 5
+    segment_intersection: 7
+    polygon_intersection: 20
+    polyhedron_intersection: 18
 
-  volume_range: [0,0.01] 
+  volume_range: [0.00000016667,0.0166666667] 
   number_of_bins: 100
 
   augmentations: &augmentations_config
-    sort: null #
-    volume_sorting: null # larger, smaller
-
-    # Note: Augmentation percentages should sum at most to 50
     point_wise_permutation_augmentation_pct: 0
     tetrahedron_wise_permutation_augmentation_pct: 0
-
-  transformations: &transformations_config null # null, affine_linear_transformation, rigid_transformation
+    x_sorting:
+      spatial_based: null
+      volume_based: null
+    y_sorting:
+      difficulty_based: null
+  transformations: &transformations_config [] # null, affine_linear_transformation, rigid_transformation
 
 model_config:
-
   skip_building: false
-  task: &task_type regression # binary_classification, regression, classification_and_regression
-  activation_function: relu
-  dropout_rate: 0.0
   processed_data_path: *processed_data_path
-  volume_scale_factor: *volume_scale_factor
-
+  task: &task_type IntersectionStatus_IntersectionVolume # IntersectionStatus_IntersectionVolume, IntersectionStatus, IntersectionVolume
+  
   architecture:
-    use: deepset # mlp, tpnet, deepset
-
+    use_model: tetrahedronpairnet
     mlp:
-      shared_layers: [12]
-      classification_head: [ 1]
-      regression_head: []
+      shared_layers: [ 128]
+      classification_head: [128, 128, 1]
+      regression_head: [128, 128, 1]
 
-    deepset:
-      hidden_dim: 24             # Hidden dimension for residual blocks
-      output_dim: 12             # Final output dimension (shared_dim)
-      num_blocks: 2              # Number of residual blocks
-      classification_head: []    # For classification tasks
-      regression_head: [12, 12, 12, 1]  # For regression tasks
+    tetrahedronpairnet:
+      classification_head: [64, 64, 1]
+      per_tetrahedron_layers: [24, 24]
+      per_two_tetrahedra_layers: [24, 24]
+      per_vertex_layers: [24, 24]
+      regression_head: [64, 64, 1]
+      shared_layers: [128]
+      tetrahedra_aggregation_function: max # max, mean, sum, min, hadamard_prod
+      vertices_aggregation_function: max
 
-    tpnet: 
-      per_tet_layers: [12, 12, 12]  # Layers for processing individual tetrahedron
-      shared_layers: [12,12, 12]  # Layers for processing combined features
-      classification_head: []  # For classification tasks
-      regression_head: [12,12, 1]  # For regression tasks
+  use_model: tetrahedronpairnet
+  common_parameters:
+    activation_function: relu
+    dropout_rate: 0.1
+    task: *task_type
+    volume_scale_factor: *volume_scale_factor
+  
 
 trainer_config:
   skip_training: false
-  processed_data_path: *processed_data_path
+  processed_data_path: data/processed
+  
+  fine_tune_data_path: /home/sei/tetrahedron_pair_ML/data/raw/scenes/scene1_two_random_tetrahedra_colliding.csv
+  fine_tune_model_path: /home/sei/tetrahedron_pair_ML/artifacts/id0605203440_tetrahedronpairnet_IntersectionStatus_IntersectionVolume_1000000-train_10000-val_vol-0-0.02_epochs-20_adamw-0.001_distributions-no_intersection-43_point_intersection-3_segment_intersection-5_polygon_intersection-22_polyhedron_intersection-27/model.pt
+  fine_tune_on: false
 
-  loss_function: *task_type
-  optimizer: adamw # adam, adamw, sgd
-  learning_rate: 0.001
-  epochs: 5
   batch_size: 32
+  epochs: 20
+  
+  learning_rate: 0.001
+  optimizer: adamw # adam, adamw, sgd
+  loss_function: *task_type
+  
 
 evaluator_config:
   skip_evaluation: false
@@ -82,3 +88,8 @@ evaluator_config:
   test_data_path: src/evaluator/test_data 
   augmentations: *augmentations_config
   transformations: *transformations_config
+  regression_consistency_thresholds:
+    atol: 0.0001
+    rtol: 0.1
+  volume_range: [0, 0.01666666667] # [min_volume, max_volume]
+  evaluation_n_bins: 10
