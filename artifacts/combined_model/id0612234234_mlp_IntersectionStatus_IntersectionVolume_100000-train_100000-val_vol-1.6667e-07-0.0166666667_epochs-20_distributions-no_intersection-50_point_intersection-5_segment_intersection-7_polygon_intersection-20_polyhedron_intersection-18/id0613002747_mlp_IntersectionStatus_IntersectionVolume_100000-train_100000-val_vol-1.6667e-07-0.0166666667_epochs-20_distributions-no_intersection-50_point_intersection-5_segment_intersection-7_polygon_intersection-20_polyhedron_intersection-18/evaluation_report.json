@@ -1,0 +1,714 @@
+{
+    "task_type": "IntersectionStatus_IntersectionVolume",
+    "model_parameters": {
+        "total": 69506,
+        "trainable": 69506
+    },
+    "dataset_reports": {
+        "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "repetitions": 50,
+                "accuracy": 0.9295299999999999,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "confusion_matrix": [
+                    [
+                        92953.0,
+                        7047.0
+                    ],
+                    [
+                        0.0,
+                        0.0
+                    ]
+                ]
+            },
+            "point_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.92148,
+                "IntersectionVolume_consistency_rate": 0.93747,
+                "mean_absolute_difference": 0.03932521864771843,
+                "consistency_thresholds": {
+                    "rtol": 0.1,
+                    "atol": 0.0001
+                },
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.8931,
+                "IntersectionVolume_consistency_rate": 0.92468,
+                "mean_absolute_difference": 0.00018841217388398945,
+                "consistency_thresholds": {
+                    "rtol": 0.1,
+                    "atol": 0.0001
+                },
+                "total_samples": 100000
+            },
+            "IntersectionVolume_performance": {
+                "overall_IntersectionVolume_metrics": {
+                    "mae": 0.0001150077732745558,
+                    "mse": 5.034363539380138e-07,
+                    "samples": 100000,
+                    "overall_bin_accuracy": 0.97607,
+                    "samples_in_binned_range": 100000
+                },
+                "interval_metrics": {
+                    "0.00000000-0.00185185": {
+                        "mae": 0.0001150077732745558,
+                        "mse": 5.034363539380138e-07,
+                        "samples": 100000,
+                        "correct_bin_predictions": 97607,
+                        "bin_accuracy": 0.97607
+                    },
+                    "0.00185185-0.00370370": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00370370-0.00555556": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00555556-0.00740741": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00740741-0.00925926": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00925926-0.01111111": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01111111-0.01296296": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01296296-0.01481481": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01481481-0.01666667": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    }
+                }
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce MX330",
+                    "cuda_driver_version": "12.1",
+                    "cuda_capability": [
+                        6,
+                        1
+                    ],
+                    "cuda_memory": "2.10 GB"
+                },
+                "repetitions": 50,
+                "augmentation_time_seconds": 0.0,
+                "transformation_time_seconds": 0.0,
+                "inference_time_seconds": 0.02932316165924072,
+                "total_time_seconds": 0.02932316165924072,
+                "avg_time_per_sample_seconds": 2.932316165924072e-07,
+                "samples_per_second": 3410273.461029964
+            }
+        },
+        "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "repetitions": 50,
+                "accuracy": 0.9471299999999999,
+                "precision": 1.0,
+                "recall": 0.9471299999999999,
+                "f1": 0.9728472161591675,
+                "confusion_matrix": [
+                    [
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        5287.0,
+                        94713.0
+                    ]
+                ]
+            },
+            "point_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.81005,
+                "IntersectionVolume_consistency_rate": 0.97855,
+                "mean_absolute_difference": 0.09499393403530121,
+                "consistency_thresholds": {
+                    "rtol": 0.1,
+                    "atol": 0.0001
+                },
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.37299,
+                "IntersectionVolume_consistency_rate": 0.93232,
+                "mean_absolute_difference": 0.0001351130340481177,
+                "consistency_thresholds": {
+                    "rtol": 0.1,
+                    "atol": 0.0001
+                },
+                "total_samples": 100000
+            },
+            "IntersectionVolume_performance": {
+                "overall_IntersectionVolume_metrics": {
+                    "mae": 2.0686155039584264e-05,
+                    "mse": 7.028879167592095e-08,
+                    "samples": 100000,
+                    "overall_bin_accuracy": 0.99578,
+                    "samples_in_binned_range": 100000
+                },
+                "interval_metrics": {
+                    "0.00000000-0.00185185": {
+                        "mae": 2.0686155039584264e-05,
+                        "mse": 7.028879167592095e-08,
+                        "samples": 100000,
+                        "correct_bin_predictions": 99578,
+                        "bin_accuracy": 0.99578
+                    },
+                    "0.00185185-0.00370370": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00370370-0.00555556": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00555556-0.00740741": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00740741-0.00925926": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00925926-0.01111111": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01111111-0.01296296": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01296296-0.01481481": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01481481-0.01666667": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    }
+                }
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce MX330",
+                    "cuda_driver_version": "12.1",
+                    "cuda_capability": [
+                        6,
+                        1
+                    ],
+                    "cuda_memory": "2.10 GB"
+                },
+                "repetitions": 50,
+                "augmentation_time_seconds": 0.0,
+                "transformation_time_seconds": 0.0,
+                "inference_time_seconds": 0.029308743667602537,
+                "total_time_seconds": 0.029308743667602537,
+                "avg_time_per_sample_seconds": 2.9308743667602536e-07,
+                "samples_per_second": 3411951.0933025274
+            }
+        },
+        "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "repetitions": 50,
+                "accuracy": 0.9572599999999999,
+                "precision": 1.0,
+                "recall": 0.9572599999999999,
+                "f1": 0.9781633508067401,
+                "confusion_matrix": [
+                    [
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        4274.0,
+                        95726.0
+                    ]
+                ]
+            },
+            "point_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.79387,
+                "IntersectionVolume_consistency_rate": 0.91755,
+                "mean_absolute_difference": 0.1031455397605896,
+                "consistency_thresholds": {
+                    "rtol": 0.1,
+                    "atol": 0.0001
+                },
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.52424,
+                "IntersectionVolume_consistency_rate": 0.8206,
+                "mean_absolute_difference": 0.0004238589608576149,
+                "consistency_thresholds": {
+                    "rtol": 0.1,
+                    "atol": 0.0001
+                },
+                "total_samples": 100000
+            },
+            "IntersectionVolume_performance": {
+                "overall_IntersectionVolume_metrics": {
+                    "mae": 8.421907114097849e-05,
+                    "mse": 3.0325514899232076e-07,
+                    "samples": 100000,
+                    "overall_bin_accuracy": 0.98203,
+                    "samples_in_binned_range": 100000
+                },
+                "interval_metrics": {
+                    "0.00000000-0.00185185": {
+                        "mae": 8.421907114097849e-05,
+                        "mse": 3.0325514899232076e-07,
+                        "samples": 100000,
+                        "correct_bin_predictions": 98203,
+                        "bin_accuracy": 0.98203
+                    },
+                    "0.00185185-0.00370370": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00370370-0.00555556": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00555556-0.00740741": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00740741-0.00925926": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00925926-0.01111111": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01111111-0.01296296": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01296296-0.01481481": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01481481-0.01666667": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    }
+                }
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce MX330",
+                    "cuda_driver_version": "12.1",
+                    "cuda_capability": [
+                        6,
+                        1
+                    ],
+                    "cuda_memory": "2.10 GB"
+                },
+                "repetitions": 50,
+                "augmentation_time_seconds": 0.0,
+                "transformation_time_seconds": 0.0,
+                "inference_time_seconds": 0.029416714248657227,
+                "total_time_seconds": 0.029416714248657227,
+                "avg_time_per_sample_seconds": 2.9416714248657226e-07,
+                "samples_per_second": 3399427.9291258594
+            }
+        },
+        "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv": {
+            "classification_performance": {
+                "repetitions": 50,
+                "accuracy": 0.89528,
+                "precision": 1.0,
+                "recall": 0.89528,
+                "f1": 0.9447469503186865,
+                "confusion_matrix": [
+                    [
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        10472.0,
+                        89528.0
+                    ]
+                ]
+            },
+            "point_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.73797,
+                "IntersectionVolume_consistency_rate": 0.81627,
+                "mean_absolute_difference": 0.1312311738729477,
+                "consistency_thresholds": {
+                    "rtol": 0.1,
+                    "atol": 0.0001
+                },
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.62415,
+                "IntersectionVolume_consistency_rate": 0.72445,
+                "mean_absolute_difference": 0.0007543215760961175,
+                "consistency_thresholds": {
+                    "rtol": 0.1,
+                    "atol": 0.0001
+                },
+                "total_samples": 100000
+            },
+            "IntersectionVolume_performance": {
+                "overall_IntersectionVolume_metrics": {
+                    "mae": 0.00023553210485260934,
+                    "mse": 1.0243903716400382e-06,
+                    "samples": 100000,
+                    "overall_bin_accuracy": 0.95136,
+                    "samples_in_binned_range": 100000
+                },
+                "interval_metrics": {
+                    "0.00000000-0.00185185": {
+                        "mae": 0.00023553210485260934,
+                        "mse": 1.0243903716400382e-06,
+                        "samples": 100000,
+                        "correct_bin_predictions": 95136,
+                        "bin_accuracy": 0.95136
+                    },
+                    "0.00185185-0.00370370": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00370370-0.00555556": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00555556-0.00740741": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00740741-0.00925926": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.00925926-0.01111111": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01111111-0.01296296": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01296296-0.01481481": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01481481-0.01666667": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    }
+                }
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce MX330",
+                    "cuda_driver_version": "12.1",
+                    "cuda_capability": [
+                        6,
+                        1
+                    ],
+                    "cuda_memory": "2.10 GB"
+                },
+                "repetitions": 50,
+                "augmentation_time_seconds": 0.0,
+                "transformation_time_seconds": 0.0,
+                "inference_time_seconds": 0.029489070854187012,
+                "total_time_seconds": 0.029489070854187012,
+                "avg_time_per_sample_seconds": 2.948907085418701e-07,
+                "samples_per_second": 3391086.8366950084
+            }
+        },
+        "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv": {
+            "classification_performance": {
+                "repetitions": 50,
+                "accuracy": 0.8974199999999999,
+                "precision": 1.0,
+                "recall": 0.8974199999999999,
+                "f1": 0.9459371146082576,
+                "confusion_matrix": [
+                    [
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        10258.0,
+                        89742.0
+                    ]
+                ]
+            },
+            "point_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.89995,
+                "IntersectionVolume_consistency_rate": 0.24943,
+                "mean_absolute_difference": 0.051178328692913055,
+                "consistency_thresholds": {
+                    "rtol": 0.1,
+                    "atol": 0.0001
+                },
+                "total_samples": 100000
+            },
+            "tetrahedron_wise_permutation_consistency": {
+                "classification_consistency_rate": 0.87143,
+                "IntersectionVolume_consistency_rate": 0.17751,
+                "mean_absolute_difference": 0.0031990662682801485,
+                "consistency_thresholds": {
+                    "rtol": 0.1,
+                    "atol": 0.0001
+                },
+                "total_samples": 100000
+            },
+            "IntersectionVolume_performance": {
+                "overall_IntersectionVolume_metrics": {
+                    "mae": 0.0028843411710113287,
+                    "mse": 1.37057113533956e-05,
+                    "samples": 100000,
+                    "overall_bin_accuracy": 0.24983,
+                    "samples_in_binned_range": 100000
+                },
+                "interval_metrics": {
+                    "0.00000000-0.00185185": {
+                        "mae": 0.0025210294406861067,
+                        "mse": 1.369614437862765e-05,
+                        "samples": 18540,
+                        "correct_bin_predictions": 9770,
+                        "bin_accuracy": 0.5269687162891047
+                    },
+                    "0.00185185-0.00370370": {
+                        "mae": 0.0032311314716935158,
+                        "mse": 1.651065394980833e-05,
+                        "samples": 18394,
+                        "correct_bin_predictions": 2887,
+                        "bin_accuracy": 0.15695335435468089
+                    },
+                    "0.00370370-0.00555556": {
+                        "mae": 0.003126540221273899,
+                        "mse": 1.489571513957344e-05,
+                        "samples": 18546,
+                        "correct_bin_predictions": 3252,
+                        "bin_accuracy": 0.17534778388870917
+                    },
+                    "0.00555556-0.00740741": {
+                        "mae": 0.0028977692127227783,
+                        "mse": 1.280005290027475e-05,
+                        "samples": 18547,
+                        "correct_bin_predictions": 3635,
+                        "bin_accuracy": 0.19598856957998598
+                    },
+                    "0.00740741-0.00925926": {
+                        "mae": 0.002708844840526581,
+                        "mse": 1.145080659625819e-05,
+                        "samples": 18545,
+                        "correct_bin_predictions": 3929,
+                        "bin_accuracy": 0.21186303585872202
+                    },
+                    "0.00925926-0.01111111": {
+                        "mae": 0.002732303459197283,
+                        "mse": 1.1703529708029237e-05,
+                        "samples": 7428,
+                        "correct_bin_predictions": 1510,
+                        "bin_accuracy": 0.20328486806677437
+                    },
+                    "0.01111111-0.01296296": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01296296-0.01481481": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    },
+                    "0.01481481-0.01666667": {
+                        "mae": null,
+                        "mse": null,
+                        "samples": 0,
+                        "correct_bin_predictions": 0,
+                        "bin_accuracy": null
+                    }
+                }
+            },
+            "inference_speed": {
+                "device_info": {
+                    "device_type": "cuda:0",
+                    "cuda_device_name": "NVIDIA GeForce MX330",
+                    "cuda_driver_version": "12.1",
+                    "cuda_capability": [
+                        6,
+                        1
+                    ],
+                    "cuda_memory": "2.10 GB"
+                },
+                "repetitions": 50,
+                "augmentation_time_seconds": 0.0,
+                "transformation_time_seconds": 0.0,
+                "inference_time_seconds": 0.02934947898864746,
+                "total_time_seconds": 0.02934947898864746,
+                "avg_time_per_sample_seconds": 2.934947898864746e-07,
+                "samples_per_second": 3407215.5093002007
+            }
+        }
+    },
+    "training_metrics": {
+        "total_epochs": 20,
+        "final_train_loss": 0.21307014552593231,
+        "final_val_loss": 0.2747140432596207,
+        "last_n_epochs_analyzed": 5,
+        "avg_last_n_train_loss": 0.21941374177873132,
+        "avg_last_n_val_loss": 0.2546940635288954,
+        "min_train_loss": 0.21307014552593231,
+        "min_val_loss": 0.24768853523135184,
+        "max_train_loss": 0.4579893093252182,
+        "max_val_loss": 0.4038812422990799,
+        "train_loss_std": 0.06258055427204283,
+        "val_loss_std": 0.044744694658588414,
+        "last_n_train_losses": [
+            0.22760907768785954,
+            0.22259459979772567,
+            0.21775584862709046,
+            0.21603903725504875,
+            0.21307014552593231
+        ],
+        "last_n_val_losses": [
+            0.24768853523135184,
+            0.25129497777581217,
+            0.25150078770697115,
+            0.24827197367072104,
+            0.2747140432596207
+        ]
+    },
+    "aggregate_IntersectionStatus_metrics": {
+        "overall_accuracy": 0.9253239999999999,
+        "total_samples": 500000,
+        "priority_group_accuracy": 0.9134749999999998,
+        "priority_group_samples": 200000,
+        "secondary_group_accuracy": 0.9332233333333333,
+        "secondary_group_samples": 300000,
+        "weighted_80_20_accuracy": 0.9174246666666666,
+        "weighted_20_80_accuracy": 0.9292736666666667
+    },
+    "aggregate_IntersectionVolume_metrics": {
+        "overall_mae": 0.0006679572550638113,
+        "overall_mse": 3.121416403928379e-06,
+        "overall_bin_accuracy": 0.831014,
+        "total_samples": 500000,
+        "total_samples_in_binned_range": 500000
+    }
+}
