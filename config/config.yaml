@@ -9,10 +9,10 @@ processor_config:
     raw_data: data/raw          
     processed_data: &processed_data_path data/processed
 
-  num_train_samples: 1000
-  num_val_samples: 1000
+  num_train_samples: 1000000
+  num_val_samples: 100000
 
-  volume_scale_factor: &volume_scale_factor 1000000
+  volume_scale_factor: &volume_scale_factor 1000
 
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
@@ -23,7 +23,7 @@ processor_config:
     polyhedron_intersection: 18
 
   volume_range: [0.00000016667,0.0166666667] 
-  number_of_bins: 100
+  number_of_bins: 10
 
   augmentations: &augmentations_config
     point_wise_permutation_augmentation_pct: 0
