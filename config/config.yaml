@@ -4,15 +4,19 @@ artifacts_config:
   save_artifacts_to: artifacts 
 
 processor_config:
-  skip_processing: true
+  skip_processing: false
+  
   dataset_paths:
     raw_data: data/raw          
     processed_data: &processed_data_path data/processed
 
-  num_train_samples: 1000000
-  num_val_samples: 100000
+  num_train_samples: 100000
+  num_val_samples: 50000
 
   volume_scale_factor: &volume_scale_factor 1000
+  skip_quality_filtering: false
+  min_volume_threshold: 0.000000000166667 #1.66666666667e-10
+
 
   intersection_distributions:
     # Note: Percentages are approximate and should sum to ~100%. 
@@ -22,7 +26,7 @@ processor_config:
     polygon_intersection: 20
     polyhedron_intersection: 18
 
-  volume_range: [0.00000016667,0.0166666667] 
+  volume_range: [0,0.01666666666667] 
   number_of_bins: 10
 
   augmentations: &augmentations_config
@@ -33,7 +37,7 @@ processor_config:
       volume_based: null
     y_sorting:
       difficulty_based: null
-  transformations: &transformations_config [] # null, affine_linear_transformation, rigid_transformation
+  transformations: &transformations_config [principal_axis_transformation] 
 
 model_config:
   skip_building: false
@@ -43,19 +47,23 @@ model_config:
   architecture:
     use_model: tetrahedronpairnet
     mlp:
-      shared_layers: [ 128]
+      shared_layers: [128]
       classification_head: [128, 128, 1]
       regression_head: [128, 128, 1]
 
     tetrahedronpairnet:
-      classification_head: [64, 64, 1]
-      per_tetrahedron_layers: [24, 24]
-      per_two_tetrahedra_layers: [24, 24]
-      per_vertex_layers: [24, 24]
-      regression_head: [64, 64, 1]
-      shared_layers: [128]
-      tetrahedra_aggregation_function: max # max, mean, sum, min, hadamard_prod
+      
+      # aggregation_function - max, mean, sum, min, hadamard_prod
+     
+      per_vertex_layers: [48, 48, 48]
       vertices_aggregation_function: max
+      per_tetrahedron_layers: [64, 64]
+      tetrahedra_aggregation_function: max
+      per_two_tetrahedra_layers: [32]
+      shared_layers: [256]
+      classification_head: [16, 1]
+      regression_head: [16, 1]
+      
 
   use_model: tetrahedronpairnet
   common_parameters:
@@ -73,7 +81,7 @@ trainer_config:
   fine_tune_model_path: /home/sei/tetrahedron_pair_ML/artifacts/id0605203440_tetrahedronpairnet_IntersectionStatus_IntersectionVolume_1000000-train_10000-val_vol-0-0.02_epochs-20_adamw-0.001_distributions-no_intersection-43_point_intersection-3_segment_intersection-5_polygon_intersection-22_polyhedron_intersection-27/model.pt
   fine_tune_on: false
 
-  batch_size: 32
+  batch_size: 1024
   epochs: 20
   
   learning_rate: 0.001
