@@ -1,0 +1,15 @@
+{
+  "name": "evaluation_report",
+  "type": "ArtifactType.REPORT",
+  "format": "json",
+  "size_bytes": 16064,
+  "checksum": "53311412",
+  "created_at": "2025-06-24 09:58:42.224888",
+  "tags": [
+    "report",
+    "evaluation",
+    "minimal"
+  ],
+  "description": "Text report: evaluation_report",
+  "relationships": null
+}

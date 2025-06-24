@@ -1,0 +1,14 @@
+{
+  "name": "model",
+  "type": "ArtifactType.MODEL",
+  "format": "pytorch_module",
+  "size_bytes": 159760,
+  "checksum": "47ee49fe",
+  "created_at": "2025-06-23 13:54:28.093319",
+  "tags": [
+    "model",
+    "minimal"
+  ],
+  "description": "Trained model artifact: model",
+  "relationships": null
+}

@@ -1,0 +1,14 @@
+{
+  "name": "pipeline_summary",
+  "type": "ArtifactType.REPORT",
+  "format": "json",
+  "size_bytes": 16842,
+  "checksum": "19fee834",
+  "created_at": "2025-06-24 12:23:37.850460",
+  "tags": [
+    "report",
+    "minimal"
+  ],
+  "description": "Text report: pipeline_summary",
+  "relationships": null
+}

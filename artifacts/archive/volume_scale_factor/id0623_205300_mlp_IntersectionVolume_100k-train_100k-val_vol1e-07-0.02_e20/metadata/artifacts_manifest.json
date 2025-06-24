@@ -1,0 +1,18 @@
+{
+  "experiment_id": "0623_205300",
+  "created_at": "2025-06-23T21:06:53.942553",
+  "storage_level": "minimal",
+  "total_artifacts": 1,
+  "artifacts": [
+    {
+      "name": "pipeline_summary",
+      "metadata": "ArtifactMetadata(name='pipeline_summary', type=<ArtifactType.REPORT: 'report'>, format='json', size_bytes=12390, checksum='38fb40d8', created_at=datetime.datetime(2025, 6, 23, 21, 6, 53, 940775), tags=['report', 'minimal'], description='Text report: pipeline_summary', relationships=None)",
+      "results": {
+        "file_path": "/home/sei/tetrahedron_pair_ML/artifacts/id0623_205300_mlp_IntersectionVolume_100k-train_100k-val_vol1e-07-0.02_e20/metadata/pipeline_summary.json",
+        "format": "json",
+        "status": "success",
+        "size_mb": 0.01772308349609375
+      }
+    }
+  ]
+}

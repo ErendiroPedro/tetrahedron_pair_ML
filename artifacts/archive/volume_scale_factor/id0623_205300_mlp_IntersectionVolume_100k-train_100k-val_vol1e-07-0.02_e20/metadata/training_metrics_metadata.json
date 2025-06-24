@@ -1,0 +1,14 @@
+{
+  "name": "training_metrics",
+  "type": "ArtifactType.REPORT",
+  "format": "json",
+  "size_bytes": 38,
+  "checksum": "0cab9d6f",
+  "created_at": "2025-06-23 21:06:06.271784",
+  "tags": [
+    "report",
+    "minimal"
+  ],
+  "description": "Text report: training_metrics",
+  "relationships": null
+}

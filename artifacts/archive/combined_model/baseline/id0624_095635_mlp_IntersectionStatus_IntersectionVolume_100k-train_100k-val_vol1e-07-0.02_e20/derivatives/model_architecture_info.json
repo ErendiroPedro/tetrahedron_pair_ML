@@ -1,0 +1,7 @@
+{
+  "model_class": "SimpleMLP",
+  "parameter_count": 36482,
+  "trainable_parameters": 36482,
+  "input_dim": 24,
+  "task": "IntersectionStatus_IntersectionVolume"
+}

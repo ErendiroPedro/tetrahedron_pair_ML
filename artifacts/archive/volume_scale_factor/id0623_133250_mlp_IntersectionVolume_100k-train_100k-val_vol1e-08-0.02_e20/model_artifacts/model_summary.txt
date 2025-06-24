@@ -1,0 +1,24 @@
+MODEL SUMMARY
+==================================================
+
+Architecture: SimpleMLP
+Total Parameters: 19,970
+Trainable Parameters: 19,970
+Input Dimension: 24
+Task: IntersectionVolume
+
+Model Structure:
+SimpleMLP(
+  (activation): ReLU()
+  (shared_layers): Sequential(
+    (0): Linear(in_features=24, out_features=128, bias=True)
+  )
+  (classification_head): Sequential(
+    (0): Linear(in_features=128, out_features=1, bias=True)
+  )
+  (regression_head): Sequential(
+    (0): Linear(in_features=128, out_features=128, bias=True)
+    (1): ReLU()
+    (2): Linear(in_features=128, out_features=1, bias=True)
+  )
+)

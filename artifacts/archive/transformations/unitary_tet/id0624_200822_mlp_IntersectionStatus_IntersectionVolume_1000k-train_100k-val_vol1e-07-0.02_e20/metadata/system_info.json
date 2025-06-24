@@ -1,0 +1,13 @@
+{
+  "platform": "Linux-5.15.0-139-generic-x86_64-with-glibc2.29",
+  "python_version": "3.8.10",
+  "machine": "x86_64",
+  "processor": "x86_64",
+  "memory_gb": 7.56,
+  "cuda_available": true,
+  "cuda_version": "12.1",
+  "gpu_count": 1,
+  "gpu_names": [
+    "NVIDIA GeForce MX330"
+  ]
+}

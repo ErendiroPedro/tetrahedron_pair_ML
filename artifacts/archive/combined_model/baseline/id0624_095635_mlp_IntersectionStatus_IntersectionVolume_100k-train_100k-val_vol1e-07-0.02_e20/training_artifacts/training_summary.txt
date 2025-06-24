@@ -1,0 +1,10 @@
+TRAINING SUMMARY
+==================================================
+
+Training Progress:
+  Total Epochs: 20
+  Final Train Loss: 0.347943
+  Final Val Loss: 0.306729
+  Best Epoch: 16
+  Best Val Loss: 0.300376
+
