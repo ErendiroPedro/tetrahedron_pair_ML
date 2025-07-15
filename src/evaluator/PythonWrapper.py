@@ -171,6 +171,9 @@ class Evaluator:
                     
                     if predicted_cls == true_cls:
                         correct += 1
+                    else:
+                        print(f"Sample {total + 1} mismatch:")
+                        print(f"Prediction mismatch: Predicted {predicted_cls}, True {true_cls}")
                     
                     total += 1
                     

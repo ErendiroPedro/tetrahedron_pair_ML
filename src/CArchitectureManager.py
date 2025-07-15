@@ -1,629 +1,617 @@
 import torch
-import torch.nn.functional as F
 import torch.nn as nn
+import torch.nn.functional as F
+import pandas as pd
+import os
 from abc import ABC, abstractmethod
 
-class CArchitectureManager:
-    """
-    Manages the architecture of the neural networks.
-    """
-    activation_map = {
+torch.set_default_dtype(torch.float64)
+
+# ============================================================================
+# ACTIVATION FUNCTIONS AND UTILITIES
+# ============================================================================
+
+class ActivationRegistry:
+    """Central registry for activation functions"""
+    
+    ACTIVATION_MAP = {
         'relu': nn.ReLU,
         'tanh': nn.Tanh,
         'leakyrelu': nn.LeakyReLU,
-        'elu': nn.ELU
+        'elu': nn.ELU,
+        'gelu': nn.GELU,
+        'swish': nn.SiLU,
+        'mish': nn.Mish
     }
+    
+    @classmethod
+    def get_activation(cls, activation_name):
+        """Get activation function by name"""
+        activation_class = cls.ACTIVATION_MAP.get(activation_name.lower())
+        if not activation_class:
+            raise ValueError(f"Unknown activation function: {activation_name}")
+        return activation_class()
 
+class AggregationFunctions:
+    """Centralized aggregation operations for pooling"""
+    
+    @staticmethod
+    def aggregate_tensors(tensor_stack, method='max'):
+        """
+        Aggregate stacked tensors using specified method
+        
+        Args:
+            tensor_stack: Tensor of shape [batch_size, num_items, features]
+            method: Aggregation method ('max', 'mean', 'sum', 'min', 'hadamard_prod')
+        
+        Returns:
+            Aggregated tensor of shape [batch_size, features]
+        """
+        if method == 'max':
+            result, _ = torch.max(tensor_stack, dim=1)
+        elif method == 'mean':
+            result = torch.mean(tensor_stack, dim=1)
+        elif method == 'sum':
+            result = torch.sum(tensor_stack, dim=1)
+        elif method == 'min':
+            result, _ = torch.min(tensor_stack, dim=1)
+        elif method == 'hadamard_prod':
+            # Use ReLU to handle negative values before product
+            result = torch.prod(F.relu(tensor_stack), dim=1)
+        else:
+            raise ValueError(f"Unknown aggregation method: {method}")
+        
+        return result
+
+# ============================================================================
+# NETWORK BUILDING COMPONENTS
+# ============================================================================
+
+class NetworkBuilder:
+    """Factory for building common network components"""
+    
+    @staticmethod
+    def build_mlp_layers(layer_dimensions, activation_fn, dropout_rate=0.0, 
+                        add_final_activation=False, add_final_relu=False):
+        """
+        Build MLP layers with consistent architecture
+        
+        Args:
+            layer_dimensions: List of layer sizes [input_dim, hidden1, hidden2, ..., output_dim]
+            activation_fn: Activation function instance
+            dropout_rate: Dropout probability
+            add_final_activation: Whether to add activation after final layer
+            add_final_relu: Whether to add ReLU after final layer (for positive outputs)
+        
+        Returns:
+            nn.Sequential: Built MLP layers
+        """
+        if len(layer_dimensions) < 2:
+            raise ValueError("Need at least input and output dimensions")
+        
+        layers = []
+        
+        for i in range(len(layer_dimensions) - 1):
+            layers.append(nn.Linear(layer_dimensions[i], layer_dimensions[i + 1]))
+            
+            is_final_layer = (i == len(layer_dimensions) - 2)
+            
+            # Add activation (except for final layer unless specified)
+            if not is_final_layer or add_final_activation:
+                layers.append(activation_fn)
+            
+            # Add dropout (except for final layer)
+            if dropout_rate > 0.0 and not is_final_layer:
+                layers.append(nn.Dropout(dropout_rate))
+        
+        # Add final ReLU for positive outputs (e.g., volume prediction)
+        if add_final_relu:
+            layers.append(nn.ReLU())
+        
+        return nn.Sequential(*layers)
+
+    @staticmethod
+    def build_task_head(input_dim, head_layers, activation_fn, is_regression=False):
+        """Build task-specific head (classification or regression)"""
+        print(f"   Building task head: input_dim={input_dim}, head_layers={head_layers}, is_regression={is_regression}")
+        
+        if not head_layers:
+            # Direct mapping from input to single output
+            layers = [nn.Linear(input_dim, 1)]
+            print(f"   Created direct mapping: {input_dim} -> 1")
+            return nn.Sequential(*layers)
+        
+        # Check if head_layers already includes final dimension
+        if head_layers[-1] == 1:
+            # Configuration already includes final layer size
+            dimensions = [input_dim] + head_layers
+            print(f"   Config includes final layer: {dimensions}")
+        else:
+            # Configuration doesn't include final layer, add it
+            dimensions = [input_dim] + head_layers + [1]
+            print(f"   Adding final layer: {dimensions}")
+        
+        mlp = NetworkBuilder.build_mlp_layers(
+            dimensions, activation_fn, add_final_relu=False
+        )
+        
+        # Count actual layers
+        linear_count = sum(1 for layer in mlp if isinstance(layer, nn.Linear))
+        print(f"   Created MLP with {linear_count} linear layers")
+        
+        return mlp
+
+# ============================================================================
+# DATA UTILITIES
+# ============================================================================
+
+class DatasetInspector:
+    """Utility for inspecting dataset properties"""
+    
+    @staticmethod
+    def get_input_dimensions(processed_data_path):
+        """
+        Infer input dimensions from training data
+        
+        Args:
+            processed_data_path: Path to processed data directory
+            
+        Returns:
+            int: Number of input features
+        """
+        train_data_path = os.path.join(processed_data_path, "train", "train_data.csv")
+        
+        if not os.path.exists(train_data_path):
+            raise FileNotFoundError(f"Training data not found at: {train_data_path}")
+        
+        try:
+            # Load only a few rows to inspect structure
+            sample_data = pd.read_csv(train_data_path, nrows=5)
+            
+            # Exclude last 2 columns (IntersectionVolume, HasIntersection)
+            feature_columns = sample_data.columns[:-2]
+            input_dim = len(feature_columns)
+            
+            print(f"Dataset inspection: {input_dim} input features detected")
+            return input_dim
+            
+        except Exception as e:
+            raise ValueError(f"Error inspecting dataset: {e}")
+
+# ============================================================================
+# BASE NETWORK ARCHITECTURE
+# ============================================================================
+
+class BaseNet(nn.Module, ABC):
+    """Base class for all neural network architectures"""
+    
+    def __init__(self, common_params, mlp_params):
+        super().__init__()
+        
+        # Core parameters
+        self.input_dim = common_params['input_dim']
+        self.task = common_params['task']
+        self.volume_scale_factor = common_params['volume_scale_factor']
+        self.dropout_rate = common_params.get('dropout_rate', 0.0)
+        
+        # Activation function
+        self.activation = ActivationRegistry.get_activation(common_params['activation'])
+        
+        # Build shared backbone
+        self.shared_layers = self._build_shared_backbone(mlp_params['shared_layers'])
+        
+        # Build task-specific heads
+        shared_output_dim = mlp_params['shared_layers'][-1] if mlp_params['shared_layers'] else self.input_dim
+        
+        self.classification_head = NetworkBuilder.build_task_head(
+            shared_output_dim, mlp_params['classification_head'], 
+            self.activation, is_regression=False
+        )
+        
+        self.regression_head = NetworkBuilder.build_task_head(
+            shared_output_dim, mlp_params['regression_head'], 
+            self.activation, is_regression=True
+        )
+        
+        # Ensure all parameters are float64
+        self.to(torch.float64)
+        self.double()
+
+        # Verify conversion worked
+        for name, param in self.named_parameters():
+            if param.dtype != torch.float64:
+                print(f"Warning: Parameter {name} is {param.dtype}, converting to float64")
+                param.data = param.data.double()
+    
+    def _build_shared_backbone(self, shared_layer_sizes):
+        """Build the shared feature extraction backbone"""
+        if not shared_layer_sizes:
+            return nn.Identity()
+        
+        # Get the input dimension for shared layers (depends on architecture)
+        backbone_input_dim = self._get_backbone_input_dim()
+        
+        dimensions = [backbone_input_dim] + shared_layer_sizes
+        return NetworkBuilder.build_mlp_layers(
+            dimensions, self.activation, self.dropout_rate
+        )
+    
+    @abstractmethod
+    def _get_backbone_input_dim(self):
+        """Get the input dimension for the shared backbone (architecture-specific)"""
+        pass
+    
+    @abstractmethod
+    def _extract_features(self, x):
+        """Extract architecture-specific features from input"""
+        pass
+
+    def _debug_task_heads(self, shared_features):
+        """Debug task head processing"""
+        print(f"🔍 TASK HEAD DEBUG:")
+        
+        # Check shared features diversity
+        print(f"   Shared features shape: {shared_features.shape}")
+        print(f"   Shared sample 0: {shared_features[0, :3].tolist()}")
+        print(f"   Shared sample 1: {shared_features[1, :3].tolist()}")
+        print(f"   Shared features different: {not torch.allclose(shared_features[0], shared_features[1])}")
+        
+        # Debug classification head step by step
+        print(f"   === CLASSIFICATION HEAD ===")
+        cls_current = shared_features
+        for i, layer in enumerate(self.classification_head):
+            if isinstance(layer, nn.Linear):
+                cls_current = layer(cls_current)
+                print(f"   Cls layer {i}: shape = {cls_current.shape}")
+                
+                # Handle different output sizes
+                if cls_current.shape[1] == 1:  # Final layer (scalar output)
+                    print(f"   Cls layer {i}: sample 0 = {cls_current[0].item():.8f}")
+                    print(f"   Cls layer {i}: sample 1 = {cls_current[1].item():.8f}")
+                else:  # Intermediate layer (vector output)
+                    print(f"   Cls layer {i}: sample 0 = {cls_current[0, :3].tolist()}")
+                    print(f"   Cls layer {i}: sample 1 = {cls_current[1, :3].tolist()}")
+                
+                print(f"   Cls layer {i} different: {not torch.allclose(cls_current[0], cls_current[1])}")
+                
+                if torch.allclose(cls_current[0], cls_current[1]):
+                    print(f"   🚨 CLASSIFICATION LAYER {i} IS MAKING OUTPUTS IDENTICAL!")
+                    print(f"   Layer {i} weight std: {layer.weight.std():.8f}")
+                    if layer.bias is not None:
+                        print(f"   Layer {i} bias std: {layer.bias.std():.8f}")
+                    return False
+            elif hasattr(layer, 'forward'):  # Activation
+                cls_current = layer(cls_current)
+        
+        # Debug regression head step by step
+        print(f"   === REGRESSION HEAD ===")
+        reg_current = shared_features
+        for i, layer in enumerate(self.regression_head):
+            if isinstance(layer, nn.Linear):
+                reg_current = layer(reg_current)
+                print(f"   Reg layer {i}: shape = {reg_current.shape}")
+                
+                # Handle different output sizes
+                if reg_current.shape[1] == 1:  # Final layer (scalar output)
+                    print(f"   Reg layer {i}: sample 0 = {reg_current[0].item():.8f}")
+                    print(f"   Reg layer {i}: sample 1 = {reg_current[1].item():.8f}")
+                else:  # Intermediate layer (vector output)
+                    print(f"   Reg layer {i}: sample 0 = {reg_current[0, :3].tolist()}")
+                    print(f"   Reg layer {i}: sample 1 = {reg_current[1, :3].tolist()}")
+                
+                print(f"   Reg layer {i} different: {not torch.allclose(reg_current[0], reg_current[1])}")
+                
+                if torch.allclose(reg_current[0], reg_current[1]):
+                    print(f"   🚨 REGRESSION LAYER {i} IS MAKING OUTPUTS IDENTICAL!")
+                    print(f"   Layer {i} weight std: {layer.weight.std():.8f}")
+                    if layer.bias is not None:
+                        print(f"   Layer {i} bias std: {layer.bias.std():.8f}")
+                    return False
+            elif hasattr(layer, 'forward'):  # Activation
+                reg_current = layer(reg_current)
+        
+        return True
+
+    def forward(self, x):
+        """Standard forward pass for all architectures"""
+    
+        features = self._extract_features(x)
+        shared_features = self.shared_layers(features)
+
+        # # Debug task heads
+        # if not self._debug_task_heads(shared_features):
+        #     raise RuntimeError("Task heads are broken!")
+        
+        
+        # Route to appropriate task heads
+        if self.task == 'IntersectionStatus_IntersectionVolume':
+            intersection_status_logits = self.classification_head(shared_features)
+            regression_raw = self.regression_head(shared_features)
+            regression_output = torch.relu(regression_raw)
+            return torch.cat([intersection_status_logits, regression_output], dim=1)
+        
+        elif self.task == 'IntersectionStatus':
+            return self.classification_head(shared_features)
+        
+        elif self.task == 'IntersectionVolume':
+            return torch.relu(self.regression_head(shared_features))
+        
+        else:
+            raise ValueError(f"Unknown task type: {self.task}")
+    
+    def predict(self, x):
+        """Generate predictions with appropriate post-processing"""
+        self.eval()
+        with torch.no_grad():
+            raw_output = self(x)
+            
+            if self.task == 'IntersectionStatus':
+                return (raw_output > 0.5).int().squeeze() # model outputs logits
+            
+            elif self.task == 'IntersectionVolume':
+                return raw_output.squeeze() / self.volume_scale_factor
+            
+            elif self.task == 'IntersectionStatus_IntersectionVolume':
+                classification_pred = (raw_output[:, 0:1] > 0.5).int().squeeze() # model outputs logits
+                regression_pred = raw_output[:, 1:2].squeeze() / self.volume_scale_factor
+                return torch.stack([classification_pred.double(), regression_pred.double()], dim=1)
+            
+            else:
+                raise ValueError(f"Unknown task for prediction: {self.task}")
+
+# ============================================================================
+# SPECIFIC ARCHITECTURES
+# ============================================================================
+
+class TetrahedronPairNet(BaseNet):
+    """Specialized architecture for processing tetrahedron pairs"""
+    
+    def __init__(self, common_params, mlp_params, architecture_config):
+        # Extract architecture-specific parameters
+        self.per_vertex_layers = architecture_config.get("per_vertex_layers", [12, 12])
+        self.per_tetrahedron_layers = architecture_config.get("per_tetrahedron_layers", [12, 12])
+        self.per_two_tetrahedra_layers = architecture_config.get("per_two_tetrahedra_layers", [12, 12])
+        
+        self.vertex_aggregation_method = architecture_config.get("vertices_aggregation_function", "max")
+        self.tetrahedron_aggregation_method = architecture_config.get("tetrahedra_aggregation_function", "max")
+        
+        # Initialize base class
+        super().__init__(common_params, mlp_params)
+        
+        # Build vertex processing networks (8 vertices total)
+        self._build_vertex_processors()
+        
+        # Build tetrahedron processing networks
+        self._build_tetrahedron_processors()
+        
+        # Build final feature combination network
+        self._build_feature_combiner()
+        
+        # Global residual connection
+        self.global_residual = nn.Linear(self.input_dim, self.per_two_tetrahedra_layers[-1])
+    
+    def _get_backbone_input_dim(self):
+        """Input to shared backbone is the output of TetrahedronPairNet feature extraction"""
+        return self.per_two_tetrahedra_layers[-1]
+    
+    def _build_vertex_processors(self):
+        """Build individual vertex processing networks"""
+        activation = ActivationRegistry.get_activation('relu')  # Use ReLU for vertex processing
+        
+        self.vertex_processors = nn.ModuleList([
+            NetworkBuilder.build_mlp_layers([3] + self.per_vertex_layers, activation)
+            for _ in range(8)
+        ])
+        
+        # Residual connections for vertices
+        self.vertex_residuals = nn.ModuleList([
+            nn.Linear(3, self.per_vertex_layers[-1])
+            for _ in range(8)
+        ])
+    
+    def _build_tetrahedron_processors(self):
+        """Build post-aggregation tetrahedron processing networks"""
+        self.tetrahedron_processor_1 = NetworkBuilder.build_mlp_layers(
+            [self.per_vertex_layers[-1]] + self.per_tetrahedron_layers, self.activation
+        )
+        
+        self.tetrahedron_processor_2 = NetworkBuilder.build_mlp_layers(
+            [self.per_vertex_layers[-1]] + self.per_tetrahedron_layers, self.activation
+        )
+    
+    def _build_feature_combiner(self):
+        """Build network for combining tetrahedron features"""
+        self.feature_combiner = NetworkBuilder.build_mlp_layers(
+            [self.per_tetrahedron_layers[-1]] + self.per_two_tetrahedra_layers, self.activation
+        )
+    
+    def _extract_features(self, x):
+        """Extract features using TetrahedronPairNet architecture"""
+        batch_size = x.size(0)
+        input_dim = x.size(1)
+        
+        if input_dim not in [12, 24]:
+            raise ValueError(f"Input dimension must be 12 or 24, got {input_dim}")
+        
+        # Store original input for residual connection
+        original_input = x.clone()
+        
+        # Process first tetrahedron (always present)
+        tetrahedron_1_features = self._process_tetrahedron(x[:, :12], 0)
+        
+        if input_dim == 12:
+            # Single tetrahedron case
+            combined_features = tetrahedron_1_features
+        else:
+            # Two tetrahedra case
+            tetrahedron_2_features = self._process_tetrahedron(x[:, 12:24], 4)
+            
+            # Aggregate tetrahedron features
+            stacked_features = torch.stack([tetrahedron_1_features, tetrahedron_2_features], dim=1)
+            aggregated_features = AggregationFunctions.aggregate_tensors(
+                stacked_features, self.tetrahedron_aggregation_method
+            )
+            
+            # Process combined features
+            combined_features = self.feature_combiner(aggregated_features)
+        
+        # Add global residual connection
+        residual_features = self.global_residual(original_input)
+        return combined_features + residual_features
+    
+    def _process_tetrahedron(self, tetrahedron_coords, vertex_offset):
+        """
+        Process a single tetrahedron through vertex networks
+        
+        Args:
+            tetrahedron_coords: Tensor of shape [batch_size, 12] (4 vertices × 3 coords)
+            vertex_offset: Starting index for vertex processors (0 or 4)
+        
+        Returns:
+            Processed tetrahedron features [batch_size, feature_dim]
+        """
+        batch_size = tetrahedron_coords.size(0)
+        
+        # Reshape to [batch_size, 4, 3] for vertex processing
+        vertices = tetrahedron_coords.view(batch_size, 4, 3)
+        
+        # Process each vertex with its dedicated network and residual
+        vertex_features = []
+        for i in range(4):
+            vertex_idx = vertex_offset + i
+            vertex_coords = vertices[:, i, :]  # [batch_size, 3]
+            
+            # Main processing path
+            processed = self.vertex_processors[vertex_idx](vertex_coords)
+            
+            # Residual connection
+            residual = self.vertex_residuals[vertex_idx](vertex_coords)
+            
+            # Combine main path and residual
+            vertex_features.append(processed + residual)
+        
+        # Stack and aggregate vertex features
+        stacked_vertices = torch.stack(vertex_features, dim=1)  # [batch_size, 4, feature_dim]
+        aggregated_vertices = AggregationFunctions.aggregate_tensors(
+            stacked_vertices, self.vertex_aggregation_method
+        )
+        
+        # Process aggregated features through tetrahedron-specific network
+        if vertex_offset == 0:
+            return self.tetrahedron_processor_1(aggregated_vertices)
+        else:
+            return self.tetrahedron_processor_2(aggregated_vertices)
+
+class SimpleMLP(BaseNet):
+    """Simple Multi-Layer Perceptron baseline"""
+    
+    def __init__(self, common_params, mlp_params, architecture_config=None):
+        super().__init__(common_params, mlp_params)
+    
+    def _get_backbone_input_dim(self):
+        """For MLP, backbone input is the raw input dimension"""
+        return self.input_dim
+    
+    def _extract_features(self, x):
+        """For MLP, no feature extraction - pass through input directly"""
+        return x
+
+# ============================================================================
+# ARCHITECTURE MANAGER
+# ============================================================================
+
+class CArchitectureManager:
+    """Main manager for neural network architectures"""
+    
     def __init__(self, config):
         self.config = config
-        self.model_map = {
-            'tetrahedronpairnet': self.TetrahedronPairNet,
-            'mlp': self.MLP,
-            'deepset': self.DeepSet,
-            'tpnet': self.TPNet
-        }
-
-    def _get_input_dim(self):
-        import pandas as pd
-        import os
-        """
-        Load dataset from the path and infer input shape.
-        """
-        data_path = os.path.join(self.config.get('processed_data_path'), "train", "train_data.csv")
-        if not data_path:
-            raise ValueError("Processed data path is not specified in the config.")
-
-        try:
-            sample_data = pd.read_csv(data_path, nrows=2)
-        except Exception as e:
-            raise ValueError(f"Error loading dataset: {e}")
-
-        example_input = sample_data.iloc[:, :-2]  # Exclude labels
-        return example_input.shape[1]  # Number of input features
-
-    def get_model(self):
-        """Returns the model based on the configuration"""
-        arch_type = self.config['architecture']['use_model'].lower()
-        model_class = self.model_map.get(arch_type)
         
-        if not model_class:
-            raise ValueError(f"Unknown architecture: {arch_type}")
-
-        arch_config = self.config['architecture'].get(arch_type)
-        if not arch_config:
-            raise ValueError(f"{arch_type} configuration missing in architecture settings")
-
-        common_params = {
-            'input_dim' : self._get_input_dim(),
+        # Registry of available architectures
+        self.architecture_registry = {
+            'tetrahedronpairnet': TetrahedronPairNet,
+            'mlp': SimpleMLP,
+        }
+    
+    def get_model(self):
+        """
+        Create and return the configured model
+        
+        Returns:
+            nn.Module: Configured neural network model
+        """
+        # Get architecture configuration
+        architecture_name = self.config['architecture']['use_model'].lower()
+        architecture_config = self.config['architecture'].get(architecture_name, {})
+        
+        # Validate architecture exists
+        if architecture_name not in self.architecture_registry:
+            available = list(self.architecture_registry.keys())
+            raise ValueError(f"Unknown architecture '{architecture_name}'. Available: {available}")
+        
+        # Prepare common parameters
+        common_params = self._build_common_parameters()
+        
+        # Prepare MLP parameters
+        mlp_params = self._extract_mlp_parameters(architecture_config)
+        
+        # Create model
+        model_class = self.architecture_registry[architecture_name]
+        model = model_class(common_params, mlp_params, architecture_config)
+        
+        # Ensure float64 precision
+        model = model.double()
+        for param in model.parameters():
+            if param.dtype != torch.float64:
+                param.data = param.data.double()
+        
+            
+        # Log model information
+        total_params = sum(p.numel() for p in model.parameters())
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        
+        print(f"Created {architecture_name} model:")
+        print(f"  Total parameters: {total_params:,}")
+        print(f"  Trainable parameters: {trainable_params:,}")
+        print(f"  Input dimension: {common_params['input_dim']}")
+        print(f"  Task: {common_params['task']}")
+        print(f"  Precision: float64")
+        
+        return model
+    
+    def _build_common_parameters(self):
+        """Build common parameters used by all architectures"""
+        input_dim = DatasetInspector.get_input_dimensions(
+            self.config.get('processed_data_path')
+        )
+        
+        return {
+            'input_dim': input_dim,
             'activation': self.config['common_parameters']['activation_function'],
             'task': self.config['common_parameters']['task'],
             'volume_scale_factor': self.config['common_parameters']['volume_scale_factor'],
+            'dropout_rate': self.config['common_parameters'].get('dropout_rate', 0.0)
         }
-
-        mlp_params = {
-            'shared_layers': arch_config['shared_layers'],
-            'classification_head': arch_config['classification_head'],
-            'regression_head': arch_config['regression_head']
+    
+    def _extract_mlp_parameters(self, architecture_config):
+        """Extract MLP-related parameters from architecture config"""
+        return {
+            'shared_layers': architecture_config.get('shared_layers', []),
+            'classification_head': architecture_config.get('classification_head', []),
+            'regression_head': architecture_config.get('regression_head', [])
         }
-
-        # remove mlp_params from arch_config
-        arch_config.pop('shared_layers', None)
-        arch_config.pop('classification_head', None)
-        arch_config.pop('regression_head', None)
-        
-        return model_class(common_params, mlp_params, arch_config)
     
-    class BaseNet(nn.Module, ABC):
-        """Base network with common functionality for all models"""
-        def __init__(self, common_params, mlp_params):
-            super().__init__()
-            self.input_dim = common_params['input_dim']
-            self.task = common_params['task']
-            self.activation = CArchitectureManager.activation_map[common_params['activation']]()
-            self.dropout_rate = common_params.get('dropout_rate', 0.0)
-            self.volume_scale_factor = common_params['volume_scale_factor']
-            self.shared_layers = self.build_shared_network(common_params['input_dim'], mlp_params['shared_layers']) # Called by BaseNet
-            self.classifier_head = self._build_task_head([mlp_params['shared_layers'][-1]] + mlp_params['classification_head'])
-            self.regressor_head = self._build_task_head([mlp_params['shared_layers'][-1]] + mlp_params['regression_head'], is_regression=True)
-
-        @abstractmethod
-        def _forward(self, x):
-            pass
-
-        def _build_task_head(self, hidden_layers, is_regression=False):
-            
-            layers = []
-            for i in range(len(hidden_layers) - 1):
-                layers.append(nn.Linear(hidden_layers[i], hidden_layers[i+1]))
-                # Add activation after all layers except the last one
-                if i < len(hidden_layers) - 2:
-                    layers.append(self.activation)
-
-            # For volume prediction, ensure positive outputs with ReLU
-            if is_regression:
-                layers.append(nn.ReLU())  # Ensure positive volume predictions
-
-            # For classification, binary_cross_entropy_with_logits handles the sigmoid
+    def list_available_architectures(self):
+        """Get list of available architectures"""
+        return list(self.architecture_registry.keys())
     
-            return nn.Sequential(*layers)
-
-        def build_shared_network(self, input_dim, layer_sizes, add_final_activation=False):
-            """
-            Builds a shared network with the specified layer dimensions.
-            
-            Args:
-                input_dim: Input dimension
-                layer_sizes: List of hidden layer dimensions 
-                add_final_activation: Whether to add activation after the final layer (default: False)
-                
-            Returns:
-                nn.Sequential: Neural network module for the shared network
-            """
-            
-            dimensions = [input_dim] + layer_sizes
-            layers = []
-
-            for i, (in_dim, out_dim) in enumerate(zip(dimensions, dimensions[1:])):
-
-                layers.append(nn.Linear(in_dim, out_dim))
-                
-                is_last_layer = (i == len(dimensions) - 2)
-                if not is_last_layer or add_final_activation:
-                    layers.append(self.activation)
-                    
-                if self.dropout_rate > 0 and not is_last_layer:
-                    layers.append(nn.Dropout(self.dropout_rate))
-            
-            return nn.Sequential(*layers)
-
-        def forward(self, x):
-            """Common forward logic for all networks"""
-            shared_out = self._forward(x)
-            shared_out = self.shared_layers(shared_out)
-
-            if self.task == 'IntersectionStatus_IntersectionVolume':
-                return torch.cat([
-                    self.classifier_head(shared_out),
-                    self.regressor_head(shared_out)
-                ], dim=1)
-            
-            elif self.task == 'IntersectionStatus':
-                return self.classifier_head(shared_out)
-
-            elif self.task == 'IntersectionVolume':
-                output = self.regressor_head(shared_out)
-                return output
-
-            raise ValueError(f"Unknown task: {self.task}")
-
-        def predict(self, x):
-            """Common prediction logic for all networks"""
-            self.eval()
-            with torch.no_grad():
-                processed_embeddings = self(x) 
-
-                if self.task == 'IntersectionStatus':
-                    return (processed_embeddings > 0.5).int().squeeze()
-                elif self.task == 'IntersectionVolume':
-                    return processed_embeddings.squeeze() / self.volume_scale_factor
-                elif self.task == 'IntersectionStatus_IntersectionVolume':
-                    cls_prediction = (processed_embeddings[:, 0] > 0.5).int().squeeze()
-                    reg_prediction = processed_embeddings[:, 1].squeeze() / self.volume_scale_factor
-                    return torch.stack([cls_prediction, reg_prediction], dim=1)   
-                      
-                raise ValueError(f"Unknown task: {self.task}")
-
-    class TetrahedronPairNet(BaseNet):
-        def __init__(self, common_params, mlp_params, tetrahedronpairnet_params):     
-            super().__init__(common_params=common_params, mlp_params=mlp_params)
-
-            per_vertex_layers = tetrahedronpairnet_params.get("per_vertex_layers", [12, 12])
-            per_tetrahedron_layers = tetrahedronpairnet_params.get("per_tetrahedron_layers", [12, 12])
-            per_two_tetrahedra_layers = tetrahedronpairnet_params.get("per_two_tetrahedra_layers", [12, 12])
-            self.vertices_aggregation_func = tetrahedronpairnet_params.get("vertices_aggregation_function", "max")
-            self.tetrahedra_aggregation_func = tetrahedronpairnet_params.get("tetrahedra_aggregation_function", "max")
-
-            self.vertex_mlps = nn.ModuleList([
-                self.build_shared_network(3, per_vertex_layers) # Use BaseNet's builder
-                for _ in range(8)
-            ])
-            self.vertex_residual_layers = nn.ModuleList([
-                nn.Linear(3, per_vertex_layers[-1]) for _ in range(8)
-            ])
-
-            self.process_tet_post_pooling_1 = self.build_shared_network(
-                per_vertex_layers[-1], per_tetrahedron_layers
-            )
-            self.process_tet_post_pooling_2 = self.build_shared_network(
-                per_vertex_layers[-1], per_tetrahedron_layers
-            )
-            
-            # Combined embedding processing (Input: hidden_dim from pooling, Output: fixed 12)
-            self.process_combined_embd = self.build_shared_network(
-                per_tetrahedron_layers[-1], per_two_tetrahedra_layers
-            )
-
-            # Global residual projection (Input: original 12 or 24, Output: combined_output_dim)
-            self.global_residual = nn.Linear(self.input_dim, per_two_tetrahedra_layers[-1])
-
-            # Define the shared layers that process the features extracted by the
-            # TetrahedronPairNet-specific layers before feeding into the task heads.
-            self.shared_layers = self.build_shared_network(per_two_tetrahedra_layers[-1], mlp_params['shared_layers'])
-
-        def _forward(self, x):
-            """Core logic for TetrahedronPairNet"""
-            input_dim = x.size(1)
-
-            assert input_dim in [12, 24], "Input dimension must be either 12 or 24"
-
-            original_x = x.clone() # For global residual
-
-            emb_t1 = self.process_tet1(x[:, :12]) # first tetrahedron always present [batch_size, hidden_dim]
-            output_features = emb_t1
-
-            if input_dim == 24:  # Two tetrahedra
-                emb_t2 = self.process_tet2(x[:, 12:]) # [batch_size, hidden_dim]
-                pooled_embd = self.aggregate_tetrahedra(emb_t1, emb_t2, self.tetrahedra_aggregation_func) # [batch_size, hidden_dim]
-                output_features = self.process_combined_embd(pooled_embd) # [batch_size, hidden_dim]
-
-            return output_features + self.global_residual(original_x)
-
-        def process_tet1(self, x):
-            """Process the first tetrahedron (indices 0-3)."""
-            batch_size = x.size(0)
-            x_verts = x.view(batch_size, 4, 3)
-            
-            # Manually unroll the loop for JIT compatibility
-            v0_feat = self.vertex_mlps[0](x_verts[:, 0, :]) + self.vertex_residual_layers[0](x_verts[:, 0, :])
-            v1_feat = self.vertex_mlps[1](x_verts[:, 1, :]) + self.vertex_residual_layers[1](x_verts[:, 1, :])
-            v2_feat = self.vertex_mlps[2](x_verts[:, 2, :]) + self.vertex_residual_layers[2](x_verts[:, 2, :])
-            v3_feat = self.vertex_mlps[3](x_verts[:, 3, :]) + self.vertex_residual_layers[3](x_verts[:, 3, :])
-
-            pooled_emb = self.aggegrate_vertices(v0_feat, v1_feat, v2_feat, v3_feat, self.vertices_aggregation_func) # Shape: [batch_size, hidden_dim]
-
-            output_emb = self.process_tet_post_pooling_1(pooled_emb)
-
-            return output_emb
-
-        def process_tet2(self, x):
-            """Process the second tetrahedron (indices 4-7)."""
-            batch_size = x.size(0)
-            x_verts = x.view(batch_size, 4, 3)
-            
-            v4_feat = self.vertex_mlps[4](x_verts[:, 0, :]) + self.vertex_residual_layers[4](x_verts[:, 0, :])
-            v5_feat = self.vertex_mlps[5](x_verts[:, 1, :]) + self.vertex_residual_layers[5](x_verts[:, 1, :])
-            v6_feat = self.vertex_mlps[6](x_verts[:, 2, :]) + self.vertex_residual_layers[6](x_verts[:, 2, :])
-            v7_feat = self.vertex_mlps[7](x_verts[:, 3, :]) + self.vertex_residual_layers[7](x_verts[:, 3, :])
-
-            pooled_emb = self.aggegrate_vertices(v4_feat, v5_feat, v6_feat, v7_feat, self.vertices_aggregation_func) # Shape: [batch_size, hidden_dim]
-
-            output_emb = self.process_tet_post_pooling_2(pooled_emb)
-
-            return output_emb
-
-        def aggregate_tetrahedra(self, emb_t1, emb_t2=None, aggregate_func: str ='max'):
-            """Aggregate the tetrahedra embeddings."""
-            
-            if emb_t2 is None:
-                return emb_t1
-            
-            stacked_combined_emb = torch.stack((emb_t1, emb_t2), dim=1)
-
-            if aggregate_func == 'max':
-                pooled_embd, _ = torch.max(stacked_combined_emb, dim=1)
-            elif aggregate_func == 'mean':
-                pooled_embd = torch.mean(stacked_combined_emb, dim=1)
-            elif aggregate_func == 'sum':
-                pooled_embd = torch.sum(stacked_combined_emb, dim=1)
-            elif aggregate_func == 'min':
-                pooled_embd, _ = torch.min(stacked_combined_emb, dim=1)
-            elif aggregate_func == 'hadamard_prod':
-                pooled_embd = torch.prod(F.relu(stacked_combined_emb), dim=1) # Attenuate negative values with ReLU
-            else:
-                raise ValueError(f"Unknown aggregation function: {aggregate_func}")
-            
-            return pooled_embd # Shape: [batch_size, hidden_dim]
+    def get_architecture_info(self, architecture_name):
+        """Get information about a specific architecture"""
+        if architecture_name not in self.architecture_registry:
+            return None
         
-        def aggegrate_vertices(self, emb_v1, emb_v2, emb_v3, emb_v4, aggregate_func: str ='max'):
-            """Aggregate the vertices embeddings."""
-            stacked_combined_emb = torch.stack((emb_v1, emb_v2, emb_v3, emb_v4), dim=1)
-            
-            if aggregate_func == 'max':
-                pooled_embd, _ = torch.max(stacked_combined_emb, dim=1)
-            elif aggregate_func == 'mean':
-                pooled_embd = torch.mean(stacked_combined_emb, dim=1)
-            elif aggregate_func == 'sum':
-                pooled_embd = torch.sum(stacked_combined_emb, dim=1)
-            elif aggregate_func == 'min':
-                pooled_embd, _ = torch.min(stacked_combined_emb, dim=1)
-            elif aggregate_func == 'hadamard_prod':
-                pooled_embd = torch.prod(F.relu(stacked_combined_emb), dim=1) # Attenuate negative values with ReLU
-            else:
-                raise ValueError(f"Unknown aggregation function: {aggregate_func}")
-            
-            return pooled_embd # Shape: [batch_size, hidden_dim]
-        
-    class MLP(BaseNet):
-        def __init__(self, common_params, mlp_params, _ = None):     
-            super().__init__(common_params=common_params, mlp_params=mlp_params)
-
-        def _forward(self, x):
-            return x # BaseNet is mlp
-    
-    class TPNet(BaseNet):
-        def __init__(self, common_params, tpnet_params):     
-            mlp_params = {
-                'shared_layers': tpnet_params['shared_layers'],
-                'classification_head': tpnet_params['classification_head'],
-                'regression_head': tpnet_params['regression_head'],
-            }
-            super().__init__(common_params=common_params, mlp_params=mlp_params)
-            self.shared_layers = self.build_shared_network(12, mlp_params['shared_layers'])
-            self.per_tet_layers = self._build_tetrahedronwise_tet_network(tpnet_params['per_tet_layers'])
-            
-            # Global residual projection
-            self.global_residual_proj = nn.Linear(common_params['input_dim'], mlp_params['shared_layers'][0]) if common_params['input_dim'] != mlp_params['shared_layers'][0] else nn.Identity()
-        
-        def _build_tetrahedronwise_tet_network(self, layer_sizes):
-            """Build network that processes entire tetrahedra at once with residual connections"""
-            class TetrahedronwiseNetwork(nn.Module):
-                def __init__(self, layer_sizes, activation):
-                    super().__init__()
-                    self.activation = activation
-                    tet_dims = [12] + layer_sizes
-                    
-                    # Main processing layers for whole tetrahedron
-                    layers = []
-                    for i in range(len(tet_dims) - 1):
-                        layers.append(nn.Linear(tet_dims[i], tet_dims[i+1]))
-                        layers.append(activation)
-                    self.tet_layers = nn.Sequential(*layers)
-                    
-                    # Final output projection
-                    self.output_proj = nn.Sequential(
-                        nn.Linear(layer_sizes[-1], 12),
-                        activation
-                    )
-                    
-                    # Input-to-output residual connection
-                    self.input_res_proj = nn.Identity()
-
-                def forward(self, x):
-                    # Original input for final residual (batch_size, 12)
-                    input_residual = self.input_res_proj(x)
-                    
-                    # Process entire tetrahedron at once
-                    processed = self.tet_layers(x)  # [batch, layer_size]
-                    
-                    # Project to output dimension
-                    output = self.output_proj(processed)  # [batch, 12]
-                    
-                    # Final residual connection
-                    return self.activation(output + input_residual)  # [batch, 12]
-
-            return TetrahedronwiseNetwork(layer_sizes, self.activation)
-
-        def _build_pointwise_tet_network(self, layer_sizes):
-            """Build network with internal max pooling and residual connections"""
-            class _PointwiseTetNetwork(nn.Module):
-                def __init__(self, layer_sizes, activation):
-                    super().__init__()
-
-                    # Per-point processing
-                    per_point_dims = [3] + layer_sizes
-                    self.point_layers = nn.Sequential(
-                        *sum([[nn.Linear(in_d, out_d), activation] 
-                            for in_d, out_d in zip(per_point_dims[:-1], per_point_dims[1:])], [])
-                    )
-                    
-                    # Residual projection for each point
-                    self.point_res_proj = (
-                        nn.Linear(3, layer_sizes[-1]) 
-                        if layer_sizes[-1] != 3 
-                        else nn.Identity()
-                    )
-                    
-                    # Post-pool processing
-                    self.post_pool = nn.Sequential(
-                        nn.Linear(layer_sizes[-1], 24),
-                        activation,
-                        nn.Linear(24, 12)
-                    )
-                    
-                    # Input-to-output residual projection
-                    self.input_res_proj = nn.Linear(12, 12)
-                    
-                    # Final activation
-                    self.final_activation = activation
-
-                def forward(self, x):
-                    # Original input for final residual
-                    input_residual = self.input_res_proj(x)
-                    
-                    # Process points
-                    points = x.view(-1, 4, 3)
-                    processed = self.point_layers(points)
-                    
-                    # Point-wise residual
-                    residual = self.point_res_proj(points)  # [batch, 4, layer_size]
-                    processed = processed + residual  # [batch, 4, layer_size]
-                    
-                    # Internal max pooling - aggregate across points within tetrahedron
-                    pooled = torch.max(processed, dim=1)[0]  # [batch, layer_size]
-                    output = self.post_pool(pooled)  # [batch, 12]
-                    
-                    # Final residual connection
-                    return self.final_activation(output + input_residual)  # [batch, 12]
-
-            return _PointwiseTetNetwork(layer_sizes, self.activation)
-        
-        def _forward(self, x):
-            """
-            Improved TPNet forward pass with internal max pooling and global residual.
-            
-            Expected input format: batch of flat tensors with shape [batch_size, input_dim]
-            Where input_dim is either:
-            - 12 (single tetrahedron: 4 points × 3 coordinates)
-            - 24 (two tetrahedra: 8 points × 3 coordinates)
-            """
-            
-            # For global residual connection
-            original_inputs = x.clone()
-            
-            if self.input_dim == 12:  # Single tetrahedron case
-
-                tet_features = self.per_tet_layers(x)
-                
-                pooled_features = tet_features # No need for external max pooling in single tetrahedron case
-                
-            elif self.input_dim == 24:  # Two tetrahedra case
-  
-                t1 = x[:, :12]
-                t2 = x[:, 12:]
-                
-                t1_features = self.per_tet_layers(t1)
-                t2_features = self.per_tet_layers(t2)
-
-                pooled_features = torch.max(t1_features, t2_features) # permutation invariant pooling
-                
-            else:
-                raise ValueError(f"Input dimension must be either 12 or 24, got {self.input_dim}")
-            
-            # Process combined features
-            combined_embeddings = self.shared_layers(pooled_features)
-            
-            # Apply global residual connection
-            global_residual = self.global_residual_proj(original_inputs)
-            
-            # Final embeddings: combined embeddings + global residual
-            final_embeddings = combined_embeddings + global_residual
-            
-            return final_embeddings
-
-    class DeepSet(BaseNet):
-        def __init__(self, input_dim, deep_set_params, classification_head, regression_head, 
-                    activation, task, volume_scale_factor=1):
-            """
-            deep_set_params is a dict containing:
-            - 'hidden_dim': number of hidden units used in residual blocks.
-            - 'output_dim': desired output dimension of the deep set encoder.
-            - Optional: 'dropout_rate' (default 0.1)
-            """
-            self.input_dim = input_dim
-            output_dim = deep_set_params['output_dim']
-            super().__init__(activation, task, output_dim, classification_head, regression_head,
-                            volume_scale_factor=volume_scale_factor)
-            hidden_dim = deep_set_params['hidden_dim']
-            dropout_rate = deep_set_params.get('dropout_rate', 0.1)
-            self.deep_set_encoder = CArchitectureManager._DeepSetEncoder(input_dim, hidden_dim, output_dim, self.activation, dropout_rate)
-
-        def _forward(self, x):
-            return self.deep_set_encoder(x)
-
-
-    # Helper classes #
-    class _DeepSetEncoder(nn.Module):
-        def __init__(self, input_dim, hidden_dim, output_dim, activation, dropout_rate=0.1):
-            """
-            Parameters:
-            - input_dim: 12 for a single tetrahedron or 24 for two tetrahedra.
-            - hidden_dim: number of units used in the residual blocks.
-            - output_dim: final embedding dimension (will be used as shared_dim).
-            - activation: an activation module (e.g. nn.ReLU()).
-            - dropout_rate: dropout rate in residual blocks.
-            """
-            super().__init__()
-            self.input_dim = input_dim
-            self.activation = activation
-            
-            # Initialize with dummy modules
-            self.res_block1 = nn.Identity()
-            self.res_block2 = nn.Identity()
-            self.res_block_pool = nn.Identity()
-            self.res_block3 = nn.Identity()
-            self.final_fc = nn.Linear(1, output_dim)  # Minimum valid Linear layer
-                   
-            # Create the blocks based on input dimension
-            if input_dim == 12:
-                # Single tetrahedron case
-                self.res_block1 = CArchitectureManager._ResidualBlock(3, hidden_dim, activation, dropout_rate)
-                self.res_block2 = CArchitectureManager._ResidualBlock(hidden_dim, hidden_dim, activation, dropout_rate)
-                self.final_fc = nn.Linear(hidden_dim, output_dim)
-            elif input_dim == 24:
-                # Two tetrahedra case
-                self.res_block1 = CArchitectureManager._ResidualBlock(3, hidden_dim, activation, dropout_rate)
-                self.res_block_pool = CArchitectureManager._ResidualBlock(hidden_dim, hidden_dim, activation, dropout_rate)
-                self.res_block3 = CArchitectureManager._ResidualBlock(2 * hidden_dim, hidden_dim, activation, dropout_rate)
-                self.final_fc = nn.Linear(hidden_dim, output_dim)
-            else:
-                raise ValueError("input_dim must be either 12 (single tet) or 24 (two tets)")
-
-        def forward(self, x):
-            if self.input_dim == 12:
-                # Single tetrahedron processing
-                batch = x.size(0)
-                x = x.view(batch, 4, 3)
-                x_vertex = x.view(-1, 3)
-                x_processed = self.res_block1(x_vertex)
-                x_processed = x_processed.view(batch, 4, -1)
-                x_pool, _ = torch.max(x_processed, dim=1)
-                x_pool = self.res_block2(x_pool)
-                out = self.final_fc(x_pool)
-                return self.activation(out)
-            elif self.input_dim == 24:
-                # Two tetrahedra processing
-                batch = x.size(0)
-                x = x.reshape(batch, 2, 4, 3)
-                x = x.reshape(batch * 2, 4, 3)
-                x_vertex = x.reshape(-1, 3)
-                x_processed = self.res_block1(x_vertex)
-                x_processed = x_processed.view(batch * 2, 4, -1)
-                x_pool, _ = torch.max(x_processed, dim=1)
-                x_pool = self.res_block_pool(x_pool)
-                x_pool = x_pool.view(batch, 2, -1)
-                x_cat = x_pool.view(batch, -1)
-                x_out = self.res_block3(x_cat)
-                out = self.final_fc(x_out)
-                return self.activation(out)
-            else:
-                raise ValueError(f"Unexpected input_dim: {self.input_dim}")
-    
-    class _ProcessingBlock(nn.Module):
-        def __init__(self, in_dim, out_dim, activation):
-            super().__init__()
-            self.linear = nn.Linear(in_dim, out_dim)
-            self.ln = nn.LayerNorm(out_dim)
-            self.activation = activation
-
-        def forward(self, x):
-            out = self.linear(x)
-            out = self.ln(out)
-            out = self.activation(out)
-            out = self.linear(x)
-            return out
-           
-    class _ResidualBlock(nn.Module):
-        def __init__(self, in_dim, out_dim, activation, dropout_rate=0.1):
-            super().__init__()
-            self.linear1 = nn.Linear(in_dim, out_dim)
-            self.ln1 = nn.LayerNorm(out_dim)
-            self.activation = activation
-            self.dropout = nn.Dropout(dropout_rate)
-            self.linear2 = nn.Linear(out_dim, out_dim)
-            self.ln2 = nn.LayerNorm(out_dim)
-            self.proj = nn.Linear(in_dim, out_dim) if in_dim != out_dim else nn.Identity()
-
-        def forward(self, x):
-            out = self.linear1(x)
-            out = self.ln1(out)
-            out = self.activation(out)
-            out = self.dropout(out)
-            out = self.linear2(out)
-            out = self.ln2(out)
-            skip = self.proj(x)
-            return self.activation(out + skip)
-           
-    # class GeometricAffineModule(nn.Module):
-    #     """Implements the geometric normalization with learnable affine parameters."""
-    #     def __init__(self, num_features, epsilon=1e-6):
-    #         super().__init__()
-    #         self.alpha = nn.Parameter(torch.ones(num_features))
-    #         self.beta = nn.Parameter(torch.zeros(num_features))
-    #         self.epsilon = epsilon
-
-    #     def forward(self, x):
-    #         # x shape: (batch, num_groups, group_size, features)
-    #         mean = x.mean(dim=2, keepdim=True)  # Mean over group points
-    #         std = x.std(dim=2, keepdim=True, unbiased=False)  # Std over group points
-    #         x_norm = (x - mean) / (std + self.epsilon)
-    #         return self.alpha * x_norm + self.beta  # Learnable affine transformation
-
-    # class ResidualBlock(nn.Module):
-    #     """Residual block with optional geometric affine module."""
-    #     def __init__(self, input_dim, output_dim, dropout_rate=0.1, use_affine=True):
-    #         super().__init__()
-    #         self.use_affine = use_affine
-            
-    #         if self.use_affine:
-    #             self.affine = GeometricAffineModule(input_dim)
-                
-    #         self.net = nn.Sequential(
-    #             nn.Linear(input_dim, output_dim),
-    #             nn.LayerNorm(output_dim),
-    #             nn.ReLU(),
-    #             nn.Dropout(dropout_rate),
-    #             nn.Linear(output_dim, output_dim),
-    #             nn.LayerNorm(output_dim)
-    #         )
-    #         self.skip = nn.Linear(input_dim, output_dim) if input_dim != output_dim else nn.Identity()
-
-    #     def forward(self, x):
-    #         if self.use_affine:
-    #             x = self.affine(x)
-                
-    #         # Flatten for processing
-    #         batch, groups, points, feat = x.shape
-    #         x_flat = x.view(-1, feat)
-    #         out = self.net(x_flat)
-    #         out += self.skip(x_flat)
-    #         return out.view(batch, groups, points, -1)
+        model_class = self.architecture_registry[architecture_name]
+        return {
+            'name': architecture_name,
+            'class': model_class.__name__,
+            'docstring': model_class.__doc__
+        }
