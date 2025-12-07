@@ -1,0 +1,1306 @@
+{
+  "benchmark_info": {
+    "model_configs": [
+      "Smallest",
+      "Medium",
+      "Largest"
+    ],
+    "data_sizes": [
+      10000,
+      50000,
+      100000,
+      500000,
+      1000000
+    ],
+    "data_size_labels": [
+      "10k",
+      "50k",
+      "100k",
+      "500k",
+      "1M"
+    ],
+    "batch_size": 2048,
+    "train_epochs": 50,
+    "train_device": "cuda",
+    "n_test_datasets": 5,
+    "timestamp": "2025-12-01T01:51:56.347555",
+    "pytorch_version": "2.1.0+cu121"
+  },
+  "results": [
+    {
+      "model_name": "Smallest",
+      "model_config": {
+        "per_vertex_layers": [
+          12,
+          12
+        ],
+        "per_tetrahedron_layers": [
+          12,
+          12
+        ],
+        "per_two_tetrahedra_layers": [
+          12,
+          12
+        ],
+        "shared_layers": [
+          12
+        ]
+      },
+      "total_parameters": 4058,
+      "data_size": 10000,
+      "data_size_label": "10k",
+      "val_size": 10000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 35.56,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.32795399999999997,
+        "std_accuracy": 0.2689459030808984,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.86326,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.15078,
+            "precision": 1.0,
+            "recall": 0.15078,
+            "f1": 0.26204834981490815
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.22747,
+            "precision": 1.0,
+            "recall": 0.22747,
+            "f1": 0.37063227614524186
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.21376,
+            "precision": 1.0,
+            "recall": 0.21376,
+            "f1": 0.3522277880305827
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.1845,
+            "precision": 1.0,
+            "recall": 0.1845,
+            "f1": 0.31152384972562264
+          }
+        ]
+      },
+      "mean_accuracy": 0.32795399999999997,
+      "final_val_loss": 0.5407370389383522,
+      "timestamp": "2025-11-30T19:48:04.999175"
+    },
+    {
+      "model_name": "Smallest",
+      "model_config": {
+        "per_vertex_layers": [
+          12,
+          12
+        ],
+        "per_tetrahedron_layers": [
+          12,
+          12
+        ],
+        "per_two_tetrahedra_layers": [
+          12,
+          12
+        ],
+        "shared_layers": [
+          12
+        ]
+      },
+      "total_parameters": 4058,
+      "data_size": 50000,
+      "data_size_label": "50k",
+      "val_size": 10000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 66.52,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.8659659999999999,
+        "std_accuracy": 0.053922587697550275,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.77591,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.90816,
+            "precision": 1.0,
+            "recall": 0.90816,
+            "f1": 0.9518698641623343
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.87727,
+            "precision": 1.0,
+            "recall": 0.87727,
+            "f1": 0.934623149573583
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.92813,
+            "precision": 1.0,
+            "recall": 0.92813,
+            "f1": 0.9627255423648821
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.84036,
+            "precision": 1.0,
+            "recall": 0.84036,
+            "f1": 0.9132561020669869
+          }
+        ]
+      },
+      "mean_accuracy": 0.8659659999999999,
+      "final_val_loss": 0.43768871282185484,
+      "timestamp": "2025-11-30T19:56:41.507180"
+    },
+    {
+      "model_name": "Smallest",
+      "model_config": {
+        "per_vertex_layers": [
+          12,
+          12
+        ],
+        "per_tetrahedron_layers": [
+          12,
+          12
+        ],
+        "per_two_tetrahedra_layers": [
+          12,
+          12
+        ],
+        "shared_layers": [
+          12
+        ]
+      },
+      "total_parameters": 4058,
+      "data_size": 100000,
+      "data_size_label": "100k",
+      "val_size": 10000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 111.38,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.8505800000000001,
+        "std_accuracy": 0.048268648209785193,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.80483,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.9188,
+            "precision": 1.0,
+            "recall": 0.9188,
+            "f1": 0.9576818845111528
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.82849,
+            "precision": 1.0,
+            "recall": 0.82849,
+            "f1": 0.9062012917762744
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.89737,
+            "precision": 1.0,
+            "recall": 0.89737,
+            "f1": 0.9459093376621324
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.80341,
+            "precision": 1.0,
+            "recall": 0.80341,
+            "f1": 0.8909898470120494
+          }
+        ]
+      },
+      "mean_accuracy": 0.8505800000000001,
+      "final_val_loss": 0.41391972467450583,
+      "timestamp": "2025-11-30T20:05:37.780011"
+    },
+    {
+      "model_name": "Smallest",
+      "model_config": {
+        "per_vertex_layers": [
+          12,
+          12
+        ],
+        "per_tetrahedron_layers": [
+          12,
+          12
+        ],
+        "per_two_tetrahedra_layers": [
+          12,
+          12
+        ],
+        "shared_layers": [
+          12
+        ]
+      },
+      "total_parameters": 4058,
+      "data_size": 500000,
+      "data_size_label": "500k",
+      "val_size": 50000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 411.37,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.8576459999999999,
+        "std_accuracy": 0.04076026329649992,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.80561,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.88599,
+            "precision": 1.0,
+            "recall": 0.88599,
+            "f1": 0.939548990185526
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.86304,
+            "precision": 1.0,
+            "recall": 0.86304,
+            "f1": 0.9264857437306767
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.91475,
+            "precision": 1.0,
+            "recall": 0.91475,
+            "f1": 0.9554772163467815
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.81884,
+            "precision": 1.0,
+            "recall": 0.81884,
+            "f1": 0.9003980559037629
+          }
+        ]
+      },
+      "mean_accuracy": 0.8576459999999999,
+      "final_val_loss": 0.42531949155097726,
+      "timestamp": "2025-11-30T20:20:58.489746"
+    },
+    {
+      "model_name": "Smallest",
+      "model_config": {
+        "per_vertex_layers": [
+          12,
+          12
+        ],
+        "per_tetrahedron_layers": [
+          12,
+          12
+        ],
+        "per_two_tetrahedra_layers": [
+          12,
+          12
+        ],
+        "shared_layers": [
+          12
+        ]
+      },
+      "total_parameters": 4058,
+      "data_size": 1000000,
+      "data_size_label": "1M",
+      "val_size": 100000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 1008.7,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.862868,
+        "std_accuracy": 0.04724755925971202,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.78778,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.89031,
+            "precision": 1.0,
+            "recall": 0.89031,
+            "f1": 0.9419724807042232
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.87693,
+            "precision": 1.0,
+            "recall": 0.87693,
+            "f1": 0.9344301598887546
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.92443,
+            "precision": 1.0,
+            "recall": 0.92443,
+            "f1": 0.9607312295069189
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.83489,
+            "precision": 1.0,
+            "recall": 0.83489,
+            "f1": 0.9100164042531159
+          }
+        ]
+      },
+      "mean_accuracy": 0.862868,
+      "final_val_loss": 0.4260085771500267,
+      "timestamp": "2025-11-30T20:48:35.572533"
+    },
+    {
+      "model_name": "Medium",
+      "model_config": {
+        "per_vertex_layers": [
+          24,
+          24,
+          24
+        ],
+        "per_tetrahedron_layers": [
+          24,
+          24,
+          24
+        ],
+        "per_two_tetrahedra_layers": [
+          24,
+          24,
+          24
+        ],
+        "shared_layers": [
+          24
+        ]
+      },
+      "total_parameters": 19610,
+      "data_size": 10000,
+      "data_size_label": "10k",
+      "val_size": 10000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 36.06,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.79796,
+        "std_accuracy": 0.07058993950981968,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.6676,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.82492,
+            "precision": 1.0,
+            "recall": 0.82492,
+            "f1": 0.9040615479034697
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.82845,
+            "precision": 1.0,
+            "recall": 0.82845,
+            "f1": 0.9061773633405343
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.87688,
+            "precision": 1.0,
+            "recall": 0.87688,
+            "f1": 0.9344017731554495
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.79195,
+            "precision": 1.0,
+            "recall": 0.79195,
+            "f1": 0.883897430173833
+          }
+        ]
+      },
+      "mean_accuracy": 0.79796,
+      "final_val_loss": 0.49363232390763034,
+      "timestamp": "2025-11-30T20:55:59.366780"
+    },
+    {
+      "model_name": "Medium",
+      "model_config": {
+        "per_vertex_layers": [
+          24,
+          24,
+          24
+        ],
+        "per_tetrahedron_layers": [
+          24,
+          24,
+          24
+        ],
+        "per_two_tetrahedra_layers": [
+          24,
+          24,
+          24
+        ],
+        "shared_layers": [
+          24
+        ]
+      },
+      "total_parameters": 19610,
+      "data_size": 50000,
+      "data_size_label": "50k",
+      "val_size": 10000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 115.97,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.8753820000000001,
+        "std_accuracy": 0.05231059984362634,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.78642,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.90705,
+            "precision": 1.0,
+            "recall": 0.90705,
+            "f1": 0.9512597991662516
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.89636,
+            "precision": 1.0,
+            "recall": 0.89636,
+            "f1": 0.9453479297179861
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.93635,
+            "precision": 1.0,
+            "recall": 0.93635,
+            "f1": 0.9671288764944355
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.85073,
+            "precision": 1.0,
+            "recall": 0.85073,
+            "f1": 0.9193453394066126
+          }
+        ]
+      },
+      "mean_accuracy": 0.8753820000000001,
+      "final_val_loss": 0.422520575707319,
+      "timestamp": "2025-11-30T21:04:38.335311"
+    },
+    {
+      "model_name": "Medium",
+      "model_config": {
+        "per_vertex_layers": [
+          24,
+          24,
+          24
+        ],
+        "per_tetrahedron_layers": [
+          24,
+          24,
+          24
+        ],
+        "per_two_tetrahedra_layers": [
+          24,
+          24,
+          24
+        ],
+        "shared_layers": [
+          24
+        ]
+      },
+      "total_parameters": 19610,
+      "data_size": 100000,
+      "data_size_label": "100k",
+      "val_size": 10000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 202.87,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.8953580000000001,
+        "std_accuracy": 0.05583972399645256,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.80157,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.91924,
+            "precision": 1.0,
+            "recall": 0.91924,
+            "f1": 0.957920843667285
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.94033,
+            "precision": 1.0,
+            "recall": 0.94033,
+            "f1": 0.9692474991367448
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.95193,
+            "precision": 1.0,
+            "recall": 0.95193,
+            "f1": 0.9753730922727762
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.86372,
+            "precision": 1.0,
+            "recall": 0.86372,
+            "f1": 0.9268774279398193
+          }
+        ]
+      },
+      "mean_accuracy": 0.8953580000000001,
+      "final_val_loss": 0.38463428965515056,
+      "timestamp": "2025-11-30T21:15:31.163132"
+    },
+    {
+      "model_name": "Medium",
+      "model_config": {
+        "per_vertex_layers": [
+          24,
+          24,
+          24
+        ],
+        "per_tetrahedron_layers": [
+          24,
+          24,
+          24
+        ],
+        "per_two_tetrahedra_layers": [
+          24,
+          24,
+          24
+        ],
+        "shared_layers": [
+          24
+        ]
+      },
+      "total_parameters": 19610,
+      "data_size": 500000,
+      "data_size_label": "500k",
+      "val_size": 50000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 964.95,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.9125340000000002,
+        "std_accuracy": 0.04345357228122905,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.84274,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.94239,
+            "precision": 1.0,
+            "recall": 0.94239,
+            "f1": 0.9703406627917153
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.94394,
+            "precision": 1.0,
+            "recall": 0.94394,
+            "f1": 0.9711616613681492
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.95324,
+            "precision": 1.0,
+            "recall": 0.95324,
+            "f1": 0.97606028957015
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.88036,
+            "precision": 1.0,
+            "recall": 0.88036,
+            "f1": 0.9363738858516455
+          }
+        ]
+      },
+      "mean_accuracy": 0.9125340000000002,
+      "final_val_loss": 0.3364392399130719,
+      "timestamp": "2025-11-30T21:41:49.869902"
+    },
+    {
+      "model_name": "Medium",
+      "model_config": {
+        "per_vertex_layers": [
+          24,
+          24,
+          24
+        ],
+        "per_tetrahedron_layers": [
+          24,
+          24,
+          24
+        ],
+        "per_two_tetrahedra_layers": [
+          24,
+          24,
+          24
+        ],
+        "shared_layers": [
+          24
+        ]
+      },
+      "total_parameters": 19610,
+      "data_size": 1000000,
+      "data_size_label": "1M",
+      "val_size": 100000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 2263.37,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.934554,
+        "std_accuracy": 0.04408211728127406,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.85515,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.97268,
+            "precision": 1.0,
+            "recall": 0.97268,
+            "f1": 0.9861508202039865
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.96023,
+            "precision": 1.0,
+            "recall": 0.96023,
+            "f1": 0.9797115644592725
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.96661,
+            "precision": 1.0,
+            "recall": 0.96661,
+            "f1": 0.9830215446885757
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.9181,
+            "precision": 1.0,
+            "recall": 0.9181,
+            "f1": 0.957301496272353
+          }
+        ]
+      },
+      "mean_accuracy": 0.934554,
+      "final_val_loss": 0.2960198571994712,
+      "timestamp": "2025-11-30T22:35:18.575942"
+    },
+    {
+      "model_name": "Largest",
+      "model_config": {
+        "per_vertex_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "per_tetrahedron_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "per_two_tetrahedra_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "shared_layers": [
+          44
+        ]
+      },
+      "total_parameters": 82370,
+      "data_size": 10000,
+      "data_size_label": "10k",
+      "val_size": 10000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 77.01,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.880956,
+        "std_accuracy": 0.09823170518727645,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.69149,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.89471,
+            "precision": 1.0,
+            "recall": 0.89471,
+            "f1": 0.9444294905288937
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.94567,
+            "precision": 1.0,
+            "recall": 0.94567,
+            "f1": 0.9720764569531318
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.96656,
+            "precision": 1.0,
+            "recall": 0.96656,
+            "f1": 0.9829956879017168
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.90635,
+            "precision": 1.0,
+            "recall": 0.90635,
+            "f1": 0.9508747082120282
+          }
+        ]
+      },
+      "mean_accuracy": 0.880956,
+      "final_val_loss": 0.456342082870676,
+      "timestamp": "2025-11-30T22:43:23.107833"
+    },
+    {
+      "model_name": "Largest",
+      "model_config": {
+        "per_vertex_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "per_tetrahedron_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "per_two_tetrahedra_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "shared_layers": [
+          44
+        ]
+      },
+      "total_parameters": 82370,
+      "data_size": 50000,
+      "data_size_label": "50k",
+      "val_size": 10000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 268.1,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.8799999999999999,
+        "std_accuracy": 0.04996570543883076,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.79692,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.89654,
+            "precision": 1.0,
+            "recall": 0.89654,
+            "f1": 0.9454480264059815
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.90806,
+            "precision": 1.0,
+            "recall": 0.90806,
+            "f1": 0.9518149324444725
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.94271,
+            "precision": 1.0,
+            "recall": 0.94271,
+            "f1": 0.9705102665863665
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.85577,
+            "precision": 1.0,
+            "recall": 0.85577,
+            "f1": 0.9222802394693308
+          }
+        ]
+      },
+      "mean_accuracy": 0.8799999999999999,
+      "final_val_loss": 0.43178173847044804,
+      "timestamp": "2025-11-30T22:55:04.615828"
+    },
+    {
+      "model_name": "Largest",
+      "model_config": {
+        "per_vertex_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "per_tetrahedron_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "per_two_tetrahedra_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "shared_layers": [
+          44
+        ]
+      },
+      "total_parameters": 82370,
+      "data_size": 100000,
+      "data_size_label": "100k",
+      "val_size": 10000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 494.16,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.906358,
+        "std_accuracy": 0.05046476529223135,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.82077,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.94017,
+            "precision": 1.0,
+            "recall": 0.94017,
+            "f1": 0.969162496069932
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.9408,
+            "precision": 1.0,
+            "recall": 0.9408,
+            "f1": 0.9694971145919209
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.95329,
+            "precision": 1.0,
+            "recall": 0.95329,
+            "f1": 0.976086500212462
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.87676,
+            "precision": 1.0,
+            "recall": 0.87676,
+            "f1": 0.9343336388243568
+          }
+        ]
+      },
+      "mean_accuracy": 0.906358,
+      "final_val_loss": 0.3574208507175715,
+      "timestamp": "2025-11-30T23:10:29.360572"
+    },
+    {
+      "model_name": "Largest",
+      "model_config": {
+        "per_vertex_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "per_tetrahedron_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "per_two_tetrahedra_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "shared_layers": [
+          44
+        ]
+      },
+      "total_parameters": 82370,
+      "data_size": 500000,
+      "data_size_label": "500k",
+      "val_size": 50000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 2431.17,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.944534,
+        "std_accuracy": 0.0516639602043823,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.84218,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.97759,
+            "precision": 1.0,
+            "recall": 0.97759,
+            "f1": 0.9886680252226194
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.96786,
+            "precision": 1.0,
+            "recall": 0.96786,
+            "f1": 0.9836675373248098
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.9769,
+            "precision": 1.0,
+            "recall": 0.9769,
+            "f1": 0.9883150386969497
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.95814,
+            "precision": 1.0,
+            "recall": 0.95814,
+            "f1": 0.9786225703984394
+          }
+        ]
+      },
+      "mean_accuracy": 0.944534,
+      "final_val_loss": 0.36397858762585195,
+      "timestamp": "2025-11-30T23:59:44.287613"
+    },
+    {
+      "model_name": "Largest",
+      "model_config": {
+        "per_vertex_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "per_tetrahedron_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "per_two_tetrahedra_layers": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "shared_layers": [
+          44
+        ]
+      },
+      "total_parameters": 82370,
+      "data_size": 1000000,
+      "data_size_label": "1M",
+      "val_size": 100000,
+      "batch_size": 2048,
+      "train_epochs": 50,
+      "train_time_seconds": 4858.83,
+      "train_device": "cuda",
+      "evaluation": {
+        "mean_accuracy": 0.958416,
+        "std_accuracy": 0.026611805350257613,
+        "per_dataset": [
+          {
+            "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+            "type": "no_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.90935,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          {
+            "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+            "type": "polyhedron_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.989,
+            "precision": 1.0,
+            "recall": 0.989,
+            "f1": 0.9944695827048768
+          },
+          {
+            "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+            "type": "point_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.96018,
+            "precision": 1.0,
+            "recall": 0.96018,
+            "f1": 0.9796855390831455
+          },
+          {
+            "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+            "type": "segment_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.97203,
+            "precision": 1.0,
+            "recall": 0.97203,
+            "f1": 0.9858166457913926
+          },
+          {
+            "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+            "type": "polygon_intersection",
+            "n_samples": 100000,
+            "accuracy": 0.96152,
+            "precision": 1.0,
+            "recall": 0.96152,
+            "f1": 0.9803825604633142
+          }
+        ]
+      },
+      "mean_accuracy": 0.958416,
+      "final_val_loss": 0.3214544099495994,
+      "timestamp": "2025-12-01T01:51:56.139049"
+    }
+  ]
+}

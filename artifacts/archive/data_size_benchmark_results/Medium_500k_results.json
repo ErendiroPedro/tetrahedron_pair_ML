@@ -1,0 +1,85 @@
+{
+  "model_name": "Medium",
+  "model_config": {
+    "per_vertex_layers": [
+      24,
+      24,
+      24
+    ],
+    "per_tetrahedron_layers": [
+      24,
+      24,
+      24
+    ],
+    "per_two_tetrahedra_layers": [
+      24,
+      24,
+      24
+    ],
+    "shared_layers": [
+      24
+    ]
+  },
+  "total_parameters": 19610,
+  "data_size": 500000,
+  "data_size_label": "500k",
+  "val_size": 50000,
+  "batch_size": 2048,
+  "train_epochs": 50,
+  "train_time_seconds": 964.95,
+  "train_device": "cuda",
+  "evaluation": {
+    "mean_accuracy": 0.9125340000000002,
+    "std_accuracy": 0.04345357228122905,
+    "per_dataset": [
+      {
+        "name": "no_intersection/tetrahedron_pair_no_intersection_p16_s100k.csv",
+        "type": "no_intersection",
+        "n_samples": 100000,
+        "accuracy": 0.84274,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      {
+        "name": "polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+        "type": "polyhedron_intersection",
+        "n_samples": 100000,
+        "accuracy": 0.94239,
+        "precision": 1.0,
+        "recall": 0.94239,
+        "f1": 0.9703406627917153
+      },
+      {
+        "name": "point_intersection/tetrahedron_pair_point_intersection_p16_s100k.csv",
+        "type": "point_intersection",
+        "n_samples": 100000,
+        "accuracy": 0.94394,
+        "precision": 1.0,
+        "recall": 0.94394,
+        "f1": 0.9711616613681492
+      },
+      {
+        "name": "segment_intersection/tetrahedron_pair_segment_intersection_p16_s100k.csv",
+        "type": "segment_intersection",
+        "n_samples": 100000,
+        "accuracy": 0.95324,
+        "precision": 1.0,
+        "recall": 0.95324,
+        "f1": 0.97606028957015
+      },
+      {
+        "name": "polygon_intersection/tetrahedron_pair_polygon_intersection_p16_s100k.csv",
+        "type": "polygon_intersection",
+        "n_samples": 100000,
+        "accuracy": 0.88036,
+        "precision": 1.0,
+        "recall": 0.88036,
+        "f1": 0.9363738858516455
+      }
+    ]
+  },
+  "mean_accuracy": 0.9125340000000002,
+  "final_val_loss": 0.3364392399130719,
+  "timestamp": "2025-11-30T21:41:49.869902"
+}
