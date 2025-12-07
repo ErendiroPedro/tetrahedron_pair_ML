@@ -1,0 +1,75 @@
+{
+  "config_id": 10,
+  "multiplier": 8.0,
+  "layer_config": {
+    "per_vertex_layers": [
+      64,
+      64,
+      64,
+      64
+    ],
+    "per_tetrahedron_layers": [
+      64,
+      64,
+      64,
+      64
+    ],
+    "per_two_tetrahedra_layers": [
+      64,
+      64,
+      64,
+      64
+    ],
+    "shared_layers": [
+      64
+    ]
+  },
+  "total_parameters": 169730,
+  "trainable_parameters": 169730,
+  "model_size_mb": 1.2949,
+  "train_device": "cuda",
+  "inference_device": "cpu",
+  "training": {
+    "epochs": 20,
+    "train_time_seconds": 463.29,
+    "final_val_loss": 0.4131630627076502
+  },
+  "inference_by_batch_size": {
+    "2048": {
+      "batch_size": 2048,
+      "total_time_ms": 22.4422,
+      "std_ms": 1.354,
+      "time_per_sample_ms": 0.010958,
+      "throughput_samples_per_sec": 91256.5
+    },
+    "1024": {
+      "batch_size": 1024,
+      "total_time_ms": 12.1777,
+      "std_ms": 0.5848,
+      "time_per_sample_ms": 0.011892,
+      "throughput_samples_per_sec": 84088.44
+    },
+    "512": {
+      "batch_size": 512,
+      "total_time_ms": 7.6833,
+      "std_ms": 0.2287,
+      "time_per_sample_ms": 0.015006,
+      "throughput_samples_per_sec": 66637.85
+    },
+    "256": {
+      "batch_size": 256,
+      "total_time_ms": 4.7819,
+      "std_ms": 0.1425,
+      "time_per_sample_ms": 0.018679,
+      "throughput_samples_per_sec": 53535.42
+    },
+    "128": {
+      "batch_size": 128,
+      "total_time_ms": 3.4068,
+      "std_ms": 0.1897,
+      "time_per_sample_ms": 0.026616,
+      "throughput_samples_per_sec": 37571.38
+    }
+  },
+  "timestamp": "2025-11-30T17:16:36.646210"
+}
