@@ -161,7 +161,6 @@ class RMSLELoss(nn.Module):
         print(f"   📈 Vol Pred - Range: {pred_range}, Std: {pred_std:.6f}")
         print(f"   📋 Vol Target - Range: {target_range}, Std: {target_std:.6f}")
 
-
 class CombinedLoss(nn.Module):
     def __init__(self, regression_weight=0.5, classification_weight=0.5, 
                  invariance_weight=0.1, epsilon=1e-8, log_interval=100000):
@@ -927,8 +926,10 @@ class CModelTrainer:
         """Main training loop - loads datasets internally"""
         print("🚀 Starting training...")
         
-        # Setup model and training components
-        model = model.double().to(self.device)
+        # Setup model and training components - ensure proper device and dtype
+        # Move to device first, then convert to double to ensure all parameters are properly set
+        model = model.to(self.device)
+        model = model.double()
 
         
         # === TASK AND LOSS FUNCTION SELECTION ===
@@ -953,7 +954,8 @@ class CModelTrainer:
         print(f"   Using {description}")
 
         # === OPTIMIZER AND SCHEDULER SETUP ===
-        optimizer = optim.AdamW(model.parameters(), lr=self.learning_rate, weight_decay=1e-5)
+        # Use foreach=False to avoid PyTorch 2.1 multi-tensor AdamW issues with float64
+        optimizer = optim.AdamW(model.parameters(), lr=self.learning_rate, weight_decay=1e-5, foreach=False)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, factor=0.5, verbose=True)
 
         # Load datasets internally
@@ -1093,7 +1095,7 @@ class CModelTrainer:
         val_loader = torch.utils.data.DataLoader(
             val_dataset, 
             batch_size=self.batch_size, 
-            shuffle=False,
+            shuffle=True,
             num_workers=2,
             pin_memory=True
         )
@@ -1161,9 +1163,10 @@ class CModelTrainer:
         task = self.config.get('task', 'IntersectionStatus_IntersectionVolume')
         
         for batch_idx, (tetrahedron_features, intersection_status, intersection_volume) in enumerate(data_loader):
-            tetrahedron_features = tetrahedron_features.to(self.device)
-            intersection_status = intersection_status.to(self.device)
-            intersection_volume = intersection_volume.to(self.device)
+            # Move to device AND ensure float64 to match model dtype
+            tetrahedron_features = tetrahedron_features.to(device=self.device, dtype=torch.float64)
+            intersection_status = intersection_status.to(device=self.device, dtype=torch.float64)
+            intersection_volume = intersection_volume.to(device=self.device, dtype=torch.float64)
             
             # Prepare targets based on task
             task_config = self.task_configs[task]

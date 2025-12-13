@@ -1,7 +1,0 @@
-{
-  "model_class": "TetrahedronPairNet",
-  "parameter_count": 74882,
-  "trainable_parameters": 74882,
-  "input_dim": 24,
-  "task": "IntersectionStatus_IntersectionVolume"
-}

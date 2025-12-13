@@ -5,6 +5,7 @@
 2. [Pipeline Overview](#pipeline-overview)
 3. [Installation Guide](#installation-guide)
 4. [How To Use](#how-to-use)
+4. [Best Model](#best-model)
 
 # Introduction
 

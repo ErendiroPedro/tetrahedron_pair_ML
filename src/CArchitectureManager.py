@@ -386,44 +386,47 @@ class TetrahedronPairNet(BaseNet):
         
         # Build final feature combination network
         self._build_feature_combiner()
-        
-        # Global residual connection
-        self.global_residual = nn.Linear(self.input_dim, self.per_two_tetrahedra_layers[-1])
     
     def _get_backbone_input_dim(self):
         """Input to shared backbone is the output of TetrahedronPairNet feature extraction"""
         return self.per_two_tetrahedra_layers[-1]
     
     def _build_vertex_processors(self):
-        """Build individual vertex processing networks"""
-        activation = ActivationRegistry.get_activation('relu')  # Use ReLU for vertex processing
+        """Build 8 independent vertex processors (4 per tetrahedron) with residuals"""
+        activation = ActivationRegistry.get_activation('relu')
         
         self.vertex_processors = nn.ModuleList([
             NetworkBuilder.build_mlp_layers([3] + self.per_vertex_layers, activation)
             for _ in range(8)
         ])
         
-        # Residual connections for vertices
+        # Residual connections for dimension matching at vertex level
         self.vertex_residuals = nn.ModuleList([
             nn.Linear(3, self.per_vertex_layers[-1])
             for _ in range(8)
         ])
     
     def _build_tetrahedron_processors(self):
-        """Build post-aggregation tetrahedron processing networks"""
+        """Build networks that process aggregated vertex features for each tetrahedron"""
         self.tetrahedron_processor_1 = NetworkBuilder.build_mlp_layers(
             [self.per_vertex_layers[-1]] + self.per_tetrahedron_layers, self.activation
         )
-        
         self.tetrahedron_processor_2 = NetworkBuilder.build_mlp_layers(
             [self.per_vertex_layers[-1]] + self.per_tetrahedron_layers, self.activation
         )
+        
+        # Residual: original tetrahedron coords [12] → tetrahedron output
+        self.tetrahedron_residual_1 = nn.Linear(12, self.per_tetrahedron_layers[-1])
+        self.tetrahedron_residual_2 = nn.Linear(12, self.per_tetrahedron_layers[-1])
     
     def _build_feature_combiner(self):
-        """Build network for combining tetrahedron features"""
+        """Build network that combines both tetrahedra features after aggregation"""
         self.feature_combiner = NetworkBuilder.build_mlp_layers(
             [self.per_tetrahedron_layers[-1]] + self.per_two_tetrahedra_layers, self.activation
         )
+        
+        # Global residual: raw input → final output (skip all processing)
+        self.global_residual = nn.Linear(self.input_dim, self.per_two_tetrahedra_layers[-1])
     
     def _extract_features(self, x):
         """Extract features using TetrahedronPairNet architecture"""
@@ -433,74 +436,60 @@ class TetrahedronPairNet(BaseNet):
         if input_dim not in [12, 24]:
             raise ValueError(f"Input dimension must be 12 or 24, got {input_dim}")
         
-        # Store original input for residual connection
-        original_input = x.clone()
-        
         # Process first tetrahedron (always present)
         tetrahedron_1_features = self._process_tetrahedron(x[:, :12], 0)
         
         if input_dim == 12:
-            # Single tetrahedron case
             combined_features = tetrahedron_1_features
         else:
             # Two tetrahedra case
             tetrahedron_2_features = self._process_tetrahedron(x[:, 12:24], 4)
             
-            # Aggregate tetrahedron features
+            # Aggregate tetrahedron features (DeepSets: permutation invariance)
             stacked_features = torch.stack([tetrahedron_1_features, tetrahedron_2_features], dim=1)
             aggregated_features = AggregationFunctions.aggregate_tensors(
                 stacked_features, self.tetrahedron_aggregation_method
             )
             
-            # Process combined features
             combined_features = self.feature_combiner(aggregated_features)
         
-        # Add global residual connection
-        residual_features = self.global_residual(original_input)
-        return combined_features + residual_features
+        # Global residual: raw input → final output
+        return combined_features + self.global_residual(x)
     
     def _process_tetrahedron(self, tetrahedron_coords, vertex_offset):
         """
-        Process a single tetrahedron through vertex networks
+        Process a single tetrahedron: vertex MLPs → aggregation → tetrahedron MLP
         
         Args:
-            tetrahedron_coords: Tensor of shape [batch_size, 12] (4 vertices × 3 coords)
-            vertex_offset: Starting index for vertex processors (0 or 4)
-        
-        Returns:
-            Processed tetrahedron features [batch_size, feature_dim]
+            tetrahedron_coords: [batch_size, 12] flattened vertex coordinates
+            vertex_offset: 0 for first tetrahedron, 4 for second
         """
         batch_size = tetrahedron_coords.size(0)
-        
-        # Reshape to [batch_size, 4, 3] for vertex processing
         vertices = tetrahedron_coords.view(batch_size, 4, 3)
         
-        # Process each vertex with its dedicated network and residual
+        # Process each vertex independently with residual connections
         vertex_features = []
         for i in range(4):
             vertex_idx = vertex_offset + i
-            vertex_coords = vertices[:, i, :]  # [batch_size, 3]
+            vertex_coords = vertices[:, i, :]
             
-            # Main processing path
             processed = self.vertex_processors[vertex_idx](vertex_coords)
-            
-            # Residual connection
             residual = self.vertex_residuals[vertex_idx](vertex_coords)
-            
-            # Combine main path and residual
             vertex_features.append(processed + residual)
         
-        # Stack and aggregate vertex features
-        stacked_vertices = torch.stack(vertex_features, dim=1)  # [batch_size, 4, feature_dim]
+        # Aggregate vertices (DeepSets: permutation invariance within tetrahedron)
+        stacked_vertices = torch.stack(vertex_features, dim=1)
         aggregated_vertices = AggregationFunctions.aggregate_tensors(
             stacked_vertices, self.vertex_aggregation_method
         )
         
-        # Process aggregated features through tetrahedron-specific network
+        # Process aggregated features + residual from original tetrahedron coords
         if vertex_offset == 0:
-            return self.tetrahedron_processor_1(aggregated_vertices)
+            return self.tetrahedron_processor_1(aggregated_vertices) + \
+                   self.tetrahedron_residual_1(tetrahedron_coords)
         else:
-            return self.tetrahedron_processor_2(aggregated_vertices)
+            return self.tetrahedron_processor_2(aggregated_vertices) + \
+                   self.tetrahedron_residual_2(tetrahedron_coords)
 
 class SimpleMLP(BaseNet):
     """Simple Multi-Layer Perceptron baseline"""

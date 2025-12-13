@@ -1,4 +1,4 @@
-numpy==1.26.4
+numpy==1.3.0
 pandas==2.1.4
 scikit-learn==1.3.2
 matplotlib==3.8.2
@@ -9,3 +9,8 @@ wheel>=0.41.0
 PyYAML
 torch-geometric==2.3.1
 pymorton==1.0.5
+plotly==5.18.0
+nbformat>=5.7.0
+nbconvert>=7.0.0
+jupyter>=1.0.0
+ipython>=8.0.0

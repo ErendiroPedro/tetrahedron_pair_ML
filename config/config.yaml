@@ -2,42 +2,55 @@ home: &home_path /home/sei/tetrahedron_pair_ML # all other paths are relative to
 
 artifacts_config:
   save_artifacts_to: artifacts 
+  storage_level: "minimal" # minimal, standard, complete
 
 processor_config:
-  skip_processing: false
+  skip_processing: true
+
+  num_train_samples: 2000000
+  num_val_samples: 100000
   
+  precision_mode: "double"
+
+  # Quality filtering configuration
+  # quality_filtering:
+  #   enabled: false
+  #   min_volume_threshold: 1.66667e-12
+  
+  volume_scale_factor: &volume_scale_factor 1.0e+3
+
+  sampling_strategy: log_uniform_volume
+  volume_binning:
+    n_bins: 100
+    volume_range: [1.0e-7, 2.0e-2] # [min_volume, max_volume]
+    # binning_mode: "linear"
+    stratify_within_bins: false
+    max_chunks_without_progress: 100
+
   dataset_paths:
     raw_data: data/raw          
     processed_data: &processed_data_path data/processed
 
-  num_train_samples: 100000
-  num_val_samples: 50000
-
-  volume_scale_factor: &volume_scale_factor 1000
-  skip_quality_filtering: false
-  min_volume_threshold: 0.000000000166667 #1.66666666667e-10
-
-
   intersection_distributions:
-    # Note: Percentages are approximate and should sum to ~100%. 
     no_intersection: 50
     point_intersection: 5
     segment_intersection: 7
     polygon_intersection: 20
     polyhedron_intersection: 18
 
-  volume_range: [0,0.01666666666667] 
-  number_of_bins: 10
-
   augmentations: &augmentations_config
-    point_wise_permutation_augmentation_pct: 0
-    tetrahedron_wise_permutation_augmentation_pct: 0
-    x_sorting:
-      spatial_based: null
-      volume_based: null
-    y_sorting:
-      difficulty_based: null
-  transformations: &transformations_config [principal_axis_transformation] 
+      point_wise_permutation_augmentation_pct: 0  # No permutation augmentation
+      tetrahedron_wise_permutation_augmentation_pct: 0  # No permutation augmentation
+      x_sorting:
+        spatial_based: null
+          #column: "T1_v1_x"
+          #ascending: true
+        volume_based: null
+      y_sorting:
+        difficulty_based: null
+      
+  # Set to empty list to skip all transformations, or specify which ones to apply
+  transformations: &transformations_config [principal_axis] # principal_axis / unitary_tetrahedron
 
 model_config:
   skip_building: false
@@ -48,31 +61,26 @@ model_config:
     use_model: tetrahedronpairnet
     mlp:
       shared_layers: [128]
-      classification_head: [128, 128, 1]
+      classification_head: [128, 128, 1] # [input_dim, hidden_dim, output_dim]
       regression_head: [128, 128, 1]
 
     tetrahedronpairnet:
-      
       # aggregation_function - max, mean, sum, min, hadamard_prod
-     
-      per_vertex_layers: [48, 48, 48]
+      per_vertex_layers: [24, 24]
       vertices_aggregation_function: max
-      per_tetrahedron_layers: [64, 64]
+      per_tetrahedron_layers: [48, 48]
       tetrahedra_aggregation_function: max
-      per_two_tetrahedra_layers: [32]
-      shared_layers: [256]
-      classification_head: [16, 1]
-      regression_head: [16, 1]
-      
+      per_two_tetrahedra_layers: [96, 96]
+      shared_layers: [96]
+      classification_head: [128, 1]
+      regression_head: [128, 1]
 
-  use_model: tetrahedronpairnet
   common_parameters:
     activation_function: relu
-    dropout_rate: 0.1
+    dropout_rate: 0.4
     task: *task_type
     volume_scale_factor: *volume_scale_factor
   
-
 trainer_config:
   skip_training: false
   processed_data_path: data/processed
@@ -81,23 +89,24 @@ trainer_config:
   fine_tune_model_path: /home/sei/tetrahedron_pair_ML/artifacts/id0605203440_tetrahedronpairnet_IntersectionStatus_IntersectionVolume_1000000-train_10000-val_vol-0-0.02_epochs-20_adamw-0.001_distributions-no_intersection-43_point_intersection-3_segment_intersection-5_polygon_intersection-22_polyhedron_intersection-27/model.pt
   fine_tune_on: false
 
-  batch_size: 1024
-  epochs: 20
-  
+  batch_size: 2048
+  epochs: 50
   learning_rate: 0.001
+  balance_ratio: 0.5
   optimizer: adamw # adam, adamw, sgd
-  loss_function: *task_type
+  loss_function: combined # bce, mape, combined (will use 50/50 split of classification and regression loss)
+  task: *task_type
   
-
 evaluator_config:
   skip_evaluation: false
-  model_path: /home/sei/tetrahedron_pair_ML/artifacts/id-20250408-065815_deepset_regression_100000-train_100000-val_vol-0-0.01_epochs-5_adamw-0.001_distributions-polyhedron_intersection-100/model.pt
+  model_path: /home/sei/tetrahedron_pair_ML/artifacts/archive/fine-tunning/id0630_131414_tetrahedronpairnet_IntersectionStatus_IntersectionVolume_2000k-train_100k-val_vol1e-07-0.02_e50/model_artifacts/model.pt
   task: *task_type
   test_data_path: src/evaluator/test_data 
   augmentations: *augmentations_config
   transformations: *transformations_config
   regression_consistency_thresholds:
-    atol: 0.0001
+    atol: 0.001
     rtol: 0.1
-  volume_range: [0, 0.01666666667] # [min_volume, max_volume]
-  evaluation_n_bins: 10
+  volume_range: [0, 0.01] # [min_volume, max_volume]
+  evaluation_n_bins: 4
+  volume_scale_factor: *volume_scale_factor
