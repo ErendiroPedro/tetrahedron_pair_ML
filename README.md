@@ -1,12 +1,5 @@
 # Learning Tetrahedron-Tetrahedron Intersection and Volume with Neural Networks
 
-## Table of Contents
-1. [Introduction](#introduction)
-2. [Pipeline Overview](#pipeline-overview)
-3. [Installation Guide](#installation-guide)
-4. [How To Use](#how-to-use)
-4. [Best Model](#best-model)
-
 # Introduction
 
 ## The Problem
@@ -30,6 +23,40 @@ That's the core idea:
 
 This approach shifts the bottleneck. It trades exactness for speed, while still delivering reliable estimates, especially useful in applications that demand high throughput: physics engines, medical scans, robotics planning.
 
+
+# Installation Guide
+
+## Prerequisites
+
+### Git LFS (Large File Storage)
+
+This repository uses **Git LFS** to store large CSV data files. You must install and initialize Git LFS before cloning or pulling data.
+
+```bash
+# Install Git LFS (Ubuntu/Debian)
+sudo apt install git-lfs
+
+# Initialize Git LFS
+git lfs install
+
+# Pull the actual data files (after cloning)
+git lfs pull
+```
+
+> **Note:** Without Git LFS, data files will appear as small pointer files instead of the actual CSV data.
+
+### Python Environment
+
+```bash
+# Create a virtual environment
+python3 -m venv .tetra-ml
+
+# Activate it
+source .tetra-ml/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
 
 # Pipeline Overview
 
