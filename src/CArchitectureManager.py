@@ -3,604 +3,591 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pandas as pd
 import os
+import logging
 from abc import ABC, abstractmethod
+from typing import Dict, List, Optional, Type, Callable
+from functools import wraps
 
 torch.set_default_dtype(torch.float64)
+logger = logging.getLogger(__name__)
 
 # ============================================================================
-# ACTIVATION FUNCTIONS AND UTILITIES
+# ACTIVATION REGISTRY (Keep - supports custom activations)
 # ============================================================================
 
 class ActivationRegistry:
-    """Central registry for activation functions"""
+    """
+    Centralized registry for activation functions.
+    Supports both built-in and custom activations.
+    """
     
-    ACTIVATION_MAP = {
-        'relu': nn.ReLU,
-        'tanh': nn.Tanh,
-        'leakyrelu': nn.LeakyReLU,
-        'elu': nn.ELU,
-        'gelu': nn.GELU,
-        'swish': nn.SiLU,
-        'mish': nn.Mish
+    _registry: Dict[str, Callable[[], nn.Module]] = {
+        'relu': lambda: nn.ReLU(),
+        'tanh': lambda: nn.Tanh(),
+        'leakyrelu': lambda: nn.LeakyReLU(),
+        'elu': lambda: nn.ELU(),
+        'gelu': lambda: nn.GELU(),
+        'swish': lambda: nn.SiLU(),
+        'mish': lambda: nn.Mish()
     }
     
     @classmethod
-    def get_activation(cls, activation_name):
-        """Get activation function by name"""
-        activation_class = cls.ACTIVATION_MAP.get(activation_name.lower())
-        if not activation_class:
-            raise ValueError(f"Unknown activation function: {activation_name}")
-        return activation_class()
-
-class AggregationFunctions:
-    """Centralized aggregation operations for pooling"""
+    def register(cls, name: str, factory: Callable[[], nn.Module]):
+        """Register a custom activation function"""
+        cls._registry[name.lower()] = factory
     
-    @staticmethod
-    def aggregate_tensors(tensor_stack, method='max'):
-        """
-        Aggregate stacked tensors using specified method
-        
-        Args:
-            tensor_stack: Tensor of shape [batch_size, num_items, features]
-            method: Aggregation method ('max', 'mean', 'sum', 'min', 'hadamard_prod')
-        
-        Returns:
-            Aggregated tensor of shape [batch_size, features]
-        """
-        if method == 'max':
-            result, _ = torch.max(tensor_stack, dim=1)
-        elif method == 'mean':
-            result = torch.mean(tensor_stack, dim=1)
-        elif method == 'sum':
-            result = torch.sum(tensor_stack, dim=1)
-        elif method == 'min':
-            result, _ = torch.min(tensor_stack, dim=1)
-        elif method == 'hadamard_prod':
-            # Use ReLU to handle negative values before product
-            result = torch.prod(F.relu(tensor_stack), dim=1)
-        else:
-            raise ValueError(f"Unknown aggregation method: {method}")
-        
-        return result
+    @classmethod
+    def get(cls, name: str) -> nn.Module:
+        """Get activation instance by name"""
+        factory = cls._registry.get(name.lower())
+        if not factory:
+            available = ', '.join(cls._registry.keys())
+            raise ValueError(f"Unknown activation '{name}'. Available: {available}")
+        return factory()
+
+# ============================================================================
+# AGGREGATION UTILITIES
+# ============================================================================
+
+def aggregate_features(features: torch.Tensor, method: str = 'max') -> torch.Tensor:
+    """
+    Aggregate features along dimension 1.
+    
+    Args:
+        features: [batch_size, num_items, feature_dim]
+        method: 'max', 'mean', 'sum', 'min', or 'hadamard_prod'
+    
+    Returns:
+        Aggregated tensor [batch_size, feature_dim]
+    """
+    aggregators = {
+        'max': lambda x: torch.max(x, dim=1)[0],
+        'mean': lambda x: torch.mean(x, dim=1),
+        'sum': lambda x: torch.sum(x, dim=1),
+        'min': lambda x: torch.min(x, dim=1)[0],
+        'hadamard_prod': lambda x: torch.prod(F.relu(x), dim=1)
+    }
+    
+    if method not in aggregators:
+        available = ', '.join(aggregators.keys())
+        raise ValueError(f"Unknown aggregation '{method}'. Available: {available}")
+    
+    return aggregators[method](features)
 
 # ============================================================================
 # NETWORK BUILDING COMPONENTS
 # ============================================================================
 
 class NetworkBuilder:
-    """Factory for building common network components"""
+    """Factory for constructing common network components"""
     
     @staticmethod
-    def build_mlp_layers(layer_dimensions, activation_fn, dropout_rate=0.0, 
-                        add_final_activation=False, add_final_relu=False):
+    def build_mlp(
+        dims: List[int],
+        activation: nn.Module,
+        dropout: float = 0.0,
+        final_activation: bool = False
+    ) -> nn.Sequential:
         """
-        Build MLP layers with consistent architecture
+        Build a simple MLP.
         
         Args:
-            layer_dimensions: List of layer sizes [input_dim, hidden1, hidden2, ..., output_dim]
-            activation_fn: Activation function instance
-            dropout_rate: Dropout probability
-            add_final_activation: Whether to add activation after final layer
-            add_final_relu: Whether to add ReLU after final layer (for positive outputs)
-        
-        Returns:
-            nn.Sequential: Built MLP layers
+            dims: [input_dim, hidden1, ..., output_dim]
+            activation: Activation function instance
+            dropout: Dropout rate (applied to hidden layers only)
+            final_activation: Whether to apply activation after final layer
         """
-        if len(layer_dimensions) < 2:
+        if len(dims) < 2:
             raise ValueError("Need at least input and output dimensions")
         
         layers = []
-        
-        for i in range(len(layer_dimensions) - 1):
-            layers.append(nn.Linear(layer_dimensions[i], layer_dimensions[i + 1]))
+        for i in range(len(dims) - 1):
+            layers.append(nn.Linear(dims[i], dims[i + 1]))
             
-            is_final_layer = (i == len(layer_dimensions) - 2)
-            
-            # Add activation (except for final layer unless specified)
-            if not is_final_layer or add_final_activation:
-                layers.append(activation_fn)
-            
-            # Add dropout (except for final layer)
-            if dropout_rate > 0.0 and not is_final_layer:
-                layers.append(nn.Dropout(dropout_rate))
-        
-        # Add final ReLU for positive outputs (e.g., volume prediction)
-        if add_final_relu:
-            layers.append(nn.ReLU())
+            is_final = (i == len(dims) - 2)
+            if not is_final or final_activation:
+                layers.append(activation)
+            if dropout > 0.0 and not is_final:
+                layers.append(nn.Dropout(dropout))
         
         return nn.Sequential(*layers)
-
-    @staticmethod
-    def build_task_head(input_dim, head_layers, activation_fn, is_regression=False):
-        """Build task-specific head (classification or regression)"""
-        print(f"   Building task head: input_dim={input_dim}, head_layers={head_layers}, is_regression={is_regression}")
-        
-        if not head_layers:
-            # Direct mapping from input to single output
-            layers = [nn.Linear(input_dim, 1)]
-            print(f"   Created direct mapping: {input_dim} -> 1")
-            return nn.Sequential(*layers)
-        
-        # Check if head_layers already includes final dimension
-        if head_layers[-1] == 1:
-            # Configuration already includes final layer size
-            dimensions = [input_dim] + head_layers
-            print(f"   Config includes final layer: {dimensions}")
-        else:
-            # Configuration doesn't include final layer, add it
-            dimensions = [input_dim] + head_layers + [1]
-            print(f"   Adding final layer: {dimensions}")
-        
-        mlp = NetworkBuilder.build_mlp_layers(
-            dimensions, activation_fn, add_final_relu=False
-        )
-        
-        # Count actual layers
-        linear_count = sum(1 for layer in mlp if isinstance(layer, nn.Linear))
-        print(f"   Created MLP with {linear_count} linear layers")
-        
-        return mlp
-
-# ============================================================================
-# DATA UTILITIES
-# ============================================================================
-
-class DatasetInspector:
-    """Utility for inspecting dataset properties"""
     
     @staticmethod
-    def get_input_dimensions(processed_data_path):
+    def build_task_head(
+        input_dim: int,
+        hidden_dims: List[int],
+        activation: nn.Module
+    ) -> nn.Sequential:
         """
-        Infer input dimensions from training data
+        Build a task head (always outputs single value).
         
         Args:
-            processed_data_path: Path to processed data directory
-            
-        Returns:
-            int: Number of input features
+            input_dim: Input feature dimension
+            hidden_dims: Hidden layer dimensions (output dimension added automatically)
+            activation: Activation function
         """
-        train_data_path = os.path.join(processed_data_path, "train", "train_data.csv")
+        if not hidden_dims:
+            return nn.Sequential(nn.Linear(input_dim, 1))
         
-        if not os.path.exists(train_data_path):
-            raise FileNotFoundError(f"Training data not found at: {train_data_path}")
+        # Add output dimension if not present
+        if hidden_dims[-1] != 1:
+            hidden_dims = hidden_dims + [1]
         
-        try:
-            # Load only a few rows to inspect structure
-            sample_data = pd.read_csv(train_data_path, nrows=5)
-            
-            # Exclude last 2 columns (IntersectionVolume, HasIntersection)
-            feature_columns = sample_data.columns[:-2]
-            input_dim = len(feature_columns)
-            
-            print(f"Dataset inspection: {input_dim} input features detected")
-            return input_dim
-            
-        except Exception as e:
-            raise ValueError(f"Error inspecting dataset: {e}")
+        dims = [input_dim] + hidden_dims
+        return NetworkBuilder.build_mlp(dims, activation, dropout=0.0)
 
 # ============================================================================
-# BASE NETWORK ARCHITECTURE
+# DATASET UTILITIES
+# ============================================================================
+
+def infer_input_dim(data_path: str) -> int:
+    """Infer input dimension from training data"""
+    train_file = os.path.join(data_path, "train", "train_data.csv")
+    if not os.path.exists(train_file):
+        raise FileNotFoundError(f"Training data not found: {train_file}")
+    
+    try:
+        # Read just header
+        df = pd.read_csv(train_file, nrows=0)
+        # Exclude last 2 columns (targets)
+        feature_cols = df.columns[:-2]
+        input_dim = len(feature_cols)
+        logger.info(f"Detected {input_dim} input features from training data")
+        return input_dim
+    except Exception as e:
+        raise ValueError(f"Error inspecting dataset: {e}")
+
+# ============================================================================
+# BASE ARCHITECTURE
 # ============================================================================
 
 class BaseNet(nn.Module, ABC):
-    """Base class for all neural network architectures"""
+    """
+    Base class for all neural network architectures.
     
-    def __init__(self, common_params, mlp_params):
+    Subclasses must implement:
+        - _build_feature_extractor(): Build feature extraction layers
+        - _get_feature_dim(): Return feature extractor output dimension
+    """
+    
+    def __init__(self, config: Dict):
+        """
+        Args:
+            config: Dictionary containing model and architecture parameters.
+        """
         super().__init__()
-        
-        # Core parameters
-        self.input_dim = common_params['input_dim']
-        self.task = common_params['task']
-        self.volume_scale_factor = common_params['volume_scale_factor']
-        self.dropout_rate = common_params.get('dropout_rate', 0.0)
-        
-        # Activation function
-        self.activation = ActivationRegistry.get_activation(common_params['activation'])
-        
-        # Build shared backbone
-        self.shared_layers = self._build_shared_backbone(mlp_params['shared_layers'])
-        
+        self.config = config
+        self.task = config['task']
+        self.volume_scale_factor = config['volume_scale_factor']
+        self.input_dim = config['input_dim']
+        self.activation = ActivationRegistry.get(config['activation'])
+        self.dropout = config.get('dropout_rate', 0.0)
+        # Build feature extractor (architecture-specific)
+        self.feature_extractor = self._build_feature_extractor(config)
+        feature_dim = self._get_feature_dim(config)
         # Build task-specific heads
-        shared_output_dim = mlp_params['shared_layers'][-1] if mlp_params['shared_layers'] else self.input_dim
-        
         self.classification_head = NetworkBuilder.build_task_head(
-            shared_output_dim, mlp_params['classification_head'], 
-            self.activation, is_regression=False
+            feature_dim,
+            config.get('classification_head', []),
+            self.activation
         )
-        
         self.regression_head = NetworkBuilder.build_task_head(
-            shared_output_dim, mlp_params['regression_head'], 
-            self.activation, is_regression=True
+            feature_dim,
+            config.get('regression_head', []),
+            self.activation
         )
-        
-        # Ensure all parameters are float64
         self.to(torch.float64)
-        self.double()
-
-        # Verify conversion worked
+        self._verify_dtype()
+    
+    def _verify_dtype(self):
+        """Verify all parameters are float64"""
         for name, param in self.named_parameters():
             if param.dtype != torch.float64:
-                print(f"Warning: Parameter {name} is {param.dtype}, converting to float64")
+                logger.warning(f"Parameter {name} is {param.dtype}, converting to float64")
                 param.data = param.data.double()
     
-    def _build_shared_backbone(self, shared_layer_sizes):
-        """Build the shared feature extraction backbone"""
-        if not shared_layer_sizes:
-            return nn.Identity()
-        
-        # Get the input dimension for shared layers (depends on architecture)
-        backbone_input_dim = self._get_backbone_input_dim()
-        
-        dimensions = [backbone_input_dim] + shared_layer_sizes
-        return NetworkBuilder.build_mlp_layers(
-            dimensions, self.activation, self.dropout_rate
-        )
-    
     @abstractmethod
-    def _get_backbone_input_dim(self):
-        """Get the input dimension for the shared backbone (architecture-specific)"""
-        pass
-    
-    @abstractmethod
-    def _extract_features(self, x):
-        """Extract architecture-specific features from input"""
-        pass
-
-    def _debug_task_heads(self, shared_features):
-        """Debug task head processing"""
-        print(f"🔍 TASK HEAD DEBUG:")
-        
-        # Check shared features diversity
-        print(f"   Shared features shape: {shared_features.shape}")
-        print(f"   Shared sample 0: {shared_features[0, :3].tolist()}")
-        print(f"   Shared sample 1: {shared_features[1, :3].tolist()}")
-        print(f"   Shared features different: {not torch.allclose(shared_features[0], shared_features[1])}")
-        
-        # Debug classification head step by step
-        print(f"   === CLASSIFICATION HEAD ===")
-        cls_current = shared_features
-        for i, layer in enumerate(self.classification_head):
-            if isinstance(layer, nn.Linear):
-                cls_current = layer(cls_current)
-                print(f"   Cls layer {i}: shape = {cls_current.shape}")
-                
-                # Handle different output sizes
-                if cls_current.shape[1] == 1:  # Final layer (scalar output)
-                    print(f"   Cls layer {i}: sample 0 = {cls_current[0].item():.8f}")
-                    print(f"   Cls layer {i}: sample 1 = {cls_current[1].item():.8f}")
-                else:  # Intermediate layer (vector output)
-                    print(f"   Cls layer {i}: sample 0 = {cls_current[0, :3].tolist()}")
-                    print(f"   Cls layer {i}: sample 1 = {cls_current[1, :3].tolist()}")
-                
-                print(f"   Cls layer {i} different: {not torch.allclose(cls_current[0], cls_current[1])}")
-                
-                if torch.allclose(cls_current[0], cls_current[1]):
-                    print(f"   🚨 CLASSIFICATION LAYER {i} IS MAKING OUTPUTS IDENTICAL!")
-                    print(f"   Layer {i} weight std: {layer.weight.std():.8f}")
-                    if layer.bias is not None:
-                        print(f"   Layer {i} bias std: {layer.bias.std():.8f}")
-                    return False
-            elif hasattr(layer, 'forward'):  # Activation
-                cls_current = layer(cls_current)
-        
-        # Debug regression head step by step
-        print(f"   === REGRESSION HEAD ===")
-        reg_current = shared_features
-        for i, layer in enumerate(self.regression_head):
-            if isinstance(layer, nn.Linear):
-                reg_current = layer(reg_current)
-                print(f"   Reg layer {i}: shape = {reg_current.shape}")
-                
-                # Handle different output sizes
-                if reg_current.shape[1] == 1:  # Final layer (scalar output)
-                    print(f"   Reg layer {i}: sample 0 = {reg_current[0].item():.8f}")
-                    print(f"   Reg layer {i}: sample 1 = {reg_current[1].item():.8f}")
-                else:  # Intermediate layer (vector output)
-                    print(f"   Reg layer {i}: sample 0 = {reg_current[0, :3].tolist()}")
-                    print(f"   Reg layer {i}: sample 1 = {reg_current[1, :3].tolist()}")
-                
-                print(f"   Reg layer {i} different: {not torch.allclose(reg_current[0], reg_current[1])}")
-                
-                if torch.allclose(reg_current[0], reg_current[1]):
-                    print(f"   🚨 REGRESSION LAYER {i} IS MAKING OUTPUTS IDENTICAL!")
-                    print(f"   Layer {i} weight std: {layer.weight.std():.8f}")
-                    if layer.bias is not None:
-                        print(f"   Layer {i} bias std: {layer.bias.std():.8f}")
-                    return False
-            elif hasattr(layer, 'forward'):  # Activation
-                reg_current = layer(reg_current)
-        
-        return True
-
-    def forward(self, x):
-        """Standard forward pass for all architectures"""
-    
-        features = self._extract_features(x)
-        shared_features = self.shared_layers(features)
-
-        # # Debug task heads
-        # if not self._debug_task_heads(shared_features):
-        #     raise RuntimeError("Task heads are broken!")
-        
-        
-        # Route to appropriate task heads
-        if self.task == 'IntersectionStatus_IntersectionVolume':
-            intersection_status_logits = self.classification_head(shared_features)
-            regression_raw = self.regression_head(shared_features)
-            regression_output = torch.relu(regression_raw)
-            return torch.cat([intersection_status_logits, regression_output], dim=1)
-        
-        elif self.task == 'IntersectionStatus':
-            return self.classification_head(shared_features)
-        
-        elif self.task == 'IntersectionVolume':
-            return torch.relu(self.regression_head(shared_features))
-        
-        else:
-            raise ValueError(f"Unknown task type: {self.task}")
-    
-    def predict(self, x):
-        """Generate predictions with appropriate post-processing"""
-        self.eval()
-        with torch.no_grad():
-            raw_output = self(x)
-            
-            if self.task == 'IntersectionStatus':
-                return (raw_output > 0.5).int().squeeze() # model outputs logits
-            
-            elif self.task == 'IntersectionVolume':
-                return raw_output.squeeze() / self.volume_scale_factor
-            
-            elif self.task == 'IntersectionStatus_IntersectionVolume':
-                classification_pred = (raw_output[:, 0:1] > 0.5).int().squeeze() # model outputs logits
-                regression_pred = raw_output[:, 1:2].squeeze() / self.volume_scale_factor
-                return torch.stack([classification_pred.double(), regression_pred.double()], dim=1)
-            
-            else:
-                raise ValueError(f"Unknown task for prediction: {self.task}")
-
-# ============================================================================
-# SPECIFIC ARCHITECTURES
-# ============================================================================
-
-class TetrahedronPairNet(BaseNet):
-    """Specialized architecture for processing tetrahedron pairs"""
-    
-    def __init__(self, common_params, mlp_params, architecture_config):
-        # Extract architecture-specific parameters
-        self.per_vertex_layers = architecture_config.get("per_vertex_layers", [12, 12])
-        self.per_tetrahedron_layers = architecture_config.get("per_tetrahedron_layers", [12, 12])
-        self.per_two_tetrahedra_layers = architecture_config.get("per_two_tetrahedra_layers", [12, 12])
-        
-        self.vertex_aggregation_method = architecture_config.get("vertices_aggregation_function", "max")
-        self.tetrahedron_aggregation_method = architecture_config.get("tetrahedra_aggregation_function", "max")
-        
-        # Initialize base class
-        super().__init__(common_params, mlp_params)
-        
-        # Build vertex processing networks (8 vertices total)
-        self._build_vertex_processors()
-        
-        # Build tetrahedron processing networks
-        self._build_tetrahedron_processors()
-        
-        # Build final feature combination network
-        self._build_feature_combiner()
-    
-    def _get_backbone_input_dim(self):
-        """Input to shared backbone is the output of TetrahedronPairNet feature extraction"""
-        return self.per_two_tetrahedra_layers[-1]
-    
-    def _build_vertex_processors(self):
-        """Build 8 independent vertex processors (4 per tetrahedron) with residuals"""
-        activation = ActivationRegistry.get_activation('relu')
-        
-        self.vertex_processors = nn.ModuleList([
-            NetworkBuilder.build_mlp_layers([3] + self.per_vertex_layers, activation)
-            for _ in range(8)
-        ])
-        
-        # Residual connections for dimension matching at vertex level
-        self.vertex_residuals = nn.ModuleList([
-            nn.Linear(3, self.per_vertex_layers[-1])
-            for _ in range(8)
-        ])
-    
-    def _build_tetrahedron_processors(self):
-        """Build networks that process aggregated vertex features for each tetrahedron"""
-        self.tetrahedron_processor_1 = NetworkBuilder.build_mlp_layers(
-            [self.per_vertex_layers[-1]] + self.per_tetrahedron_layers, self.activation
-        )
-        self.tetrahedron_processor_2 = NetworkBuilder.build_mlp_layers(
-            [self.per_vertex_layers[-1]] + self.per_tetrahedron_layers, self.activation
-        )
-        
-        # Residual: original tetrahedron coords [12] → tetrahedron output
-        self.tetrahedron_residual_1 = nn.Linear(12, self.per_tetrahedron_layers[-1])
-        self.tetrahedron_residual_2 = nn.Linear(12, self.per_tetrahedron_layers[-1])
-    
-    def _build_feature_combiner(self):
-        """Build network that combines both tetrahedra features after aggregation"""
-        self.feature_combiner = NetworkBuilder.build_mlp_layers(
-            [self.per_tetrahedron_layers[-1]] + self.per_two_tetrahedra_layers, self.activation
-        )
-        
-        # Global residual: raw input → final output (skip all processing)
-        self.global_residual = nn.Linear(self.input_dim, self.per_two_tetrahedra_layers[-1])
-    
-    def _extract_features(self, x):
-        """Extract features using TetrahedronPairNet architecture"""
-        batch_size = x.size(0)
-        input_dim = x.size(1)
-        
-        if input_dim not in [12, 24]:
-            raise ValueError(f"Input dimension must be 12 or 24, got {input_dim}")
-        
-        # Process first tetrahedron (always present)
-        tetrahedron_1_features = self._process_tetrahedron(x[:, :12], 0)
-        
-        if input_dim == 12:
-            combined_features = tetrahedron_1_features
-        else:
-            # Two tetrahedra case
-            tetrahedron_2_features = self._process_tetrahedron(x[:, 12:24], 4)
-            
-            # Aggregate tetrahedron features (DeepSets: permutation invariance)
-            stacked_features = torch.stack([tetrahedron_1_features, tetrahedron_2_features], dim=1)
-            aggregated_features = AggregationFunctions.aggregate_tensors(
-                stacked_features, self.tetrahedron_aggregation_method
-            )
-            
-            combined_features = self.feature_combiner(aggregated_features)
-        
-        # Global residual: raw input → final output
-        return combined_features + self.global_residual(x)
-    
-    def _process_tetrahedron(self, tetrahedron_coords, vertex_offset):
+    def _build_feature_extractor(self, config: Dict) -> nn.Module:
         """
-        Process a single tetrahedron: vertex MLPs → aggregation → tetrahedron MLP
+        Build the feature extraction network.
+        Args:
+            config: Full configuration dictionary
+        Returns:
+            Feature extraction module (can be nn.Sequential, nn.ModuleDict, etc.)
+        """
+        pass
+    
+    @abstractmethod
+    def _get_feature_dim(self, config: Dict) -> int:
+        """
+        Get the output dimension of the feature extractor.
         
         Args:
-            tetrahedron_coords: [batch_size, 12] flattened vertex coordinates
-            vertex_offset: 0 for first tetrahedron, 4 for second
+            config: Full configuration dictionary
+        
+        Returns:
+            Feature dimension
         """
-        batch_size = tetrahedron_coords.size(0)
-        vertices = tetrahedron_coords.view(batch_size, 4, 3)
+        pass
+    
+    def extract_features(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Extract features from input.
+        Default implementation assumes feature_extractor is callable.
+        Override if you need custom logic.
+        """
+        return self.feature_extractor(x)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass - handles task routing"""
+        features = self.extract_features(x)
         
-        # Process each vertex independently with residual connections
-        vertex_features = []
-        for i in range(4):
-            vertex_idx = vertex_offset + i
-            vertex_coords = vertices[:, i, :]
-            
-            processed = self.vertex_processors[vertex_idx](vertex_coords)
-            residual = self.vertex_residuals[vertex_idx](vertex_coords)
-            vertex_features.append(processed + residual)
+        if self.task == 'IntersectionStatus':
+            return self.classification_head(features)
         
-        # Aggregate vertices (DeepSets: permutation invariance within tetrahedron)
-        stacked_vertices = torch.stack(vertex_features, dim=1)
-        aggregated_vertices = AggregationFunctions.aggregate_tensors(
-            stacked_vertices, self.vertex_aggregation_method
-        )
+        elif self.task == 'IntersectionVolume':
+            volume = self.regression_head(features)
+            return F.relu(volume)  # Ensure positive
         
-        # Process aggregated features + residual from original tetrahedron coords
-        if vertex_offset == 0:
-            return self.tetrahedron_processor_1(aggregated_vertices) + \
-                   self.tetrahedron_residual_1(tetrahedron_coords)
+        elif self.task == 'IntersectionStatus_IntersectionVolume':
+            has_intersection = self.classification_head(features)
+            volume = F.relu(self.regression_head(features))
+            return torch.cat([has_intersection, volume], dim=1)
+        
         else:
-            return self.tetrahedron_processor_2(aggregated_vertices) + \
-                   self.tetrahedron_residual_2(tetrahedron_coords)
-
-class SimpleMLP(BaseNet):
-    """Simple Multi-Layer Perceptron baseline"""
+            raise ValueError(f"Unknown task: {self.task}")
     
-    def __init__(self, common_params, mlp_params, architecture_config=None):
-        super().__init__(common_params, mlp_params)
-    
-    def _get_backbone_input_dim(self):
-        """For MLP, backbone input is the raw input dimension"""
-        return self.input_dim
-    
-    def _extract_features(self, x):
-        """For MLP, no feature extraction - pass through input directly"""
-        return x
+    def predict(self, x: torch.Tensor) -> torch.Tensor:
+        """Generate predictions with post-processing"""
+        self.eval()
+        with torch.no_grad():
+            output = self(x)
+            
+            if self.task == 'IntersectionStatus':
+                return (output > 0.5).int().squeeze()
+            
+            elif self.task == 'IntersectionVolume':
+                return output.squeeze() / self.volume_scale_factor
+            
+            elif self.task == 'IntersectionStatus_IntersectionVolume':
+                has_intersection = (output[:, 0] > 0.5).int()
+                volume = output[:, 1] / self.volume_scale_factor
+                return torch.stack([has_intersection.double(), volume], dim=1)
 
 # ============================================================================
-# ARCHITECTURE MANAGER
+# CONCRETE ARCHITECTURES
+# ============================================================================
+
+class SimpleMLP(BaseNet):
+    """Simple feedforward baseline"""
+    
+    def _build_feature_extractor(self, config: Dict) -> nn.Module:
+        shared_layers = config.get('shared_layers', [])
+        if not shared_layers:
+            return nn.Identity()
+        dims = [config['input_dim']] + shared_layers
+        return NetworkBuilder.build_mlp(dims, self.activation, self.dropout)
+    
+    def _get_feature_dim(self, config: Dict) -> int:
+        shared_layers = config.get('shared_layers', [])
+        return shared_layers[-1] if shared_layers else config['input_dim']
+
+
+class TetrahedronPairNet(BaseNet):
+    """
+    Hierarchical architecture for tetrahedron pair processing.
+    Implements permutation invariance via DeepSets-style aggregation.
+    """
+    
+    def _build_feature_extractor(self, config: Dict) -> nn.Module:
+        # Extract architecture-specific params
+        vertex_layers = config.get('per_vertex_layers', [12, 12])
+        tet_layers = config.get('per_tetrahedron_layers', [12, 12])
+        pair_layers = config.get('per_two_tetrahedra_layers', [12, 12])
+        # Store aggregation methods
+        self.vertex_agg = config.get('vertices_aggregation_function', 'max')
+        self.tet_agg = config.get('tetrahedra_aggregation_function', 'max')
+        # Store dimensions
+        self.vertex_dim = vertex_layers[-1]
+        self.tet_dim = tet_layers[-1]
+        self.pair_dim = pair_layers[-1]
+        # Build vertex processors (8 = 4 vertices × 2 tetrahedra)
+        self.vertex_nets = nn.ModuleList([
+            NetworkBuilder.build_mlp([3] + vertex_layers, nn.ReLU(), self.dropout)
+            for _ in range(8)
+        ])
+        self.vertex_shortcuts = nn.ModuleList([
+            nn.Linear(3, self.vertex_dim) for _ in range(8)
+        ])
+        # Build tetrahedron processors
+        self.tet_net_1 = NetworkBuilder.build_mlp([self.vertex_dim] + tet_layers, self.activation, self.dropout)
+        self.tet_net_2 = NetworkBuilder.build_mlp([self.vertex_dim] + tet_layers, self.activation, self.dropout)
+        self.tet_shortcut_1 = nn.Linear(12, self.tet_dim)
+        self.tet_shortcut_2 = nn.Linear(12, self.tet_dim)
+        # Build pair processor
+        pair_net = NetworkBuilder.build_mlp([self.tet_dim] + pair_layers, self.activation, self.dropout)
+        global_shortcut = nn.Linear(config['input_dim'], self.pair_dim)
+        # Return as ModuleDict for clarity
+        return nn.ModuleDict({
+            'pair_net': pair_net,
+            'global_shortcut': global_shortcut
+        })
+    
+    def _get_feature_dim(self, config: Dict) -> int:
+        pair_layers = config.get('per_two_tetrahedra_layers', [12, 12])
+        return pair_layers[-1]
+    
+    def extract_features(self, x: torch.Tensor) -> torch.Tensor:
+        """Hierarchical feature extraction with residual connections"""
+        if x.size(1) not in [12, 24]:
+            raise ValueError(f"Input must be 12 or 24 dims, got {x.size(1)}")
+        
+        # Process first tetrahedron
+        tet1_features = self._process_tetrahedron(x[:, :12], tet_idx=0)
+        
+        if x.size(1) == 12:
+            # Single tetrahedron
+            combined = self.feature_extractor['pair_net'](tet1_features)
+        else:
+            # Two tetrahedra - aggregate then process
+            tet2_features = self._process_tetrahedron(x[:, 12:24], tet_idx=1)
+            stacked = torch.stack([tet1_features, tet2_features], dim=1)
+            aggregated = aggregate_features(stacked, self.tet_agg)
+            combined = self.feature_extractor['pair_net'](aggregated)
+        
+        # Global residual connection
+        return combined + self.feature_extractor['global_shortcut'](x)
+    
+    def _process_tetrahedron(self, coords: torch.Tensor, tet_idx: int) -> torch.Tensor:
+        """
+        Process a single tetrahedron.
+        
+        Args:
+            coords: [batch, 12] - flattened (x,y,z) for 4 vertices
+            tet_idx: 0 or 1 (which tetrahedron)
+        """
+        batch_size = coords.size(0)
+        vertices = coords.view(batch_size, 4, 3)
+        
+        # Process each vertex with residual
+        vertex_features = []
+        offset = tet_idx * 4
+        for i in range(4):
+            v = vertices[:, i, :]
+            processed = self.vertex_nets[offset + i](v)
+            shortcut = self.vertex_shortcuts[offset + i](v)
+            vertex_features.append(processed + shortcut)
+        
+        # Aggregate vertices (permutation invariance)
+        stacked = torch.stack(vertex_features, dim=1)
+        aggregated = aggregate_features(stacked, self.vertex_agg)
+        
+        # Process tetrahedron with residual
+        if tet_idx == 0:
+            return self.tet_net_1(aggregated) + self.tet_shortcut_1(coords)
+        else:
+            return self.tet_net_2(aggregated) + self.tet_shortcut_2(coords)
+
+# ============================================================================
+# ARCHITECTURE REGISTRY
+# ============================================================================
+
+class ArchitectureRegistry:
+    """
+    Central registry for architecture classes.
+    Supports registration via decorator for easy extensibility.
+    """
+    
+    _registry: Dict[str, Type[BaseNet]] = {}
+    
+    @classmethod
+    def register(cls, name: str):
+        """
+        Decorator to register a new architecture.
+        
+        Usage:
+            @ArchitectureRegistry.register('my_model')
+            class MyModel(BaseNet):
+                ...
+        """
+        def decorator(model_class: Type[BaseNet]):
+            cls._registry[name.lower()] = model_class
+            logger.debug(f"Registered architecture: {name}")
+            return model_class
+        return decorator
+    
+    @classmethod
+    def get(cls, name: str) -> Type[BaseNet]:
+        """Get architecture class by name"""
+        model_class = cls._registry.get(name.lower())
+        if not model_class:
+            available = ', '.join(cls._registry.keys())
+            raise ValueError(f"Unknown architecture '{name}'. Available: {available}")
+        return model_class
+    
+    @classmethod
+    def list_available(cls) -> List[str]:
+        """List all registered architectures"""
+        return list(cls._registry.keys())
+
+
+# Register built-in architectures
+ArchitectureRegistry.register('mlp')(SimpleMLP)
+ArchitectureRegistry.register('tetrahedronpairnet')(TetrahedronPairNet)
+
+# ============================================================================
+# ARCHITECTURE MANAGER (Pipeline Interface)
 # ============================================================================
 
 class CArchitectureManager:
-    """Main manager for neural network architectures"""
+    """
+    High-level manager for model creation within ML pipelines.
+    Provides a stable interface for model instantiation and metadata access.
+    """
     
-    def __init__(self, config):
-        self.config = config
-        
-        # Registry of available architectures
-        self.architecture_registry = {
-            'tetrahedronpairnet': TetrahedronPairNet,
-            'mlp': SimpleMLP,
-        }
-    
-    def get_model(self):
+    def __init__(self, config: Dict):
         """
-        Create and return the configured model
+        Initialize the architecture manager.
+        
+        Args:
+            config: Configuration dictionary with structure:
+                {
+                    'architecture': {
+                        'use_model': 'mlp',
+                        'mlp': { ... },
+                        'tetrahedronpairnet': { ... }
+                    },
+                    'common_parameters': {
+                        'task': 'IntersectionStatus_IntersectionVolume',
+                        'activation_function': 'relu',
+                        'volume_scale_factor': 1000.0,
+                        'dropout_rate': 0.1
+                    },
+                    'processed_data_path': '/path/to/data'
+                }
+        """
+        self.config = config
+        self._model_config = None  # Cached model config
+        self._input_dim = None     # Cached input dimension
+    
+    def get_model(self) -> BaseNet:
+        """
+        Create and return a new model instance.
         
         Returns:
-            nn.Module: Configured neural network model
+            Fresh model instance (randomly initialized)
         """
-        # Get architecture configuration
-        architecture_name = self.config['architecture']['use_model'].lower()
-        architecture_config = self.config['architecture'].get(architecture_name, {})
-        
-        # Validate architecture exists
-        if architecture_name not in self.architecture_registry:
-            available = list(self.architecture_registry.keys())
-            raise ValueError(f"Unknown architecture '{architecture_name}'. Available: {available}")
-        
-        # Prepare common parameters
-        common_params = self._build_common_parameters()
-        
-        # Prepare MLP parameters
-        mlp_params = self._extract_mlp_parameters(architecture_config)
+        model_config = self._get_model_config()
+        arch_name = self.config['architecture']['use_model'].lower()
         
         # Create model
-        model_class = self.architecture_registry[architecture_name]
-        model = model_class(common_params, mlp_params, architecture_config)
+        model_class = ArchitectureRegistry.get(arch_name)
+        model = model_class(model_config)
         
-        # Ensure float64 precision
-        model = model.double()
-        for param in model.parameters():
-            if param.dtype != torch.float64:
-                param.data = param.data.double()
-        
-            
-        # Log model information
+        # Log creation
         total_params = sum(p.numel() for p in model.parameters())
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        
-        print(f"Created {architecture_name} model:")
-        print(f"  Total parameters: {total_params:,}")
-        print(f"  Trainable parameters: {trainable_params:,}")
-        print(f"  Input dimension: {common_params['input_dim']}")
-        print(f"  Task: {common_params['task']}")
-        print(f"  Precision: float64")
+        logger.info(
+            f"Created {arch_name}: {total_params:,} params "
+            f"({trainable_params:,} trainable), "
+            f"input_dim={model_config['input_dim']}, "
+            f"task={model_config['task']}"
+        )
         
         return model
     
-    def _build_common_parameters(self):
-        """Build common parameters used by all architectures"""
-        input_dim = DatasetInspector.get_input_dimensions(
-            self.config.get('processed_data_path')
-        )
+    def _get_model_config(self) -> Dict:
+        """
+        Build the unified model configuration.
+        Caches the result to avoid repeated file I/O.
+        """
+        if self._model_config is not None:
+            return self._model_config
+        
+        # Extract architecture config
+        arch_config = self.config['architecture']
+        arch_name = arch_config['use_model'].lower()
+        arch_specific_config = arch_config.get(arch_name, {})
+        
+        # Build unified config
+        common_params = self.config['common_parameters']
+        self._model_config = {
+            'input_dim': self.get_input_dim(),
+            'task': common_params['task'],
+            'activation': common_params['activation_function'],
+            'volume_scale_factor': common_params['volume_scale_factor'],
+            'dropout_rate': common_params.get('dropout_rate', 0.0),
+            **arch_specific_config  # Merge architecture-specific params
+        }
+        
+        return self._model_config
+    
+    def get_input_dim(self) -> int:
+        """Get the input dimension (cached after first call)"""
+        if self._input_dim is None:
+            self._input_dim = infer_input_dim(self.config['processed_data_path'])
+        return self._input_dim
+    
+    def get_architecture_name(self) -> str:
+        """Get the name of the configured architecture"""
+        return self.config['architecture']['use_model'].lower()
+    
+    def get_task(self) -> str:
+        """Get the task type"""
+        return self.config['common_parameters']['task']
+    
+    def list_available_architectures(self) -> List[str]:
+        """List all available architectures"""
+        return ArchitectureRegistry.list_available()
+    
+    def get_model_info(self) -> Dict:
+        """
+        Get metadata about the configured model.
+        Useful for logging and validation without instantiating the model.
+        """
+        model_config = self._get_model_config()
+        arch_name = self.get_architecture_name()
         
         return {
-            'input_dim': input_dim,
-            'activation': self.config['common_parameters']['activation_function'],
-            'task': self.config['common_parameters']['task'],
-            'volume_scale_factor': self.config['common_parameters']['volume_scale_factor'],
-            'dropout_rate': self.config['common_parameters'].get('dropout_rate', 0.0)
+            'architecture': arch_name,
+            'task': model_config['task'],
+            'input_dim': model_config['input_dim'],
+            'activation': model_config['activation'],
+            'volume_scale_factor': model_config['volume_scale_factor'],
+            'dropout_rate': model_config['dropout_rate']
         }
+
+
+# ============================================================================
+# STANDALONE FACTORY (for direct use)
+# ============================================================================
+
+def create_model(config: Dict) -> BaseNet:
+    """
+    Standalone factory function for creating models.
+    For pipeline use, prefer ArchitectureManager.
     
-    def _extract_mlp_parameters(self, architecture_config):
-        """Extract MLP-related parameters from architecture config"""
-        return {
-            'shared_layers': architecture_config.get('shared_layers', []),
-            'classification_head': architecture_config.get('classification_head', []),
-            'regression_head': architecture_config.get('regression_head', [])
-        }
+    Args:
+        config: Configuration dictionary (same structure as ArchitectureManager)
     
-    def list_available_architectures(self):
-        """Get list of available architectures"""
-        return list(self.architecture_registry.keys())
-    
-    def get_architecture_info(self, architecture_name):
-        """Get information about a specific architecture"""
-        if architecture_name not in self.architecture_registry:
-            return None
-        
-        model_class = self.architecture_registry[architecture_name]
-        return {
-            'name': architecture_name,
-            'class': model_class.__name__,
-            'docstring': model_class.__doc__
-        }
+    Returns:
+        Instantiated model (float64 precision)
+    """
+    manager = CArchitectureManager(config)
+    return manager.get_model()
+
+
+# ============================================================================
+# EXAMPLE: Adding a custom architecture
+# ============================================================================
+
+# Researchers can add new models without modifying core code:
+#
+# @ArchitectureRegistry.register('graph_net')
+# class GraphNet(BaseNet):
+#     def _build_feature_extractor(self, config, dropout):
+#         # Custom implementation
+#         pass
+#     
+#     def _get_feature_dim(self, config):
+#         return config.get('graph_output_dim', 64)
