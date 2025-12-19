@@ -585,7 +585,7 @@ def create_model(config: Dict) -> BaseNet:
 #
 # @ArchitectureRegistry.register('graph_net')
 # class GraphNet(BaseNet):
-#     def _build_feature_extractor(self, config, dropout):
+#     def _build_feature_extractor(self, config):
 #         # Custom implementation
 #         pass
 #     
