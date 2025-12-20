@@ -2,20 +2,12 @@ home: &home_path /home/sei/repos/tetrahedron_pair_ML # all other paths are relat
 
 artifacts_config:
   save_artifacts_to: artifacts 
-  storage_level: "minimal" # minimal, standard, complete
 
 processor_config:
   skip_processing: false
 
   num_train_samples: 2000000
   num_val_samples: 100000
-  
-  precision_mode: "double"
-
-  # Quality filtering configuration
-  # quality_filtering:
-  #   enabled: false
-  #   min_volume_threshold: 1.66667e-12
   
   volume_scale_factor: &volume_scale_factor 1.0e+3
 

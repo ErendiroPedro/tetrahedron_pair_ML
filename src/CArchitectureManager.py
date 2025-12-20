@@ -12,7 +12,7 @@ torch.set_default_dtype(torch.float64)
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# ACTIVATION REGISTRY (Keep - supports custom activations)
+# ACTIVATION REGISTRY
 # ============================================================================
 
 class ActivationRegistry:
