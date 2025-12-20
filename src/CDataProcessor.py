@@ -139,38 +139,6 @@ class DataTypeNormalizer:
             return pd.DataFrame()
         return df
 
-class GeometricValidator:
-    def apply_quality_filters(self, df, min_volume_threshold):
-        if df.empty:
-            return df
-        
-        coordinate_columns = df.columns[:-2]
-        coord_data = df[coordinate_columns].values
-        
-        finite_mask = np.isfinite(coord_data).all(axis=1)
-        reasonable_range = 1e6
-        range_mask = (np.abs(coord_data) < reasonable_range).all(axis=1)
-        valid_coords_mask = finite_mask & range_mask
-        
-        volume_mask = np.ones(len(df), dtype=bool)
-        
-        if 'HasIntersection' in df.columns and 'IntersectionVolume' in df.columns:
-            has_intersection = df['HasIntersection'] == 1
-            volume_values = df['IntersectionVolume'].values
-            
-            volume_valid = np.where(
-                has_intersection,
-                (volume_values == 0) | (volume_values >= min_volume_threshold),
-                True
-            )
-            
-            max_reasonable_volume = 1.0
-            volume_range_valid = volume_values <= max_reasonable_volume
-            volume_mask = volume_valid & volume_range_valid
-        
-        final_mask = valid_coords_mask & volume_mask
-        return df[final_mask].copy()
-
 # ============================================================================
 # 3. DISTRIBUTION STRATEGY LAYER
 # ============================================================================
@@ -179,88 +147,6 @@ class SamplingStrategy(ABC):
     @abstractmethod
     def sample(self, source_file, intersection_type, train_target, val_target, temp_dir):
         pass
-
-class RegularSampler(SamplingStrategy):
-    def __init__(self, file_processor, normalizer):
-        self.file_processor = file_processor
-        self.normalizer = normalizer
-    
-    def sample(self, source_file, intersection_type, train_target, val_target, temp_dir):
-        total_available = self.file_processor.count_samples_in_file(source_file)
-        
-        if total_available == 0:
-            return None, None, 0, 0
-        
-        total_needed = train_target + val_target
-        if total_needed > total_available:
-            scale_factor = total_available / total_needed
-            train_target = int(train_target * scale_factor)
-            val_target = int(val_target * scale_factor)
-            print(f"  Scaled down to {train_target} train + {val_target} val samples")
-        
-        train_file = os.path.join(temp_dir, f"{intersection_type}_train.csv")
-        val_file = os.path.join(temp_dir, f"{intersection_type}_val.csv")
-        
-        train_collected, val_collected = self._stream_sample_file(
-            source_file, train_file, val_file, train_target, val_target
-        )
-        
-        return (train_file if train_collected > 0 else None,
-                val_file if val_collected > 0 else None,
-                train_collected, val_collected)
-    
-    def _stream_sample_file(self, source_file, train_file, val_file, train_target, val_target):
-        chunk_size = 10_000
-        train_collected = 0
-        val_collected = 0
-        first_train_chunk = True
-        first_val_chunk = True
-        
-        for chunk_df in pd.read_csv(source_file, chunksize=chunk_size):
-            if train_collected >= train_target and val_collected >= val_target:
-                break
-            
-            # Apply scaling here during sampling
-            chunk_df = self.normalizer.normalize_data_types_with_scaling(chunk_df)
-            chunk_df = chunk_df.sample(frac=1, random_state=42).reset_index(drop=True)
-            
-            if train_collected < train_target:
-                train_needed = min(train_target - train_collected, len(chunk_df))
-                train_chunk = chunk_df.iloc[:train_needed].copy()
-                train_chunk = self._clean_sample_data(train_chunk)
-                
-                train_chunk.to_csv(train_file, mode='a', header=first_train_chunk, index=False,
-                                float_format='%.17g')
-                first_train_chunk = False
-                train_collected += len(train_chunk)
-                
-                remaining_chunk = chunk_df.iloc[train_needed:].copy()
-            else:
-                remaining_chunk = chunk_df.copy()
-            
-            if val_collected < val_target and len(remaining_chunk) > 0:
-                val_needed = min(val_target - val_collected, len(remaining_chunk))
-                val_chunk = remaining_chunk.iloc[:val_needed].copy()
-                val_chunk = self._clean_sample_data(val_chunk)
-                
-                val_chunk.to_csv(val_file, mode='a', header=first_val_chunk, index=False,
-                                float_format='%.17g')
-                first_val_chunk = False
-                val_collected += len(val_chunk)
-            
-            del chunk_df
-            gc.collect()
-        
-        return train_collected, val_collected
-    
-    def _clean_sample_data(self, df):
-        if df.empty:
-            return df
-        
-        df = df.copy()
-        df = df.dropna(how='all')
-        df = df.fillna(0)
-        return df
 
 class UniformVolumeSampler(SamplingStrategy):
     def __init__(self, config, normalizer, file_processor):
@@ -946,52 +832,6 @@ class LogUniformVolumeSampler(SamplingStrategy):
         print(f"        Saved {len(all_samples)} log-uniform samples to {os.path.basename(output_file)}")
         return len(all_samples)
 
-class VolumeAnalyzer:
-    def analyze_volume_distribution_raw(self, source_file):
-        """Analyze volume distribution from RAW unprocessed data"""
-        chunk_size = 10_000
-        volumes = []
-        
-        try:
-            for chunk_df in pd.read_csv(source_file, chunksize=chunk_size):
-                if 'HasIntersection' not in chunk_df.columns or 'IntersectionVolume' not in chunk_df.columns:
-                    continue
-                
-                # Filter for intersecting samples with raw volumes
-                intersecting_mask = chunk_df['HasIntersection'] == 1
-                volume_mask = chunk_df['IntersectionVolume'] > 0
-                valid_mask = intersecting_mask & volume_mask
-                
-                if valid_mask.sum() == 0:
-                    continue
-                
-                # Get RAW volumes (no scaling applied)
-                raw_volumes = chunk_df.loc[valid_mask, 'IntersectionVolume'].values
-                volumes.extend(raw_volumes)
-                
-                del chunk_df
-                gc.collect()
-        
-        except Exception as e:
-            print(f"  Error analyzing raw volume distribution: {e}")
-            return None
-        
-        if len(volumes) == 0:
-            return None
-        
-        volumes = np.array(volumes)
-        vol_min = volumes.min()
-        vol_max = volumes.max()
-        
-        print(f"  RAW volume statistics (no scaling applied):")
-        print(f"    Min: {vol_min:.8e}")
-        print(f"    Max: {vol_max:.8e}")
-        print(f"    Median: {np.median(volumes):.8e}")
-        print(f"    95th percentile: {np.percentile(volumes, 95):.8e}")
-        print(f"    Total intersecting samples: {len(volumes)}")
-        
-        return vol_min, vol_max, len(volumes)
-
 class HybridVolumeSampler(SamplingStrategy):
     def __init__(self, config, normalizer, file_processor):
         # Don't call super().__init__() since SamplingStrategy is an ABC
@@ -1245,7 +1085,7 @@ class SamplingStrategySelector:
     
     def get_strategy(self, intersection_type):
         if intersection_type == "polyhedron_intersection":
-            sampling_strategy = self.config.get("sampling_strategy", "uniform_volume")
+            sampling_strategy = self.config.get("sampling_strategy", "log_uniform_volume")
             
             if sampling_strategy == "log_uniform_volume":
                 return LogUniformVolumeSampler(self.config, self.normalizer, self.file_processor)
@@ -1845,7 +1685,6 @@ class CDataProcessor:
         self.file_scanner = FileSystemScanner(self.config["dataset_paths"]["raw_data"])
         self.data_inventory = DataInventory(self.file_processor)
         self.normalizer = DataTypeNormalizer(self.config)
-        self.validator = GeometricValidator()
         self.strategy_selector = SamplingStrategySelector(self.config, self.file_processor, self.normalizer)
         self.reporter = DistributionReporter(self.file_processor, self.normalizer)
         self.output_coordinator = OutputCoordinator(self.file_processor, self.reporter)
@@ -2440,3 +2279,5 @@ class CDataProcessor:
     @staticmethod
     def transform_data(data: pd.DataFrame, config) -> pd.DataFrame:
         return TransformationEngine.transform_data(data, config)
+
+        
