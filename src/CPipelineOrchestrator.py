@@ -148,7 +148,7 @@ class CPipelineOrchestrator:
 
     def _evaluate_model_step(self):
         model = self.state.get("trained_model") or self.state.get("model")
-        report = self.evaluator.evaluate_model(model, self.state.get("training_metrics"))
+        report = self.evaluator.evaluate(model, self.state.get("training_metrics"))
         self.artifacts_manager.save_artifacts(evaluation_report=report)
 
     def _handle_failure(self, e):

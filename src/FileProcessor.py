@@ -24,66 +24,7 @@ class FileProcessor:
         return total
 
     @staticmethod
-    def _validate_and_clean_chunk(chunk_df, expected_columns):
-        """Validate and clean a chunk of data with float64 precision."""
-        if chunk_df.empty:
-            return chunk_df
-        
-        try:
-            # Fix: expected_columns can be either int or list
-            if isinstance(expected_columns, list):
-                expected_count = len(expected_columns)
-                expected_names = expected_columns
-            else:
-                expected_count = expected_columns
-                expected_names = None
-            
-            actual_count = len(chunk_df.columns)
-            
-            if actual_count != expected_count:
-                print(f"        Column mismatch: expected {expected_count}, got {actual_count}")
-                # If we have extra columns, keep only the first expected_count
-                if actual_count > expected_count:
-                    chunk_df = chunk_df.iloc[:, :expected_count]
-                    print(f"        Trimmed to first {expected_count} columns")
-                else:
-                    print(f"        WARNING: Missing columns, keeping {actual_count} columns")
-            
-            # Basic data cleaning
-            chunk_df = chunk_df.dropna(how='all')
-            
-            # Convert data types properly - using float64 for maximum precision
-            coordinate_columns = chunk_df.columns[:-2]  # All except last 2 columns
-            
-            # Convert coordinate columns to float64
-            for col in coordinate_columns:
-                chunk_df[col] = pd.to_numeric(chunk_df[col], errors='coerce').astype('float64')  # Changed to float64
-            
-            # Convert volume column to float64
-            if len(chunk_df.columns) >= 2:
-                volume_col = chunk_df.columns[-2]  # Second to last column
-                chunk_df[volume_col] = pd.to_numeric(chunk_df[volume_col], errors='coerce').astype('float64')  # Changed to float64
-            
-            # Convert label column to int32
-            if len(chunk_df.columns) >= 1:
-                label_col = chunk_df.columns[-1]  # Last column
-                chunk_df[label_col] = pd.to_numeric(chunk_df[label_col], errors='coerce').astype('int32')
-            
-            # Fill any remaining NaN values
-            chunk_df = chunk_df.fillna(0)
-            
-            # Remove any rows that became completely invalid
-            chunk_df = chunk_df.dropna(how='all')
-            
-            return chunk_df
-            
-        except Exception as e:
-            print(f"        Error validating chunk: {e}")
-            return pd.DataFrame()
-
-    @staticmethod
     def combine_files_streaming(source_files, output_file, chunk_size=50_000):
-        """Combine multiple files with streaming and maximum float64 precision."""
         expected_samples = FileProcessor.count_samples_in_files(source_files)
         
         # Ensure output directory exists
@@ -237,3 +178,55 @@ class FileProcessor:
         except Exception as e:
             print(f"Error counting samples in {file_path}: {e}")
             return 0
+
+    @staticmethod
+    def _validate_and_clean_chunk(chunk_df, expected_columns):
+        """Validate and clean a chunk of data with float64 precision."""
+        if chunk_df.empty:
+            return chunk_df
+        
+        try:
+            if isinstance(expected_columns, list):
+                expected_count = len(expected_columns)
+                expected_names = expected_columns
+            else:
+                expected_count = expected_columns
+                expected_names = None
+            
+            actual_count = len(chunk_df.columns)
+            
+            if actual_count != expected_count:
+                print(f"        Column mismatch: expected {expected_count}, got {actual_count}")
+                # If we have extra columns, keep only the first expected_count
+                if actual_count > expected_count:
+                    chunk_df = chunk_df.iloc[:, :expected_count]
+                    print(f"        Trimmed to first {expected_count} columns")
+                else:
+                    print(f"        WARNING: Missing columns, keeping {actual_count} columns")
+            
+            # Basic data cleaning
+            chunk_df = chunk_df.dropna(how='all')
+            
+            # Convert data types properly
+            coordinate_columns = chunk_df.columns[:-2]  # All except last 2 columns
+            
+            # Convert coordinate columns to float64
+            for col in coordinate_columns:
+                chunk_df[col] = pd.to_numeric(chunk_df[col], errors='coerce').astype('float64')
+            
+            # Convert volume column to float64
+            if len(chunk_df.columns) >= 2:
+                volume_col = chunk_df.columns[-2]  # Second to last column
+                chunk_df[volume_col] = pd.to_numeric(chunk_df[volume_col], errors='coerce').astype('float64')
+            
+            # Convert label column to int32
+            if len(chunk_df.columns) >= 1:
+                label_col = chunk_df.columns[-1]  # Last column
+                chunk_df[label_col] = pd.to_numeric(chunk_df[label_col], errors='coerce').astype('int32')
+            
+            
+            return chunk_df
+            
+        except Exception as e:
+            print(f"        Error validating chunk: {e}")
+            return pd.DataFrame()

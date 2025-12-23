@@ -1437,7 +1437,6 @@ class AugmentationEngine:
         
         return data
 
-
 class TransformationEngine:
 
     @staticmethod
@@ -1770,26 +1769,6 @@ class CDataProcessor:
         self.strategy_selector = SamplingStrategySelector(self.config, self.file_processor, self.normalizer)
         self.reporter = DistributionReporter(self.file_processor, self.normalizer)
         self.output_coordinator = OutputCoordinator(self.file_processor, self.reporter)
-        
-        self._validate_config()
-    
-    def _validate_config(self):
-        min_volume_threshold = self.config.get("min_volume_threshold", 1e-8)
-        
-        if isinstance(min_volume_threshold, str):
-            try:
-                min_volume_threshold = float(min_volume_threshold)
-                self.config["min_volume_threshold"] = min_volume_threshold
-            except ValueError:
-                raise ValueError(f"min_volume_threshold must be a valid number, got '{min_volume_threshold}'")
-        else:
-            min_volume_threshold = float(min_volume_threshold)
-            self.config["min_volume_threshold"] = min_volume_threshold
-        
-        if min_volume_threshold <= 0:
-            raise ValueError(f"min_volume_threshold must be positive, got {min_volume_threshold}")
-        if min_volume_threshold > 0.2:
-            print(f"Warning: min_volume_threshold {min_volume_threshold} is very large")
     
     def process(self):
         print("-- Processing Data --")

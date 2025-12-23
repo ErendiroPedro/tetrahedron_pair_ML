@@ -25,20 +25,8 @@ class CEvaluator:
     def __init__(self, evaluator_config, processor_config, device=None):
         self.config = evaluator_config
         self.processor_config = processor_config
+        self.device = torch.device(self.config['device'])
         
-        if device is None:
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        elif isinstance(device, dict):
-            device_str = device.get('type', 'cpu')
-            if 'index' in device and device['index'] is not None:
-                device_str += f":{device['index']}"
-            self.device = torch.device(device_str)
-        elif isinstance(device, str):
-            self.device = torch.device(device)
-        elif isinstance(device, torch.device):
-            self.device = device
-        else:
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
         print(f"-- Evaluator using: {self.device} (float32) --")
         
@@ -89,9 +77,6 @@ class CEvaluator:
             config_copy['augmentations'] = augmentations
         return config_copy
 
-    def evaluate_model(self, model, datasets=None):
-        return self.evaluate(model, datasets)
-
     def evaluate(self, model, training_metrics=None):
         try:
             if isinstance(model, dict):
@@ -117,7 +102,6 @@ class CEvaluator:
                 'model_info': model_info,
                 'task_type': self.task_type,
                 'device': str(self.device),
-                'model_precision': 'float32',
                 'n_evaluation_runs': self.n_evaluation_runs,
                 'dataset_reports': {}
             }
