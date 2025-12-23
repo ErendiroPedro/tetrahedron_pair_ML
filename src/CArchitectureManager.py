@@ -155,6 +155,7 @@ class NetworkBuilder:
                 layers.append(activation)
             if dropout > 0.0 and not is_final:
                 layers.append(nn.Dropout(dropout))
+          
         
         return nn.Sequential(*layers)
     
@@ -347,27 +348,28 @@ class TetrahedronPairNet(BaseNet):
     
     def _build_feature_extractor(self, config: Dict) -> nn.Module:
         # Extract architecture-specific params
-        vertex_layers = config.get('per_vertex_layers', [12, 12])
-        tet_layers = config.get('per_tetrahedron_layers', [12, 12])
-        pair_layers = config.get('per_two_tetrahedra_layers', [12, 12])
+        vertex_layers = config['per_vertex_layers']
+        tet_layers = config['per_tetrahedron_layers']
+        pair_layers = config['per_two_tetrahedra_layers']
+
         # Store aggregation methods
-        self.vertex_agg = config.get('vertices_aggregation_function', 'max')
-        self.tet_agg = config.get('tetrahedra_aggregation_function', 'max')
+        self.vertex_agg = config['vertices_aggregation_function']
+        self.tet_agg = config['tetrahedra_aggregation_function']
+
         # Store dimensions
         self.vertex_dim = vertex_layers[-1]
         self.tet_dim = tet_layers[-1]
         self.pair_dim = pair_layers[-1]
+
         # Build vertex processors (8 = 4 vertices × 2 tetrahedra)
-        self.vertex_nets = nn.ModuleList([
-            NetworkBuilder.build_mlp([3] + vertex_layers, nn.ReLU(), self.dropout)
-            for _ in range(8)
-        ])
+        self.vertex_net = NetworkBuilder.build_mlp([3] + vertex_layers, nn.ReLU(), self.dropout)
+
         self.vertex_shortcuts = nn.ModuleList([
             nn.Linear(3, self.vertex_dim) for _ in range(8)
         ])
+
         # Build tetrahedron processors
-        self.tet_net_1 = NetworkBuilder.build_mlp([self.vertex_dim] + tet_layers, self.activation, self.dropout)
-        self.tet_net_2 = NetworkBuilder.build_mlp([self.vertex_dim] + tet_layers, self.activation, self.dropout)
+        self.tet_net = NetworkBuilder.build_mlp([self.vertex_dim] + tet_layers, self.activation, self.dropout)
         self.tet_shortcut_1 = nn.Linear(12, self.tet_dim)
         self.tet_shortcut_2 = nn.Linear(12, self.tet_dim)
         # Build pair processor
@@ -420,7 +422,7 @@ class TetrahedronPairNet(BaseNet):
         offset = tet_idx * 4
         for i in range(4):
             v = vertices[:, i, :]
-            processed = self.vertex_nets[offset + i](v)
+            processed = self.vertex_net(v)
             shortcut = self.vertex_shortcuts[offset + i](v)
             vertex_features.append(processed + shortcut)
         
@@ -428,11 +430,11 @@ class TetrahedronPairNet(BaseNet):
         stacked = torch.stack(vertex_features, dim=1)
         aggregated = aggregate_features(stacked, self.vertex_agg)
         
-        # Process tetrahedron with residual
         if tet_idx == 0:
-            return self.tet_net_1(aggregated) + self.tet_shortcut_1(coords)
+            return self.tet_net(aggregated) + self.tet_shortcut_1(coords)
         else:
-            return self.tet_net_2(aggregated) + self.tet_shortcut_2(coords)
+            return self.tet_net(aggregated) + self.tet_shortcut_2(coords)
+
 
 # ============================================================================
 # ARCHITECTURE REGISTRY
