@@ -139,38 +139,6 @@ class DataTypeNormalizer:
             return pd.DataFrame()
         return df
 
-class GeometricValidator:
-    def apply_quality_filters(self, df, min_volume_threshold):
-        if df.empty:
-            return df
-        
-        coordinate_columns = df.columns[:-2]
-        coord_data = df[coordinate_columns].values
-        
-        finite_mask = np.isfinite(coord_data).all(axis=1)
-        reasonable_range = 1e6
-        range_mask = (np.abs(coord_data) < reasonable_range).all(axis=1)
-        valid_coords_mask = finite_mask & range_mask
-        
-        volume_mask = np.ones(len(df), dtype=bool)
-        
-        if 'HasIntersection' in df.columns and 'IntersectionVolume' in df.columns:
-            has_intersection = df['HasIntersection'] == 1
-            volume_values = df['IntersectionVolume'].values
-            
-            volume_valid = np.where(
-                has_intersection,
-                (volume_values == 0) | (volume_values >= min_volume_threshold),
-                True
-            )
-            
-            max_reasonable_volume = 1.0
-            volume_range_valid = volume_values <= max_reasonable_volume
-            volume_mask = volume_valid & volume_range_valid
-        
-        final_mask = valid_coords_mask & volume_mask
-        return df[final_mask].copy()
-
 # ============================================================================
 # 3. DISTRIBUTION STRATEGY LAYER
 # ============================================================================
@@ -946,52 +914,6 @@ class LogUniformVolumeSampler(SamplingStrategy):
         print(f"        Saved {len(all_samples)} log-uniform samples to {os.path.basename(output_file)}")
         return len(all_samples)
 
-class VolumeAnalyzer:
-    def analyze_volume_distribution_raw(self, source_file):
-        """Analyze volume distribution from RAW unprocessed data"""
-        chunk_size = 10_000
-        volumes = []
-        
-        try:
-            for chunk_df in pd.read_csv(source_file, chunksize=chunk_size):
-                if 'HasIntersection' not in chunk_df.columns or 'IntersectionVolume' not in chunk_df.columns:
-                    continue
-                
-                # Filter for intersecting samples with raw volumes
-                intersecting_mask = chunk_df['HasIntersection'] == 1
-                volume_mask = chunk_df['IntersectionVolume'] > 0
-                valid_mask = intersecting_mask & volume_mask
-                
-                if valid_mask.sum() == 0:
-                    continue
-                
-                # Get RAW volumes (no scaling applied)
-                raw_volumes = chunk_df.loc[valid_mask, 'IntersectionVolume'].values
-                volumes.extend(raw_volumes)
-                
-                del chunk_df
-                gc.collect()
-        
-        except Exception as e:
-            print(f"  Error analyzing raw volume distribution: {e}")
-            return None
-        
-        if len(volumes) == 0:
-            return None
-        
-        volumes = np.array(volumes)
-        vol_min = volumes.min()
-        vol_max = volumes.max()
-        
-        print(f"  RAW volume statistics (no scaling applied):")
-        print(f"    Min: {vol_min:.8e}")
-        print(f"    Max: {vol_max:.8e}")
-        print(f"    Median: {np.median(volumes):.8e}")
-        print(f"    95th percentile: {np.percentile(volumes, 95):.8e}")
-        print(f"    Total intersecting samples: {len(volumes)}")
-        
-        return vol_min, vol_max, len(volumes)
-
 class HybridVolumeSampler(SamplingStrategy):
     def __init__(self, config, normalizer, file_processor):
         # Don't call super().__init__() since SamplingStrategy is an ABC
@@ -1245,7 +1167,7 @@ class SamplingStrategySelector:
     
     def get_strategy(self, intersection_type):
         if intersection_type == "polyhedron_intersection":
-            sampling_strategy = self.config.get("sampling_strategy", "uniform_volume")
+            sampling_strategy = self.config.get("sampling_strategy", "log_uniform_volume")
             
             if sampling_strategy == "log_uniform_volume":
                 return LogUniformVolumeSampler(self.config, self.normalizer, self.file_processor)
@@ -1845,7 +1767,6 @@ class CDataProcessor:
         self.file_scanner = FileSystemScanner(self.config["dataset_paths"]["raw_data"])
         self.data_inventory = DataInventory(self.file_processor)
         self.normalizer = DataTypeNormalizer(self.config)
-        self.validator = GeometricValidator()
         self.strategy_selector = SamplingStrategySelector(self.config, self.file_processor, self.normalizer)
         self.reporter = DistributionReporter(self.file_processor, self.normalizer)
         self.output_coordinator = OutputCoordinator(self.file_processor, self.reporter)

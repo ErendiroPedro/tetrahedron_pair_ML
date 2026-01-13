@@ -1,21 +1,13 @@
-home: &home_path /home/sei/tetrahedron_pair_ML # all other paths are relative to home
+home: &home_path /home/sei/repos/tetrahedron_pair_ML # all other paths are relative to home
 
 artifacts_config:
   save_artifacts_to: artifacts 
-  storage_level: "minimal" # minimal, standard, complete
 
 processor_config:
-  skip_processing: true
+  skip_processing: false
 
   num_train_samples: 2000000
   num_val_samples: 100000
-  
-  precision_mode: "double"
-
-  # Quality filtering configuration
-  # quality_filtering:
-  #   enabled: false
-  #   min_volume_threshold: 1.66667e-12
   
   volume_scale_factor: &volume_scale_factor 1.0e+3
 
@@ -71,7 +63,7 @@ model_config:
       per_tetrahedron_layers: [48, 48]
       tetrahedra_aggregation_function: max
       per_two_tetrahedra_layers: [96, 96]
-      shared_layers: [96]
+      shared_layers: [128]
       classification_head: [128, 1]
       regression_head: [128, 1]
 
@@ -89,7 +81,7 @@ trainer_config:
   fine_tune_model_path: /home/sei/tetrahedron_pair_ML/artifacts/id0605203440_tetrahedronpairnet_IntersectionStatus_IntersectionVolume_1000000-train_10000-val_vol-0-0.02_epochs-20_adamw-0.001_distributions-no_intersection-43_point_intersection-3_segment_intersection-5_polygon_intersection-22_polyhedron_intersection-27/model.pt
   fine_tune_on: false
 
-  batch_size: 2048
+  batch_size: 128
   epochs: 50
   learning_rate: 0.001
   balance_ratio: 0.5
