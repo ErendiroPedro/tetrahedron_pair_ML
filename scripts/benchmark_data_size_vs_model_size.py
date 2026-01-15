@@ -12,7 +12,8 @@ import sys
 import os
 
 # Add project root to Python path
-project_root = os.path.dirname(os.path.abspath(__file__))
+# Since this script is in scripts/, go up one level to reach project root
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 src_path = os.path.join(project_root, 'src')
@@ -54,12 +55,12 @@ def get_model_configs():
         {
             'name': 'Smallest',
             'multiplier': 1.5,
-            'per_vertex_layers': [12, 12],
-            'per_tetrahedron_layers': [12, 12],
-            'per_two_tetrahedra_layers': [12, 12],
-            'shared_layers': [12],
-            'classification_head': [12, 1],
-            'regression_head': [12, 1],
+            'per_vertex_layers': [6, 6],
+            'per_tetrahedron_layers': [6, 6],
+            'per_two_tetrahedra_layers': [6, 6],
+            'shared_layers': [6],
+            'classification_head': [6, 1],
+            'regression_head': [6, 1],
             'vertices_aggregation_function': 'max',
             'tetrahedra_aggregation_function': 'max',
         },
@@ -78,12 +79,12 @@ def get_model_configs():
         {
             'name': 'Largest',
             'multiplier': 5.5,
-            'per_vertex_layers': [44, 44, 44, 44],
-            'per_tetrahedron_layers': [44, 44, 44, 44],
-            'per_two_tetrahedra_layers': [44, 44, 44, 44],
-            'shared_layers': [44],
-            'classification_head': [44, 1],
-            'regression_head': [44, 1],
+            'per_vertex_layers': [96, 96, 96],
+            'per_tetrahedron_layers': [96, 96, 96],
+            'per_two_tetrahedra_layers': [96, 96, 96],
+            'shared_layers': [96],
+            'classification_head': [96, 1],
+            'regression_head': [96, 1],
             'vertices_aggregation_function': 'max',
             'tetrahedra_aggregation_function': 'max',
         },
@@ -205,18 +206,16 @@ def create_training_data(base_config_path, num_train_samples, num_val_samples, o
     with open(base_config_path, 'r') as f:
         base_config = yaml.safe_load(f)
     
-    home = base_config.get('home')
-    
     # Create processor config
     processor_config = base_config['processor_config'].copy()
     processor_config['num_train_samples'] = num_train_samples
     processor_config['num_val_samples'] = num_val_samples
     processor_config['skip_processing'] = False
     
-    # Set paths
+    # Set paths - use project_root instead of home from config
     raw_data_path = processor_config['dataset_paths']['raw_data']
     if not os.path.isabs(raw_data_path):
-        raw_data_path = os.path.join(home, raw_data_path)
+        raw_data_path = os.path.join(project_root, raw_data_path)
     processor_config['dataset_paths']['raw_data'] = raw_data_path
     processor_config['dataset_paths']['processed_data'] = output_dir
     
@@ -261,7 +260,8 @@ def train_model(model_config, processed_data_path, base_config_path, device):
         'batch_size': BATCH_SIZE,
         'learning_rate': 1e-3,
         'early_stopping_patience': 10,
-        'loss_function': 'default'
+        'loss_function': 'default',
+        'device': device  # Add device to config
     }
     
     # Create model
@@ -273,7 +273,7 @@ def train_model(model_config, processed_data_path, base_config_path, device):
     print(f"    Model parameters: {total_params:,}")
     
     # Train model
-    trainer = CModelTrainer(trainer_config, device=device)
+    trainer = CModelTrainer(trainer_config)
     trained_model, report, training_metrics, loss_curve = trainer.train_and_validate(model)
     
     return trained_model, total_params, training_metrics
@@ -380,8 +380,8 @@ def main():
     print("TetrahedronPairNet: Data Size vs Model Size Accuracy Benchmark")
     print("="*70)
     
-    # Setup paths
-    base_dir = Path('/home/sei/tetrahedron_pair_ML')
+    # Setup paths - use project_root instead of hardcoding
+    base_dir = Path(project_root)
     base_config_path = base_dir / 'config' / 'config.yaml'
     results_dir = base_dir / 'artifacts' / 'data_size_benchmark_results'
     test_data_path = base_dir / 'src' / 'evaluator' / 'test_data'
