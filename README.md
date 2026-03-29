@@ -1,16 +1,16 @@
 # Learning Tetrahedron-Tetrahedron Intersection and Volume with Neural Networks
 
-# Introduction
+## Introduction
 
-## The Problem
+### The Problem
 
 Picture a sword slicing through water in a video game. Or a drone navigating debris. Or a medical simulation tracking tissue deformation.
 
 These moments all rely on a silent operation: **did these two 3D shapes intersect, and by how much?**
 
-To answer that, we often break complex shapes down into **tetrahedrons**. They’re the atomic unit of 3D geometry—simple, rigid, and expressive. Whether you're simulating physics, running FEM analyses, or building collision systems, it often comes down to tetrahedron-tetrahedron interaction. It sounds trivial, but the geometry isn't forgiving. Tetrahedron-tetrahedron intersection is an edge case minefield—six faces, four points, endless configurations. The computation is clean in theory, but slow and branching in practice.
+To answer that, we often break complex shapes down into **tetrahedrons**. They’re the atomic unit of 3D geometry: simple, rigid, and expressive. Whether you're simulating physics, running FEM analyses, or building collision systems, it often comes down to tetrahedron-tetrahedron interaction.
 
-Now scale that to millions of pairs per frame.
+It sounds trivial, but the geometry isn't forgiving. Eight vertices, twelve edges, eight faces, and I don't know how many combinatorial contact configurations. With exact geometric predicates, you can get a correct answer, but the algorithms are deeply branching, full of `if/else` cases, harder to parallelize. Now scale that to millions/billions of pairs per frame. For systems that must run in real time, classic predicates quickly become a bottleneck.
 
 ## Enter Machine Learning
 
