@@ -103,10 +103,13 @@ def load_test_datasets(test_data_path):
     """Load all test datasets for evaluation."""
     dataset_folders = [
         'no_intersection', 
-        'polyhedron_intersection',
-        'point_intersection', 
-        'segment_intersection', 
-        'polygon_intersection'
+        'volumetric',
+        'vertex_face', 
+        'edge_face', 
+        'face_face',
+        'vertex_vertex',
+        'vertex_edge',
+        'edge_edge'
     ]
     
     datasets = []

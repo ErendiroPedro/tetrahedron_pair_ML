@@ -4,13 +4,12 @@ import torch
 import traceback
 import pandas as pd
 from typing import Dict
-from src.CDataProcessor import CDataProcessor
+from src.data_processor import CDataProcessor
 from src.CArchitectureManager import CArchitectureManager, ModelUtility
 from src.CModelTrainer import CModelTrainer
 from src.CArtifactsManager import CArtifactsManager
 from src.evaluator.CEvaluator import CEvaluator
 
-# --- HELPER UTILITIES ---
 
 class ConfigResolver:
     """Handles recursive path resolution based on a 'home' directory."""
@@ -47,38 +46,39 @@ class CPipelineOrchestrator:
         self._current_step = "init"
 
     def run(self):
-        """Orchestrates the pipeline using a clean step-based approach."""
+        """Orchestrates the pipeline using an explicit state machine."""
         print(f"\n=== Starting Pipeline Experiment ===")
+
+        steps = [
+            ('processing', self._process_data_step, lambda: not self.config['processor_config'].get('skip_processing', True)),
+            ('building', self._build_model_step, lambda: not self.config['model_config'].get('skip_building', True)),
+            ('model_acquisition', self._acquire_model_step, lambda: True),
+            ('evaluation', self._evaluate_model_step, lambda: not self.config['evaluator_config'].get('skip_evaluation', False)),
+        ]
+
         try:
-            # Step 1: Processing
-            if not self.config['processor_config'].get('skip_processing', True):
-                self._run_step('processing', self._process_data_step)
-            
-            # Step 2: Architecture
-            if not self.config['model_config'].get('skip_building', True):
-                self._run_step('building', self._build_model_step)
+            for step_name, step_func, step_condition in steps:
+                if not step_condition():
+                    print(f"---- Skipping {step_name.replace('_', ' ').title()} ----")
+                    continue
 
-            # Step 3: Training / Loading Logic
-            self._run_step('model_acquisition', self._acquire_model_step)
-
-            # Step 4: Evaluation
-            if not self.config['evaluator_config'].get('skip_evaluation', False):
-                self._run_step('evaluation', self._evaluate_model_step)
+                self._current_step = step_name
+                print(f"---- Starting {step_name.replace('_', ' ').title()} ----")
+                step_func()
+                print(f"---- {step_name.replace('_', ' ').title()} Complete ----")
 
             print(f"\n=== Pipeline Complete ===\nArtifacts: {self.artifacts_manager.artifacts_path}")
 
         except Exception as e:
             self._handle_failure(e)
 
-    def _run_step(self, name, func):
-        self._current_step = name
-        func()
-        print(f"---- {name.replace('_', ' ').title()} Complete ----")
-
     def _process_data_step(self):
         results = self.data_processor.process()
         self.state["processing_results"] = results
-        self.artifacts_manager.save_artifacts(data_processing_results=results)
+        if results is not None:
+            self.artifacts_manager.save_artifacts(data_processing_results=results)
+        else:
+            print("Warning: Data processor returned None results; skipping artifact save for processing results")
 
     def _build_model_step(self):
         model = self.architecture_manager.get_model()

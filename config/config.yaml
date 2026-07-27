@@ -6,8 +6,8 @@ artifacts_config:
 processor_config:
   skip_processing: false
 
-  num_train_samples: 2000000
-  num_val_samples: 100000
+  num_train_samples: 50000
+  num_val_samples: 50000
   
   volume_scale_factor: &volume_scale_factor 1.0e+3
 
@@ -24,25 +24,26 @@ processor_config:
     processed_data: &processed_data_path data/processed
 
   intersection_distributions:
-    no_intersection: 50
-    point_intersection: 5
-    segment_intersection: 7
-    polygon_intersection: 20
-    polyhedron_intersection: 18
+    no_intersection: 70
+    vertex_vertex: 4
+    vertex_edge: 5
+    vertex_face: 7
+    edge_edge: 5
+    edge_face: 4
+    face_face: 3
+    volumetric: 2
 
   augmentations: &augmentations_config
       point_wise_permutation_augmentation_pct: 0  # No permutation augmentation
       tetrahedron_wise_permutation_augmentation_pct: 0  # No permutation augmentation
       x_sorting:
         spatial_based: null
-          #column: "T1_v1_x"
-          #ascending: true
         volume_based: null
       y_sorting:
         difficulty_based: null
       
   # Set to empty list to skip all transformations, or specify which ones to apply
-  transformations: &transformations_config [principal_axis] # principal_axis / unitary_tetrahedron
+  transformations: &transformations_config [] # principal_axis / unitary_tetrahedron
 
 model_config:
   skip_building: false
@@ -58,31 +59,32 @@ model_config:
 
     tetrahedronpairnet:
       # aggregation_function - max, mean, sum, min, hadamard_prod
-      per_vertex_layers: [24, 24]
+      per_vertex_layers: [12, 12]
       vertices_aggregation_function: max
-      per_tetrahedron_layers: [48, 48]
+      per_tetrahedron_layers: [12, 12]
       tetrahedra_aggregation_function: max
-      per_two_tetrahedra_layers: [96, 96]
-      shared_layers: [128]
-      classification_head: [128, 1]
-      regression_head: [128, 1]
+      per_two_tetrahedra_layers: [12,12]
+      shared_layers: [12]
+      classification_head: [12, 1]
+      regression_head: [12, 1]
 
   common_parameters:
     activation_function: relu
-    dropout_rate: 0.4
+    dropout_rate: 0.0
     task: *task_type
     volume_scale_factor: *volume_scale_factor
   
 trainer_config:
   skip_training: false
   processed_data_path: data/processed
+  device: cuda
   
   fine_tune_data_path: /home/sei/tetrahedron_pair_ML/data/raw/scenes/scene1_two_random_tetrahedra_colliding.csv
   fine_tune_model_path: /home/sei/tetrahedron_pair_ML/artifacts/id0605203440_tetrahedronpairnet_IntersectionStatus_IntersectionVolume_1000000-train_10000-val_vol-0-0.02_epochs-20_adamw-0.001_distributions-no_intersection-43_point_intersection-3_segment_intersection-5_polygon_intersection-22_polyhedron_intersection-27/model.pt
   fine_tune_on: false
 
-  batch_size: 128
-  epochs: 50
+  batch_size: 2048
+  epochs: 12
   learning_rate: 0.001
   balance_ratio: 0.5
   optimizer: adamw # adam, adamw, sgd
@@ -91,6 +93,7 @@ trainer_config:
   
 evaluator_config:
   skip_evaluation: false
+  device: cuda
   model_path: /home/sei/tetrahedron_pair_ML/artifacts/archive/fine-tunning/id0630_131414_tetrahedronpairnet_IntersectionStatus_IntersectionVolume_2000k-train_100k-val_vol1e-07-0.02_e50/model_artifacts/model.pt
   task: *task_type
   test_data_path: src/evaluator/test_data 

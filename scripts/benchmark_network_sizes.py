@@ -82,10 +82,10 @@ def load_test_datasets(test_data_path):
     
     dataset_folders = [
         'no_intersection', 
-        'polyhedron_intersection',
-        'point_intersection', 
-        'segment_intersection', 
-        'polygon_intersection'
+        'volumetric',
+        'vertex_face', 
+        'edge_face', 
+        'face_face'
     ]
     
     all_features = []

@@ -917,6 +917,10 @@ class CArtifactsManager:
     
     def _save_single_artifact(self, artifact: Any, metadata: ArtifactMetadata) -> Optional[Dict[str, Any]]:
         """Save a single artifact using appropriate handler"""
+        if artifact is None:
+            print(f"Warning: Skipping artifact '{metadata.name}' because value is None")
+            return None
+
         handler = self._find_handler(artifact)
         
         if handler:
