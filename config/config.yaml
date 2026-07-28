@@ -5,7 +5,7 @@ artifacts_config:
 
 processor_config:
   skip_processing: false
-
+  device: cpu
   num_train_samples: 2000000
   num_val_samples: 100000
   
@@ -75,6 +75,7 @@ model_config:
   
 trainer_config:
   skip_training: false
+  device: cpu
   processed_data_path: data/processed
   
   fine_tune_data_path: /home/sei/tetrahedron_pair_ML/data/raw/scenes/scene1_two_random_tetrahedra_colliding.csv
@@ -91,6 +92,7 @@ trainer_config:
   
 evaluator_config:
   skip_evaluation: false
+  device: cpu
   model_path: /home/sei/tetrahedron_pair_ML/artifacts/archive/fine-tunning/id0630_131414_tetrahedronpairnet_IntersectionStatus_IntersectionVolume_2000k-train_100k-val_vol1e-07-0.02_e50/model_artifacts/model.pt
   task: *task_type
   test_data_path: src/evaluator/test_data 
