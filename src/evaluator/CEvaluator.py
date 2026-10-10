@@ -83,9 +83,6 @@ class CEvaluator:
             augmentations['point_wise_permutation_augmentation_pct'] = 0
             augmentations['tetrahedron_wise_permutation_augmentation_pct'] = 0
             
-            # Keep sorting augmentations (they provide consistent ordering)
-            # x_sorting and y_sorting should be preserved
-            
             config_copy['augmentations'] = augmentations
         return config_copy
 
@@ -201,17 +198,6 @@ class CEvaluator:
                         transformation_time_ms = 0
                         augmentation_time_ms = 0
 
-                        # Apply sorting augmentations (these should be applied during evaluation)
-                        if self.processor_config.get('augmentations', None):
-                            start = time.time()
-                            # Only apply sorting augmentations, skip geometric augmentations
-                            augmentation_config = self.processor_config.get('augmentations', {})
-                            
-                            from CDataProcessor import AugmentationEngine
-                            df = AugmentationEngine._apply_sorting_augmentations(df, augmentation_config)
-                            
-                            augmentation_time_ms = (time.time() - start) * 1000
-                            print(f"  Applied sorting augmentations: {augmentation_time_ms:.2f}ms")
                         if self.processor_config.get('transformations', None):
                             start = time.time()
                             df = self.dp.transform_data(df, self.processor_config)

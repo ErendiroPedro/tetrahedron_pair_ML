@@ -4,24 +4,21 @@ artifacts_config:
   save_artifacts_to: artifacts 
 
 processor_config:
-  skip_processing: false
+  skip_processing: true
 
-  num_train_samples: 2000000
-  num_val_samples: 100000
-  
-  volume_scale_factor: &volume_scale_factor 1.0e+3
-
-  sampling_strategy: log_uniform_volume
-  volume_binning:
-    n_bins: 100
-    volume_range: [1.0e-7, 2.0e-2] # [min_volume, max_volume]
-    # binning_mode: "linear"
-    stratify_within_bins: false
-    max_chunks_without_progress: 100
+  num_train_samples: 10000
+  num_val_samples: 10000
 
   dataset_paths:
     raw_data: data/raw          
     processed_data: &processed_data_path data/processed
+  
+  volume_scale_factor: &volume_scale_factor 1.0e+3
+  sampling_strategy: log_uniform_volume
+
+  volume_binning:
+    n_bins: 100
+    volume_range: [1.0e-7, 2.0e-2]
 
   intersection_distributions:
     no_intersection: 50
@@ -31,33 +28,30 @@ processor_config:
     polyhedron_intersection: 18
 
   augmentations: &augmentations_config
-      point_wise_permutation_augmentation_pct: 0  # No permutation augmentation
-      tetrahedron_wise_permutation_augmentation_pct: 0  # No permutation augmentation
-      x_sorting:
-        spatial_based: null
-          #column: "T1_v1_x"
-          #ascending: true
-        volume_based: null
-      y_sorting:
-        difficulty_based: null
-      
-  # Set to empty list to skip all transformations, or specify which ones to apply
-  transformations: &transformations_config [principal_axis] # principal_axis / unitary_tetrahedron
+      point_wise_permutation_augmentation_pct: 0
+      tetrahedron_wise_permutation_augmentation_pct: 0
+
+  transformations: &transformations_config [principal_axis]
 
 model_config:
   skip_building: false
   processed_data_path: *processed_data_path
-  task: &task_type IntersectionStatus_IntersectionVolume # IntersectionStatus_IntersectionVolume, IntersectionStatus, IntersectionVolume
+  task: &task_type IntersectionStatus_IntersectionVolume
   
+  common_parameters:
+    activation_function: relu
+    dropout_rate: 0.4
+    task: *task_type
+    volume_scale_factor: *volume_scale_factor
+
   architecture:
     use_model: tetrahedronpairnet
     mlp:
       shared_layers: [128]
-      classification_head: [128, 128, 1] # [input_dim, hidden_dim, output_dim]
+      classification_head: [128, 128, 1]
       regression_head: [128, 128, 1]
 
     tetrahedronpairnet:
-      # aggregation_function - max, mean, sum, min, hadamard_prod
       per_vertex_layers: [24, 24]
       vertices_aggregation_function: max
       per_tetrahedron_layers: [48, 48]
@@ -66,12 +60,6 @@ model_config:
       shared_layers: [128]
       classification_head: [128, 1]
       regression_head: [128, 1]
-
-  common_parameters:
-    activation_function: relu
-    dropout_rate: 0.4
-    task: *task_type
-    volume_scale_factor: *volume_scale_factor
   
 trainer_config:
   skip_training: false
@@ -85,8 +73,8 @@ trainer_config:
   epochs: 50
   learning_rate: 0.001
   balance_ratio: 0.5
-  optimizer: adamw # adam, adamw, sgd
-  loss_function: combined # bce, mape, combined (will use 50/50 split of classification and regression loss)
+  optimizer: adamw
+  loss_function: combined
   task: *task_type
   
 evaluator_config:
@@ -99,6 +87,6 @@ evaluator_config:
   regression_consistency_thresholds:
     atol: 0.001
     rtol: 0.1
-  volume_range: [0, 0.01] # [min_volume, max_volume]
+  volume_range: [0, 0.01]
   evaluation_n_bins: 4
   volume_scale_factor: *volume_scale_factor

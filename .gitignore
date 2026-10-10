@@ -1,1 +1,3 @@
 .tetra-ml
+venv/*
+artifacts/*

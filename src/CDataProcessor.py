@@ -1199,10 +1199,7 @@ class AugmentationEngine:
             
             # Apply geometric augmentations first (these create new samples)
             data = AugmentationEngine._apply_geometric_augmentations(data, augmentation_config)
-            
-            # Then apply sorting augmentations (these reorder existing samples)
-            data = AugmentationEngine._apply_sorting_augmentations(data, augmentation_config)
-                
+
         except Exception as e:
             print(f"Warning: Data augmentation failed: {e}")
             import traceback
@@ -1331,111 +1328,6 @@ class AugmentationEngine:
                 augmented_samples.append(original_sample.to_dict())
         
         return augmented_samples
-    
-    @staticmethod
-    def _apply_sorting_augmentations(data: pd.DataFrame, augmentation_config) -> pd.DataFrame:
-        """Apply sorting-based augmentations using GeometryUtils functions"""
-        
-        # Handle y_sorting (difficulty-based)
-        y_sorting_config = augmentation_config.get("y_sorting", {})
-        if y_sorting_config:
-            difficulty_based_config = y_sorting_config.get("difficulty_based")
-            if difficulty_based_config:
-                print(f"    Applying difficulty-based sorting: {difficulty_based_config}")
-                
-                if difficulty_based_config == "easier_first":
-                    data = gu.sort_by_difficulty(data, easier_first=True)
-                elif difficulty_based_config == "harder_first":
-                    data = gu.sort_by_difficulty(data, easier_first=False)
-                elif difficulty_based_config == "stepwise_easier":
-                    data = gu.sort_by_difficulty_stepwise(data, easier_first=True)
-                elif difficulty_based_config == "stepwise_harder":
-                    data = gu.sort_by_difficulty_stepwise(data, easier_first=False)
-                elif difficulty_based_config == "mixed_easy":
-                    data = gu.sort_by_difficulty_mixed(data, easier_first=True, mix_ratio=0.3)
-                elif difficulty_based_config == "mixed_hard":
-                    data = gu.sort_by_difficulty_mixed(data, easier_first=False, mix_ratio=0.3)
-                else:
-                    print(f"      Warning: Unknown difficulty config '{difficulty_based_config}'")
-                
-                print(f"      Applied difficulty-based sorting: {difficulty_based_config}")
-                    
-        # Handle x_sorting (spatial and volume-based)
-        x_sorting_config = augmentation_config.get("x_sorting", {})
-        if x_sorting_config:
-            
-            # Volume-based sorting using GeometryUtils
-            volume_based_config = x_sorting_config.get("volume_based")
-            if volume_based_config:
-                print(f"    Applying volume-based sorting: {volume_based_config}")
-                
-                if volume_based_config == "bigger":
-                    data = gu.volume_reordering(data, larger=True)
-                elif volume_based_config == "smaller":
-                    data = gu.volume_reordering(data, larger=False)
-                else:
-                    print(f"      Warning: Unknown volume_based config '{volume_based_config}', expected 'bigger' or 'smaller'")
-                    # Default to bigger first
-                    data = gu.volume_reordering(data, larger=True)
-                
-                print(f"      Applied volume-based sorting: {volume_based_config}")
-                    
-            # Spatial-based sorting using GeometryUtils
-            spatial_based_config = x_sorting_config.get("spatial_based")
-            if spatial_based_config:
-                print(f"    Applying spatial-based sorting: {spatial_based_config}")
-                
-                # Handle both string and dict configurations
-                if isinstance(spatial_based_config, str):
-                    if spatial_based_config == "x_coordinate":
-                        data = gu.sort_by_x_coordinate(data, column_name="T1_v1_x")
-                        print(f"      Sorted by T1_v1_x coordinate")
-                    elif spatial_based_config == "x_coordinate_alt":
-                        data = gu.sort_by_x_coordinate_alt(data)
-                        print(f"      Applied alternative x-coordinate sorting")
-                    elif spatial_based_config == "morton_code":
-                        data = gu.sort_by_morton_code(data)
-                        print(f"      Applied Morton code spatial sorting")
-                    elif spatial_based_config == "morton_code_alt":
-                        data = gu.sort_by_morton_code_alt(data)
-                        print(f"      Applied alternative Morton code sorting")
-                    else:
-                        # Default to x-coordinate sorting
-                        data = gu.sort_by_x_coordinate(data, column_name="T1_v1_x")
-                        print(f"      Applied default x-coordinate sorting")
-                        
-                elif isinstance(spatial_based_config, dict):
-                    # Dictionary configuration with options
-                    sort_column = spatial_based_config.get("column", "T1_v1_x")
-                    ascending = spatial_based_config.get("ascending", True)
-                    sort_type = spatial_based_config.get("type", "x_coordinate")
-                    
-                    if sort_type == "x_coordinate":
-                        data = gu.sort_by_x_coordinate(data, column_name=sort_column)
-                        print(f"      Sorted by column '{sort_column}' (ascending={ascending})")
-                    elif sort_type == "morton_code":
-                        scale_factor = spatial_based_config.get("scale_factor", 1e18)
-                        data = gu.sort_by_morton_code_alt(data, scale_factor=scale_factor)
-                        print(f"      Applied Morton code sorting (scale={scale_factor})")
-                    else:
-                        # Fallback to x-coordinate
-                        data = gu.sort_by_x_coordinate(data, column_name=sort_column)
-                        print(f"      Applied fallback x-coordinate sorting")
-                        
-                else:
-                    raise ValueError(f"Invalid spatial_based configuration: {spatial_based_config}")
-            
-            # Intersection volume sorting using GeometryUtils
-            intersection_volume_config = x_sorting_config.get("intersection_volume_based")
-            if intersection_volume_config:
-                print(f"    Applying intersection volume sorting")
-                data = gu.sort_by_intersection_volume_whole_dataset(data)
-                print(f"      Applied intersection volume sorting")
-        
-        else:
-            print(f"    No x_sorting configuration found, skipping spatial/volume sorting")
-        
-        return data
 
 
 class TransformationEngine:
@@ -2213,17 +2105,13 @@ class CDataProcessor:
         augmentation_config = self.config.get("augmentations", {})
         if not augmentation_config:
             return False
-            
-        x_sorting = augmentation_config.get("x_sorting", {})
-        y_sorting = augmentation_config.get("y_sorting", {})
+
         point_wise_permutation = augmentation_config.get("point_wise_permutation_augmentation_pct", 0)
         tetrahedron_wise_permutation = augmentation_config.get("tetrahedron_wise_permutation_augmentation_pct", 0)
-        
-        has_x_sorting = any(x_sorting.get(key) for key in x_sorting if x_sorting.get(key))
-        has_y_sorting = any(y_sorting.get(key) for key in y_sorting if y_sorting.get(key))
+
         has_permutations = point_wise_permutation > 0 or tetrahedron_wise_permutation > 0
 
-        return has_x_sorting or has_y_sorting or has_permutations
+        return has_permutations
     
     def _should_apply_transformations(self):
         transformation_config = self.config.get("transformations")
@@ -2246,22 +2134,10 @@ class CDataProcessor:
             print("  No augmentation config found")
             return
             
-        x_sorting = augmentation_config.get("x_sorting", {})
-        y_sorting = augmentation_config.get("y_sorting", {})
         point_wise_pct = augmentation_config.get("point_wise_permutation_augmentation_pct", 0)
         tetrahedron_wise_pct = augmentation_config.get("tetrahedron_wise_permutation_augmentation_pct", 0)
         
         active_augmentations = []
-        
-        # Check for sorting augmentations
-        if x_sorting:
-            for key, value in x_sorting.items():
-                if value:
-                    active_augmentations.append(f"x_sorting.{key}: {value}")
-        if y_sorting:
-            for key, value in y_sorting.items():
-                if value:
-                    active_augmentations.append(f"y_sorting.{key}: {value}")
         
         # Check for geometric augmentations
         if point_wise_pct > 0:
