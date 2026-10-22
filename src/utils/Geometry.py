@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 import pandas as pd
-import pymorton
 
 def swap_tetrahedrons(X):
     """

@@ -24,7 +24,7 @@ class CPipelineOrchestrator:
         self.evaluator = CEvaluator(self.config["evaluator_config"], self.config["processor_config"])
         
         self.state = {}
-        self.id = self.artifacts_manager.experiment_id
+        self.id = self.artifacts_manager.context.experiment_id
         self._current_step = "init"
 
     def run(self):

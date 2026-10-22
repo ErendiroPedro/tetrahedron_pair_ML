@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import base64
 import os
 from io import BytesIO
+import src.utils.Geometry as gu
 
 torch.set_default_dtype(torch.float64)
 
@@ -956,7 +957,7 @@ class CModelTrainer:
         # === OPTIMIZER AND SCHEDULER SETUP ===
         # Use foreach=False to avoid PyTorch 2.1 multi-tensor AdamW issues with float64
         optimizer = optim.AdamW(model.parameters(), lr=self.learning_rate, weight_decay=1e-5, foreach=False)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, factor=0.5, verbose=True)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
 
         # Load datasets internally
         train_loader, val_loader = self._setup_data_loaders()
@@ -1214,7 +1215,6 @@ class CModelTrainer:
 
     def _test_invariance(self, model, sample_features):
         """Test invariance on a small sample"""
-        import src.UGeometry as gu
         
         model.eval()
         original_pred = model(sample_features)
