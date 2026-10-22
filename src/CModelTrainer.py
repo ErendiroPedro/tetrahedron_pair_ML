@@ -209,7 +209,7 @@ class CombinedLoss(nn.Module):
     
     def _compute_invariance_loss(self, model, tetrahedron_features):
         """Compute invariance loss using GeometryUtils"""
-        import GeometryUtils as gu
+        import src.UGeometry as gu
         
         # Get predictions for original input
         original_pred = model(tetrahedron_features)
@@ -370,7 +370,7 @@ class LogCoshRelativeCombinedLoss(nn.Module):
     
     def _compute_invariance_loss(self, model, tetrahedron_features):
         """Compute invariance loss using LogCosh Relative"""
-        import GeometryUtils as gu
+        import src.UGeometry as gu
         
         # Get predictions for original input
         original_pred = model(tetrahedron_features)
@@ -567,7 +567,7 @@ class QuantileLogCoshRelativeCombinedLoss(nn.Module):
     
     def _compute_invariance_loss(self, model, tetrahedron_features):
         """Compute invariance loss using Quantile LogCosh Relative"""
-        import GeometryUtils as gu
+        import src.UGeometry as gu
         
         # Get predictions for original input
         original_pred = model(tetrahedron_features)
@@ -778,7 +778,7 @@ class QuantileRMSLECombinedLoss(nn.Module):
     
     def _compute_invariance_loss(self, model, tetrahedron_features):
         """Compute invariance loss using Quantile RMSLE"""
-        import GeometryUtils as gu
+        import src.UGeometry as gu
         
         # Get predictions for original input
         original_pred = model(tetrahedron_features)
@@ -1214,7 +1214,7 @@ class CModelTrainer:
 
     def _test_invariance(self, model, sample_features):
         """Test invariance on a small sample"""
-        import GeometryUtils as gu
+        import src.UGeometry as gu
         
         model.eval()
         original_pred = model(sample_features)

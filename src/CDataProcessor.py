@@ -2,14 +2,11 @@ import os
 import pandas as pd
 import numpy as np
 import torch
-import src.GeometryUtils as gu
+import src.utils.Geometry as gu
 from src.FileProcessor import FileProcessor
 import gc
-import warnings
 import tempfile
 import shutil
-from pathlib import Path
-import subprocess
 from abc import ABC, abstractmethod
 
 torch.set_default_dtype(torch.float64)

@@ -1,33 +1,13 @@
 import yaml
-import os
 import torch
 import traceback
 import pandas as pd
-from typing import Dict
 from src.CDataProcessor import CDataProcessor
 from src.CArchitectureManager import CArchitectureManager, ModelUtility
 from src.CModelTrainer import CModelTrainer
 from src.CArtifactsManager import CArtifactsManager
 from src.evaluator.CEvaluator import CEvaluator
-
-# --- HELPER UTILITIES ---
-
-class ConfigResolver:
-    """Handles recursive path resolution based on a 'home' directory."""
-    @staticmethod
-    def resolve(config: Dict) -> Dict:
-        home = config.get('home')
-        if not home:
-            raise ValueError("The 'home' path is missing from the configuration.")
-
-        def _walk(node):
-            if isinstance(node, dict):
-                return {k: _walk(v) for k, v in node.items()}
-            if isinstance(node, str) and (node.startswith('/') or './' in node or any(ext in node for ext in ['.csv', '.pt', '.pth', '.ipynb'])):
-                return node if os.path.isabs(node) else os.path.join(home, node.lstrip('/'))
-            return node
-        
-        return _walk(config)
+from src.utils.FileManagement import ConfigResolver
 
 class CPipelineOrchestrator:
     def __init__(self, config_file="config/config.yaml"):
@@ -44,11 +24,11 @@ class CPipelineOrchestrator:
         self.evaluator = CEvaluator(self.config["evaluator_config"], self.config["processor_config"])
         
         self.state = {}
+        self.id = self.artifacts_manager.experiment_id
         self._current_step = "init"
 
     def run(self):
-        """Orchestrates the pipeline using a clean step-based approach."""
-        print(f"\n=== Starting Pipeline Experiment ===")
+        print(f"\n=== Starting Experiment {self.id} ===")
         try:
             # Step 1: Processing
             if not self.config['processor_config'].get('skip_processing', True):
@@ -65,7 +45,7 @@ class CPipelineOrchestrator:
             if not self.config['evaluator_config'].get('skip_evaluation', False):
                 self._run_step('evaluation', self._evaluate_model_step)
 
-            print(f"\n=== Pipeline Complete ===\nArtifacts: {self.artifacts_manager.artifacts_path}")
+            print(f"\n=== Experiment {self.id} Complete ===\nArtifacts: {self.artifacts_manager.artifacts_path}")
 
         except Exception as e:
             self._handle_failure(e)
@@ -152,7 +132,7 @@ class CPipelineOrchestrator:
         self.artifacts_manager.save_artifacts(evaluation_report=report)
 
     def _handle_failure(self, e):
-        print(f"Pipeline failed at [{self._current_step}]: {e}")
+        print(f"Experiment {self.id} failed at [{self._current_step}]: {e}")
         error_info = {
             'error': str(e),
             'step': self._current_step,

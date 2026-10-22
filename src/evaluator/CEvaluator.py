@@ -16,7 +16,7 @@ warnings.filterwarnings('ignore')
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
-import GeometryUtils as gu
+import src.utils.Geometry as gu
 import src.CDataProcessor as dp
 
 torch.set_default_dtype(torch.float32)
