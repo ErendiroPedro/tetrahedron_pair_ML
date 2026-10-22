@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 import numpy as np
 import pandas as pd
 import time
@@ -16,8 +15,10 @@ warnings.filterwarnings('ignore')
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
-import GeometryUtils as gu
-import src.CDataProcessor as dp
+import src.utils.geometry as gu
+from src.data_processing import transform_data
+from src.data_processing.config import parse_transformations
+from src.utils.file_management import discover_csv_files
 
 torch.set_default_dtype(torch.float32)
 
@@ -40,9 +41,8 @@ class CEvaluator:
         self.intersection_status_column_name = 'HasIntersection'
         self.intersection_volume_column_name = 'IntersectionVolume'
         
-        processor_config_eval = self._remove_augmentations(processor_config)
-        self.dp = dp.CDataProcessor(processor_config_eval)
-        
+        self.transformations = parse_transformations(processor_config.get('transformations'))
+
         self.test_registry = {
             'IntersectionStatus': [self.classification_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.inference_speed],
             'IntersectionVolume': [self.intersection_volume_performance, self.point_wise_permutation_consistency, self.tetrahedron_wise_permutation_consistency, self.inference_speed],
@@ -166,61 +166,49 @@ class CEvaluator:
                 print(f"Warning: Dataset directory not found: {dataset_dir}")
                 continue
             
-            for file in os.listdir(dataset_dir):
-                if file.endswith('.csv'):
-                    file_path = os.path.join(dataset_dir, file)
-                    print(f"Loading {file_path}")
+            for file_path in discover_csv_files(dataset_dir):
+                file = os.path.basename(file_path)
+                print(f"Loading {file_path}")
+                
+                try:
+                    df = pd.read_csv(file_path)
                     
-                    try:
-                        df = pd.read_csv(file_path)
-                        
-                        if self.intersection_status_column_name not in df.columns:
-                            print(f"Warning: {self.intersection_status_column_name} not found in {file_path}")
-                            continue
-                        
-                        if self.intersection_volume_column_name not in df.columns:
-                            print(f"Warning: {self.intersection_volume_column_name} not found in {file_path}")
-                            continue
-                        
-                        transformation_time_ms = 0
-                        augmentation_time_ms = 0
-
-                        # Apply sorting augmentations (these should be applied during evaluation)
-                        if self.processor_config.get('augmentations', None):
-                            start = time.time()
-                            # Only apply sorting augmentations, skip geometric augmentations
-                            augmentation_config = self.processor_config.get('augmentations', {})
-                            
-                            from CDataProcessor import AugmentationEngine
-                            df = AugmentationEngine._apply_sorting_augmentations(df, augmentation_config)
-                            
-                            augmentation_time_ms = (time.time() - start) * 1000
-                            print(f"  Applied sorting augmentations: {augmentation_time_ms:.2f}ms")
-                        if self.processor_config.get('transformations', None):
-                            start = time.time()
-                            df = self.dp.transform_data(df, self.processor_config)
-                            transformation_time_ms = (time.time() - start) * 1000
-                            print(f"  Applied transformations: {transformation_time_ms:.2f}ms")
-                        
-                        X = df.drop(columns=[self.intersection_status_column_name, self.intersection_volume_column_name])
-                        
-                        self.datasets.append({
-                            'name': f"{folder}/{file}",
-                            'type': folder,
-                            'intersection_status': df[self.intersection_status_column_name],
-                            'intersection_volume': df[self.intersection_volume_column_name],
-                            'X': X,
-                            'transformation_time_ms': transformation_time_ms,
-                            'augmentation_time_ms': augmentation_time_ms,
-                            'file_path': file_path
-                        })
-                        
-                        print(f"  Loaded {len(df)} samples")
-                        
-                    except Exception as e:
-                        print(f"Error loading {file_path}: {e}")
+                    if self.intersection_status_column_name not in df.columns:
+                        print(f"Warning: {self.intersection_status_column_name} not found in {file_path}")
                         continue
-        
+                    
+                    if self.intersection_volume_column_name not in df.columns:
+                        print(f"Warning: {self.intersection_volume_column_name} not found in {file_path}")
+                        continue
+                    
+                    transformation_time_ms = 0
+                    augmentation_time_ms = 0
+
+                    if self.transformations:
+                        start = time.time()
+                        df = transform_data(df, self.transformations)
+                        transformation_time_ms = (time.time() - start) * 1000
+                        print(f"  Applied transformations: {transformation_time_ms:.2f}ms")
+                    
+                    X = df.drop(columns=[self.intersection_status_column_name, self.intersection_volume_column_name])
+                    
+                    self.datasets.append({
+                        'name': f"{folder}/{file}",
+                        'type': folder,
+                        'intersection_status': df[self.intersection_status_column_name],
+                        'intersection_volume': df[self.intersection_volume_column_name],
+                        'X': X,
+                        'transformation_time_ms': transformation_time_ms,
+                        'augmentation_time_ms': augmentation_time_ms,
+                        'file_path': file_path
+                    })
+                    
+                    print(f"  Loaded {len(df)} samples")
+                    
+                except Exception as e:
+                    print(f"Error loading {file_path}: {e}")
+                    continue
+    
         if not self.datasets:
             raise ValueError("No valid datasets found")
         

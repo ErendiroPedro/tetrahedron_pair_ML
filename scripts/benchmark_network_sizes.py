@@ -24,6 +24,8 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 
+from src.utils.file_management import discover_csv_files, resolve_path
+
 
 # Batch sizes to test
 BATCH_SIZES = [4086, 2048, 1024, 512, 256, 128]
@@ -95,13 +97,11 @@ def load_test_datasets(test_data_path):
             print(f"Warning: {folder_path} not found")
             continue
             
-        for file in os.listdir(folder_path):
-            if file.endswith('.csv'):
-                filepath = os.path.join(folder_path, file)
-                df = pd.read_csv(filepath)
-                # Extract features (all columns except last 2)
-                features = df.iloc[:, :-2].values
-                all_features.append(features)
+        for filepath in discover_csv_files(folder_path):
+            df = pd.read_csv(filepath)
+            # Extract features (all columns except last 2)
+            features = df.iloc[:, :-2].values
+            all_features.append(features)
     
     if all_features:
         # Concatenate all features
@@ -165,8 +165,8 @@ def get_model_size_mb(model):
 
 def run_benchmark(config_id, tetra_config, base_config_path, results_dir, test_data, train_epochs=20):
     """Run benchmark for a single configuration across all batch sizes."""
-    from src.CArchitectureManager import CArchitectureManager
-    from src.CModelTrainer import CModelTrainer
+    from src.models import CArchitectureManager
+    from src.training import CModelTrainer
     
     print(f"\n{'='*60}")
     print(f"Config {config_id}: multiplier={tetra_config['multiplier']}")
@@ -178,9 +178,7 @@ def run_benchmark(config_id, tetra_config, base_config_path, results_dir, test_d
         base_config = yaml.safe_load(f)
     
     home = base_config.get('home')
-    processed_data_path = base_config['processor_config']['dataset_paths']['processed_data']
-    if not os.path.isabs(processed_data_path):
-        processed_data_path = os.path.join(home, processed_data_path)
+    processed_data_path = resolve_path(base_config['processor_config']['dataset_paths']['processed_data'], home)
     
     # Build model config
     model_config = {
