@@ -61,44 +61,6 @@ def permute_points_within_tetrahedrons(X: torch.Tensor) -> torch.Tensor:
     else:
         raise ValueError(f"Unsupported tensor shape: {X.shape}")
 
-def volume_reordering(data: pd.DataFrame, larger: bool = True) -> pd.DataFrame:
-    """
-    Reorder tetrahedra so that the larger volume tetrahedron comes first (or second if larger=False).
-    Uses vectorized operations for better performance.
-    
-    Args:
-        data: DataFrame with tetrahedron pair coordinates
-        larger: If True, larger tetrahedron becomes T1. If False, smaller becomes T1.
-    
-    Returns:
-        DataFrame with potentially swapped tetrahedra
-    """
-    if data.empty:
-        return data
-    
-    print(f"  Applying volume-based reordering ({'larger' if larger else 'smaller'} tetrahedron first)...")
-    
-    # Separate features and labels
-    features = data.iloc[:, :-2].copy()
-    labels = data.iloc[:, -2:].copy()
-    
-    # Convert to tensor for vectorized operations
-    try:
-        # Use vectorized volume reordering
-        features_processed = _volume_reordering_vectorized(features, larger)
-        
-        # Recombine with labels - ensure indices align
-        features_processed.index = data.index
-        labels.index = data.index
-        data_processed = pd.concat([features_processed, labels], axis=1)
-        
-        print(f"    Volume reordering complete (vectorized)")
-        return data_processed
-        
-    except Exception as e:
-        print(f"    Vectorized reordering failed ({e}), using fallback")
-        return _volume_reordering_fallback(data, larger)
-
 def apply_unitary_tetrahedron_transformation(tetrahedron_pair_vertices_flat) -> pd.Series:
     """
     Transform a tetrahedron pair using unitary tetrahedron transformation.

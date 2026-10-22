@@ -8,7 +8,7 @@ import time
 import numpy as np
 import pandas as pd
 import json
-from src.CArchitectureManager import CArchitectureManager
+from src.models import CArchitectureManager
 
 # Configuration
 MODEL_PATH = "models_to_eval/model.pt"

@@ -30,6 +30,8 @@ from pathlib import Path
 import shutil
 import gc
 
+from src.utils.file_management import discover_csv_files, resolve_path
+
 
 # Training data sizes to test (log scale)
 DATA_SIZES = [10_000, 50_000, 100_000, 500_000, 1_000_000]
@@ -115,25 +117,24 @@ def load_test_datasets(test_data_path):
             print(f"Warning: {folder_path} not found")
             continue
             
-        for file in os.listdir(folder_path):
-            if file.endswith('.csv'):
-                filepath = os.path.join(folder_path, file)
-                df = pd.read_csv(filepath)
-                
-                # Extract features and labels
-                X = df.iloc[:, :-2].values
-                y_status = df['HasIntersection'].values
-                y_volume = df['IntersectionVolume'].values
-                
-                datasets.append({
-                    'name': f"{folder}/{file}",
-                    'type': folder,
-                    'X': torch.tensor(X, dtype=torch.float32),
-                    'y_status': y_status,
-                    'y_volume': y_volume,
-                    'n_samples': len(df)
-                })
-                print(f"  Loaded {folder}/{file}: {len(df)} samples")
+        for filepath in discover_csv_files(folder_path):
+            file = os.path.basename(filepath)
+            df = pd.read_csv(filepath)
+
+            # Extract features and labels
+            X = df.iloc[:, :-2].values
+            y_status = df['HasIntersection'].values
+            y_volume = df['IntersectionVolume'].values
+
+            datasets.append({
+                'name': f"{folder}/{file}",
+                'type': folder,
+                'X': torch.tensor(X, dtype=torch.float32),
+                'y_status': y_status,
+                'y_volume': y_volume,
+                'n_samples': len(df)
+            })
+            print(f"  Loaded {folder}/{file}: {len(df)} samples")
     
     return datasets
 
@@ -199,7 +200,7 @@ def create_training_data(base_config_path, num_train_samples, num_val_samples, o
     Create training data with specified number of samples.
     Uses the CDataProcessor to sample from raw data.
     """
-    from src.CDataProcessor import CDataProcessor
+    from src.data_processing import CDataProcessor
     
     # Load base config
     with open(base_config_path, 'r') as f:
@@ -214,9 +215,7 @@ def create_training_data(base_config_path, num_train_samples, num_val_samples, o
     processor_config['skip_processing'] = False
     
     # Set paths
-    raw_data_path = processor_config['dataset_paths']['raw_data']
-    if not os.path.isabs(raw_data_path):
-        raw_data_path = os.path.join(home, raw_data_path)
+    raw_data_path = resolve_path(processor_config['dataset_paths']['raw_data'], home)
     processor_config['dataset_paths']['raw_data'] = raw_data_path
     processor_config['dataset_paths']['processed_data'] = output_dir
     
@@ -231,8 +230,8 @@ def create_training_data(base_config_path, num_train_samples, num_val_samples, o
 
 def train_model(model_config, processed_data_path, base_config_path, device):
     """Train a model with the given configuration and data."""
-    from src.CArchitectureManager import CArchitectureManager
-    from src.CModelTrainer import CModelTrainer
+    from src.models import CArchitectureManager
+    from src.training import CModelTrainer
     
     # Load base config for common parameters
     with open(base_config_path, 'r') as f:

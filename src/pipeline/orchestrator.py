@@ -1,21 +1,18 @@
-import yaml
 import torch
 import traceback
 import pandas as pd
-from src.CDataProcessor import CDataProcessor
-from src.CArchitectureManager import CArchitectureManager, ModelUtility
-from src.CModelTrainer import CModelTrainer
-from src.CArtifactsManager import CArtifactsManager
+from src.artifacts import CArtifactsManager
+from src.data_processing import CDataProcessor
 from src.evaluator.CEvaluator import CEvaluator
-from src.utils.FileManagement import ConfigResolver
+from src.models import CArchitectureManager, ModelUtility
+from src.training import CModelTrainer
+from src.utils.file_management import load_config
 
 class CPipelineOrchestrator:
     def __init__(self, config_file="config/config.yaml"):
         # 1. Load and Clean Config
-        with open(config_file, "r") as f:
-            raw_config = yaml.safe_load(f)
-        self.config = ConfigResolver.resolve(raw_config)
-        
+        self.config = load_config(config_file)
+
         # 2. Initialize Components
         self.artifacts_manager = CArtifactsManager(self.config)
         self.architecture_manager = CArchitectureManager(self.config["model_config"])
