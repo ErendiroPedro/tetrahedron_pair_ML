@@ -242,13 +242,13 @@ class BaseNet(nn.Module, ABC):
             output = self(x)
             
             if self.task == 'IntersectionStatus':
-                return (output > 0.5).int().squeeze()
+                return (output > 0).int().squeeze()
             
             elif self.task == 'IntersectionVolume':
                 return output.squeeze() / self.volume_scale_factor
             
             elif self.task == 'IntersectionStatus_IntersectionVolume':
-                has_intersection = (output[:, 0] > 0.5).int()
+                has_intersection = (output[:, 0] > 0).int()
                 volume = output[:, 1] / self.volume_scale_factor
                 return torch.stack([has_intersection.double(), volume], dim=1)
 

@@ -15,11 +15,11 @@ class ModelUtility:
             with torch.no_grad():
                 out = self.model.forward(x) 
                 if self.task == 'IntersectionStatus':
-                    return (out > 0.5).int().squeeze()
+                    return (out > 0).int().squeeze()
                 elif self.task == 'IntersectionVolume':
                     return out.squeeze() / self.volume_scale_factor
                 elif self.task == 'IntersectionStatus_IntersectionVolume':
-                    return torch.stack([(out[:, 0] > 0.5).int(), out[:, 1] / self.volume_scale_factor], dim=1)
+                    return torch.stack([(out[:, 0] > 0).int(), out[:, 1] / self.volume_scale_factor], dim=1)
                 raise ValueError(f"Unknown task: {self.task}")
 
         def forward(self, x): return self.model(x)
