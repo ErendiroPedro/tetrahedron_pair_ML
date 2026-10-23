@@ -1,0 +1,16 @@
+{
+  "name": "loss_plot",
+  "type": "ArtifactType.VISUALIZATION",
+  "format": "base64_image",
+  "size_bytes": 105920,
+  "checksum": "53f3a735",
+  "created_at": "2026-10-23 07:46:46.614005",
+  "tags": [
+    "visualization",
+    "loss",
+    "training",
+    "standard"
+  ],
+  "description": "Visualization plot: loss_plot",
+  "relationships": null
+}

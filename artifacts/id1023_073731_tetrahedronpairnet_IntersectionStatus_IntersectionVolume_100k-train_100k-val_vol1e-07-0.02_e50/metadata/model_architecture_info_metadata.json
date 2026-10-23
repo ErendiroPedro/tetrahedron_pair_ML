@@ -1,0 +1,14 @@
+{
+  "name": "model_architecture_info",
+  "type": "ArtifactType.REPORT",
+  "format": "json",
+  "size_bytes": 60,
+  "checksum": "8424a364",
+  "created_at": "2026-10-23 07:38:40.841430",
+  "tags": [
+    "report",
+    "standard"
+  ],
+  "description": "Text report: model_architecture_info",
+  "relationships": null
+}

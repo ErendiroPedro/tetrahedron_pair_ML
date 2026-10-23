@@ -1,0 +1,105 @@
+artifacts_config:
+  save_artifacts_to: artifacts
+evaluator_config:
+  augmentations:
+    point_wise_permutation_augmentation_pct: 0
+    tetrahedron_wise_permutation_augmentation_pct: 0
+  device: cpu
+  evaluation_n_bins: 4
+  model_path: /home/sei/tetrahedron_pair_ML/artifacts/archive/fine-tunning/id0630_131414_tetrahedronpairnet_IntersectionStatus_IntersectionVolume_2000k-train_100k-val_vol1e-07-0.02_e50/model_artifacts/model.pt
+  regression_consistency_thresholds:
+    atol: 0.001
+    rtol: 0.1
+  skip_evaluation: false
+  task: IntersectionStatus_IntersectionVolume
+  test_data_path: src/evaluator/test_data
+  transformations: &id001
+  - principal_axis
+  volume_range:
+  - 0
+  - 0.01
+  volume_scale_factor: 1000.0
+home: /home/sei/repos/tetrahedron_pair_ML
+model_config:
+  architecture:
+    mlp:
+      classification_head:
+      - 128
+      - 128
+      - 1
+      regression_head:
+      - 128
+      - 128
+      - 1
+      shared_layers:
+      - 128
+    tetrahedronpairnet:
+      classification_head:
+      - 128
+      - 1
+      per_tetrahedron_layers:
+      - 48
+      - 48
+      per_two_tetrahedra_layers:
+      - 96
+      - 96
+      per_vertex_layers:
+      - 24
+      - 24
+      regression_head:
+      - 128
+      - 1
+      shared_layers:
+      - 128
+      tetrahedra_aggregation_function: max
+      vertices_aggregation_function: max
+    use_model: tetrahedronpairnet
+  common_parameters:
+    activation_function: relu
+    dropout_rate: 0.4
+    task: IntersectionStatus_IntersectionVolume
+    volume_scale_factor: 1000.0
+  processed_data_path: data/processed
+  skip_building: false
+  task: IntersectionStatus_IntersectionVolume
+processor_config:
+  augmentations:
+    point_wise_permutation_augmentation_pct: 0
+    tetrahedron_wise_permutation_augmentation_pct: 0
+  dataset_paths:
+    processed_data: data/processed
+    raw_data: data/raw
+  device: cpu
+  intersection_distributions:
+    no_intersection: 50
+    point_intersection: 5
+    polygon_intersection: 20
+    polyhedron_intersection: 18
+    segment_intersection: 7
+  num_train_samples: 100000
+  num_val_samples: 100000
+  sampling_strategy: log_uniform_volume
+  skip_processing: false
+  transformations: *id001
+  volume_binning:
+    max_chunks_without_progress: 100
+    n_bins: 100
+    stratify_within_bins: false
+    volume_range:
+    - 1.0e-07
+    - 0.02
+  volume_scale_factor: 1000.0
+trainer_config:
+  balance_ratio: 0.5
+  batch_size: 128
+  device: cpu
+  epochs: 50
+  fine_tune_data_path: /home/sei/tetrahedron_pair_ML/data/raw/scenes/scene1_two_random_tetrahedra_colliding.csv
+  fine_tune_model_path: /home/sei/tetrahedron_pair_ML/artifacts/id0605203440_tetrahedronpairnet_IntersectionStatus_IntersectionVolume_1000000-train_10000-val_vol-0-0.02_epochs-20_adamw-0.001_distributions-no_intersection-43_point_intersection-3_segment_intersection-5_polygon_intersection-22_polyhedron_intersection-27/model.pt
+  fine_tune_on: false
+  learning_rate: 0.001
+  loss_function: combined
+  optimizer: adamw
+  processed_data_path: data/processed
+  skip_training: false
+  task: IntersectionStatus_IntersectionVolume

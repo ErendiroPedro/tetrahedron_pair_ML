@@ -1,0 +1,13 @@
+{
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "python_version": "3.12.3",
+  "machine": "x86_64",
+  "processor": "x86_64",
+  "memory_gb": 15.48,
+  "cuda_available": true,
+  "cuda_version": "12.8",
+  "gpu_count": 1,
+  "gpu_names": [
+    "NVIDIA GeForce RTX 5070 Laptop GPU"
+  ]
+}
