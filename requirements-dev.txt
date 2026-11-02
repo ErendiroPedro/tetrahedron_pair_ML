@@ -1,0 +1,6 @@
+-r requirements.txt
+pytest==9.2.0
+
+# notebooks/data_analysis.ipynb
+scipy==1.16.3
+ipykernel==7.3.0

@@ -56,6 +56,10 @@ source .tetra-ml/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Optional: tests and the analysis notebook
+pip install -r requirements-dev.txt
+python -m pytest
 ```
 
 # Pipeline Overview
