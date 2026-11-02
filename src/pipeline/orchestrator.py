@@ -1,12 +1,11 @@
 import traceback
 
-import torch
 import yaml
 
 from src.artifacts import Artifacts
 from src.data_processing import DataProcessor
 from src.evaluation import evaluate
-from src.models import TorchScriptModel, build_model
+from src.models import LoadedModel, build_model, load_exported_model
 from src.pipeline.config_validation import enabled_steps, validate_config
 from src.training import train
 
@@ -62,8 +61,8 @@ class PipelineOrchestrator:
             evaluator_config = self.config["evaluator_config"]
             path = evaluator_config.get("model_path") or self.config["model_config"].get("model_path")
             print(f"-- Loading model from {path} --")
-            self.state["trained_model"] = TorchScriptModel(
-                torch.jit.load(path), evaluator_config["task"], evaluator_config["volume_scale_factor"])
+            self.state["trained_model"] = LoadedModel(
+                load_exported_model(path), evaluator_config["task"], evaluator_config["volume_scale_factor"])
 
     def _evaluate_model_step(self):
         model = self.state.get("trained_model") or self.state.get("model")

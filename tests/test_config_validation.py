@@ -89,11 +89,11 @@ def test_skipping_processing_needs_the_processed_files_to_exist(config, tmp_path
 def test_skipping_training_needs_an_existing_model_file(config, tmp_path):
     config["trainer_config"]["skip_training"] = True
     config["model_config"]["skip_building"] = True
-    config["evaluator_config"]["model_path"] = str(tmp_path / "missing.pt")
+    config["evaluator_config"]["model_path"] = str(tmp_path / "missing.pt2")
     assert "model_path must be an existing file" in error_message(config)
 
-    (tmp_path / "model.pt").write_bytes(b"")
-    config["evaluator_config"]["model_path"] = str(tmp_path / "model.pt")
+    (tmp_path / "model.pt2").write_bytes(b"")
+    config["evaluator_config"]["model_path"] = str(tmp_path / "model.pt2")
     validate_config(config)
 
 

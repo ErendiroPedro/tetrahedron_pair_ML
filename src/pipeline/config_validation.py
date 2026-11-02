@@ -166,7 +166,7 @@ def _check_training(trainer, steps):
 
 
 def _check_loading_model(config):
-    """Without training, the model is loaded from a TorchScript file."""
+    """Without training, the model is loaded from a saved model file."""
     evaluator, model = config["evaluator_config"], config["model_config"]
     errors = []
     path = evaluator.get("model_path") or model.get("model_path")

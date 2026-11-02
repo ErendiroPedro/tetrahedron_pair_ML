@@ -39,7 +39,7 @@ def test_a_full_run_processes_trains_evaluates_and_saves_everything(config, tmp_
 
     run_folder = only_run_folder(tmp_path)
     assert sorted(path.name for path in run_folder.iterdir()) == ["config.yaml", "evaluation_report.json", "loss_plot.png", "model"]
-    assert sorted(path.name for path in (run_folder / "model").iterdir()) == ["model.pt", "state_dict.pth", "summary.txt"]
+    assert sorted(path.name for path in (run_folder / "model").iterdir()) == ["model.pt2", "state_dict.pth", "summary.txt"]
     assert (tmp_path / "processed" / "train" / "train_data.csv").exists()
     report = strict_json(run_folder / "evaluation_report.json")
     assert report["task_type"] == TASK and math.isfinite(report["training_metrics"]["final_val_loss"])
@@ -52,7 +52,7 @@ def test_a_saved_model_can_be_reloaded_and_evaluates_identically(config, tmp_pat
 
     config["trainer_config"]["skip_training"] = True
     config["model_config"]["skip_building"] = True
-    config["evaluator_config"]["model_path"] = str(first_run / "model" / "model.pt")
+    config["evaluator_config"]["model_path"] = str(first_run / "model" / "model.pt2")
     config["artifacts_config"]["save_artifacts_to"] = str(tmp_path / "second_run")
     PipelineOrchestrator(write_config(config, tmp_path)).run()
 

@@ -6,7 +6,7 @@ import torch
 import yaml
 
 from src.artifacts import Artifacts
-from src.models import build_model
+from src.models import build_model, load_exported_model
 
 
 def test_the_experiment_folder_is_named_after_the_run_and_keeps_the_config(config):
@@ -30,7 +30,7 @@ def test_save_plot_decodes_the_base64_image(config):
     assert (artifacts.path / "loss_plot.png").read_bytes() == png
 
 
-def test_save_model_writes_a_traced_model_a_loadable_state_dict_and_a_summary(config):
+def test_save_model_writes_an_exported_program_a_loadable_state_dict_and_a_summary(config):
     torch.manual_seed(0)
     model = build_model(config["model_config"])
     artifacts = Artifacts(config)
@@ -38,9 +38,11 @@ def test_save_model_writes_a_traced_model_a_loadable_state_dict_and_a_summary(co
     artifacts.save_model(model)
 
     folder = artifacts.path / "model"
-    assert sorted(path.name for path in folder.iterdir()) == ["model.pt", "state_dict.pth", "summary.txt"]
-    batch = torch.randn(11, 24)  # the trace was made with one row; any batch size must work
-    torch.testing.assert_close(torch.jit.load(folder / "model.pt")(batch), model.eval()(batch))
+    assert sorted(path.name for path in folder.iterdir()) == ["model.pt2", "state_dict.pth", "summary.txt"]
+    reloaded = load_exported_model(folder / "model.pt2")
+    for rows in (1, 11, 500):  # one file serves every batch size
+        batch = torch.randn(rows, 24)
+        torch.testing.assert_close(reloaded(batch), model.eval()(batch))
     restored = build_model(config["model_config"])
     restored.load_state_dict(torch.load(folder / "state_dict.pth"))
     torch.testing.assert_close(restored.eval()(batch), model(batch))

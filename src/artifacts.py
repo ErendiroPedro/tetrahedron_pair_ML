@@ -6,6 +6,8 @@ from pathlib import Path
 import torch
 import yaml
 
+from src.models import export_model
+
 
 def _experiment_label(config):
     volume_range = config["processor_config"].get("volume_binning", {}).get("volume_range")
@@ -40,13 +42,10 @@ class Artifacts:
         (self.path / "loss_plot.png").write_bytes(base64.b64decode(base64_png))
 
     def save_model(self, model):
-        """TorchScript trace (what skip_training reloads), plus the state dict and a readable summary."""
+        """The exported program (what skip_training reloads), plus the state dict and a readable summary."""
         folder = self.path / "model"
         folder.mkdir(exist_ok=True)
         torch.save(model.state_dict(), folder / "state_dict.pth")
         param_count = sum(p.numel() for p in model.parameters())
         (folder / "summary.txt").write_text(f"{type(model).__name__}: {param_count:,} parameters\n\n{model}\n")
-
-        model.eval()
-        example = torch.randn(1, model.input_dim, dtype=torch.float64, device=next(model.parameters()).device)
-        torch.jit.trace(model, example, strict=False).save(folder / "model.pt")
+        export_model(model, folder / "model.pt2")

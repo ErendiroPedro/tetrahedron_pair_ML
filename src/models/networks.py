@@ -1,3 +1,5 @@
+import warnings
+
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -158,8 +160,25 @@ def build_model(model_config):
     })
 
 
-class TorchScriptModel(nn.Module):
-    """A loaded TorchScript model that also offers `predict`, like `BaseNet`."""
+def export_model(model, path):
+    """Saves `model` as a `torch.export` program (`.pt2`) in eval mode; it accepts any batch size."""
+    parameter = next(model.parameters())
+    example = torch.randn(2, model.input_dim, dtype=parameter.dtype, device=parameter.device)
+    program = torch.export.export(model.eval(), (example,), dynamic_shapes={"inputs": {0: torch.export.Dim("batch")}})
+    torch.export.save(program, path)
+
+
+def load_exported_model(path):
+    """Loads a `.pt2` saved by `export_model`, or a legacy TorchScript file from earlier runs. Both are in eval mode."""
+    if str(path).endswith(".pt2"):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The given buffer is not writable")  # torch warns while reading the archive
+            return torch.export.load(path).module()
+    return torch.jit.load(path).eval()
+
+
+class LoadedModel(nn.Module):
+    """A model loaded from disk, which also offers `predict` like `BaseNet` (it is already in eval mode)."""
 
     def __init__(self, model, task, volume_scale_factor):
         super().__init__()
@@ -171,6 +190,5 @@ class TorchScriptModel(nn.Module):
         return self.model(inputs)
 
     def predict(self, inputs):
-        self.model.eval()
         with torch.no_grad():
             return to_predictions(self.model(inputs), self.task, self.volume_scale_factor)

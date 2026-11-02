@@ -15,10 +15,10 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 import torch
-import yaml
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from src.models import load_exported_model  # noqa: E402
 
 
 # =============================================================================
@@ -166,54 +166,10 @@ def preprocess(raw_data: torch.Tensor) -> torch.Tensor:
 # =============================================================================
 
 def load_model(config: Config, device: torch.device) -> torch.nn.Module:
-    """
-    Load the trained model.
-    
-    Tries TorchScript first, falls back to manual architecture creation.
-    """
-    model_path = config.model_path
-    torch_dtype = config.get_torch_dtype()
-    
-    # Try TorchScript loading first
-    try:
-        model = torch.jit.load(model_path, map_location=device)
-        print(f"  Loaded TorchScript model from {model_path}")
-    except Exception as e:
-        print(f"  TorchScript loading failed: {e}")
-        print(f"  Falling back to state_dict loading...")
-        
-        # Import and create model manually
-        from src.models.networks import ARCHITECTURES
-        
-        # Load config to get architecture settings
-        with open(config.config_path, 'r') as f:
-            yaml_config = yaml.safe_load(f)
-        
-        model_config = yaml_config['model_config']
-        arch_name = model_config['architecture']['use_model'].lower()
-        arch_params = model_config['architecture'].get(arch_name, {})
-        common = model_config['common_parameters']
-        
-        # Build full config for model creation
-        full_config = {
-            'input_dim': config.input_dim,
-            'task': common['task'],
-            'activation': common['activation_function'],
-            'volume_scale_factor': common['volume_scale_factor'],
-            'dropout_rate': common.get('dropout_rate', 0.0),
-            **arch_params
-        }
-        
-        # Create and load model
-        model = ARCHITECTURES[arch_name](full_config)
-        state_dict = torch.load(model_path, map_location=device)
-        model.load_state_dict(state_dict)
-        print(f"  Loaded state_dict model ({arch_name}) from {model_path}")
-    
-    # Move to device and set dtype
-    model.to(device=device, dtype=torch_dtype)
-    model.eval()
-    print(f"  Model dtype: {torch_dtype}, device: {device}")
+    """Load the saved model (`.pt2` export or legacy TorchScript) onto `device` in the benchmark dtype."""
+    model = load_exported_model(config.model_path)
+    model.to(device=device, dtype=config.get_torch_dtype())
+    print(f"  Loaded {config.model_path} (dtype {config.get_torch_dtype()}, device {device})")
     return model
 
 
