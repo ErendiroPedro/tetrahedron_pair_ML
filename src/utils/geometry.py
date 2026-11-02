@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 
 
@@ -40,9 +39,3 @@ def apply_principal_axis_transformation_batch(data_tensor):
     largest_variance_first = eigenvalues.argsort(dim=1, descending=True)
     axes = eigenvectors.gather(2, largest_variance_first[:, None, :].expand(-1, 3, -1))
     return (centered @ axes[:, None]).reshape(-1, 24)
-
-
-def calculate_tetrahedron_volume(tetrahedron_vertices):
-    """Volume of one tetrahedron given as 4 vertices (array or CPU tensor, anything reshapeable to (4, 3))."""
-    v0, v1, v2, v3 = np.asarray(tetrahedron_vertices).reshape(4, 3)
-    return abs(np.linalg.det(np.stack([v1 - v0, v2 - v0, v3 - v0]))) / 6.0
