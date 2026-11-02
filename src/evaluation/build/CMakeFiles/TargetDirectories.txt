@@ -1,0 +1,3 @@
+/home/sei/tetrahedron_pair_ML/src/evaluator/build/CMakeFiles/rebuild_cache.dir
+/home/sei/tetrahedron_pair_ML/src/evaluator/build/CMakeFiles/edit_cache.dir
+/home/sei/tetrahedron_pair_ML/src/evaluator/build/CMakeFiles/tetra_net.dir
