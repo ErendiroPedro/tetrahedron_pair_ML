@@ -1,3 +1,3 @@
-from src.evaluator.evaluator import evaluate
+from src.evaluation.evaluator import evaluate
 
 __all__ = ["evaluate"]

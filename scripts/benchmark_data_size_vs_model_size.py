@@ -31,7 +31,7 @@ from pathlib import Path
 import shutil
 import gc
 
-from src.utils.file_management import discover_csv_files
+from src.utils.dataset_files import discover_csv_files
 
 
 # Training data sizes to test (log scale)
@@ -199,9 +199,9 @@ def evaluate_model_accuracy(model, test_datasets, device='cpu'):
 def create_training_data(base_config_path, num_train_samples, num_val_samples, output_dir):
     """
     Create training data with specified number of samples.
-    Uses the CDataProcessor to sample from raw data.
+    Uses the DataProcessor to sample from raw data.
     """
-    from src.data_processing import CDataProcessor
+    from src.data_processing import DataProcessor
     
     # Load base config
     with open(base_config_path, 'r') as f:
@@ -223,7 +223,7 @@ def create_training_data(base_config_path, num_train_samples, num_val_samples, o
     print(f"\n  Creating dataset with {num_train_samples:,} train + {num_val_samples:,} val samples...")
     
     # Process data
-    processor = CDataProcessor(processor_config)
+    processor = DataProcessor(processor_config)
     processor.process()
     
     return output_dir
@@ -382,7 +382,7 @@ def main():
     base_dir = Path(project_root)
     base_config_path = base_dir / 'config' / 'config.yaml'
     results_dir = base_dir / 'artifacts' / 'data_size_benchmark_results'
-    test_data_path = base_dir / 'src' / 'evaluator' / 'test_data'
+    test_data_path = base_dir / 'src' / 'evaluation' / 'test_data'
     temp_base_dir = base_dir / 'artifacts' / 'temp_benchmark_data'
     
     results_dir.mkdir(parents=True, exist_ok=True)

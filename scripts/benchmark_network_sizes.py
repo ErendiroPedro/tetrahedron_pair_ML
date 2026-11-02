@@ -24,7 +24,7 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 
-from src.utils.file_management import discover_csv_files
+from src.utils.dataset_files import discover_csv_files
 
 
 # Batch sizes to test
@@ -312,7 +312,7 @@ def main():
     base_dir = Path('/home/sei/tetrahedron_pair_ML')
     base_config_path = base_dir / 'config' / 'config.yaml'
     results_dir = base_dir / 'artifacts' / 'benchmark_results'
-    test_data_path = base_dir / 'src' / 'evaluator' / 'test_data'
+    test_data_path = base_dir / 'src' / 'evaluation' / 'test_data'
     results_dir.mkdir(parents=True, exist_ok=True)
     
     # Benchmark settings

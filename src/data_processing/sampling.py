@@ -6,7 +6,7 @@ from typing import Dict, Iterable, Iterator, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from src.utils.file_management import count_samples
+from src.utils.dataset_files import count_samples
 
 CHUNK_SIZE = 10_000
 Paths = Tuple[Optional[str], Optional[str]]

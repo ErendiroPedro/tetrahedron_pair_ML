@@ -1,3 +1,3 @@
-from src.pipeline.orchestrator import CPipelineOrchestrator
+from src.pipeline.orchestrator import PipelineOrchestrator
 
-__all__ = ["CPipelineOrchestrator"]
+__all__ = ["PipelineOrchestrator"]

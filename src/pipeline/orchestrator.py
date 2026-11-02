@@ -2,12 +2,12 @@ import torch
 import traceback
 import yaml
 from src.artifacts import Artifacts
-from src.data_processing import CDataProcessor
-from src.evaluator import evaluate
+from src.data_processing import DataProcessor
+from src.evaluation import evaluate
 from src.models import TorchScriptModel, build_model
 from src.training import train
 
-class CPipelineOrchestrator:
+class PipelineOrchestrator:
     def __init__(self, config_file="config/config.yaml"):
         # 1. Load Config (paths in it are relative to the working directory)
         with open(config_file) as f:
@@ -15,22 +15,22 @@ class CPipelineOrchestrator:
 
         # 2. Initialize Components
         self.artifacts = Artifacts(self.config)
-        self.data_processor = CDataProcessor(self.config["processor_config"])
+        self.data_processor = DataProcessor(self.config["processor_config"])
 
         self.state = {}
-        self.id = self.artifacts.id
+        self.experiment_id = self.artifacts.experiment_id
         self._current_step = "init"
 
     def run(self):
-        print(f"\n=== Starting Experiment {self.id} ===")
+        print(f"\n=== Starting Experiment {self.experiment_id} ===")
         try:
             # Step 1: Processing
             if not self.config['processor_config'].get('skip_processing', True):
-                self._run_step('processing', self._process_data_step)
+                self._run_step('data_processing', self._process_data_step)
             
             # Step 2: Architecture
             if not self.config['model_config'].get('skip_building', True):
-                self._run_step('building', self._build_model_step)
+                self._run_step('model_building', self._build_model_step)
 
             # Step 3: Training / Loading Logic
             self._run_step('model_acquisition', self._acquire_model_step)
@@ -39,7 +39,7 @@ class CPipelineOrchestrator:
             if not self.config['evaluator_config'].get('skip_evaluation', False):
                 self._run_step('evaluation', self._evaluate_model_step)
 
-            print(f"\n=== Experiment {self.id} Complete ===\nArtifacts: {self.artifacts.path}")
+            print(f"\n=== Experiment {self.experiment_id} Complete ===\nArtifacts: {self.artifacts.path}")
 
         except Exception as e:
             self._handle_failure(e)
@@ -80,6 +80,6 @@ class CPipelineOrchestrator:
         self.artifacts.save_json("evaluation_report", report)
 
     def _handle_failure(self, e):
-        print(f"Experiment {self.id} failed at [{self._current_step}]: {e}")
+        print(f"Experiment {self.experiment_id} failed at [{self._current_step}]: {e}")
         self.artifacts.save_json("error", {'error': str(e), 'step': self._current_step, 'traceback': traceback.format_exc()})
         raise e

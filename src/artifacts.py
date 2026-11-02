@@ -7,7 +7,7 @@ import torch
 import yaml
 
 
-def _run_label(config):
+def _experiment_label(config):
     volume_range = config["processor_config"].get("volume_binning", {}).get("volume_range")
     volume = f"vol{'-'.join(map(str, volume_range))}" if volume_range else "no-vol-filter"
     return (
@@ -25,9 +25,9 @@ class Artifacts:
     """One folder per experiment: config.yaml, loss_plot.png, evaluation_report.json and model/."""
 
     def __init__(self, config):
-        self.id = datetime.datetime.now().strftime("%m%d_%H%M%S")
+        self.experiment_id = datetime.datetime.now().strftime("%m%d_%H%M%S")
         root = Path(config.get("artifacts_config", {}).get("save_artifacts_to", "artifacts"))
-        self.path = root / f"id{self.id}_{_run_label(config)}"
+        self.path = root / f"id{self.experiment_id}_{_experiment_label(config)}"
         self.path.mkdir(parents=True, exist_ok=True)
         with open(self.path / "config.yaml", "w") as f:
             yaml.dump(config, f, default_flow_style=False)

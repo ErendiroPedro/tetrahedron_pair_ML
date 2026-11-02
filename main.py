@@ -1,3 +1,3 @@
-from src.pipeline.orchestrator import CPipelineOrchestrator
+from src.pipeline.orchestrator import PipelineOrchestrator
 
-CPipelineOrchestrator().run()
+PipelineOrchestrator().run()

@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.utils.file_management import processed_split_path
+from src.utils.dataset_files import processed_split_path
 
 torch.set_default_dtype(torch.float64)
 
@@ -13,11 +13,11 @@ ACTIVATIONS = {
 }
 
 AGGREGATIONS = {
-    "max": lambda x: x.max(dim=1)[0],
-    "mean": lambda x: x.mean(dim=1),
-    "sum": lambda x: x.sum(dim=1),
-    "min": lambda x: x.min(dim=1)[0],
-    "hadamard_prod": lambda x: F.relu(x).prod(dim=1),
+    "max": lambda features: features.max(dim=1)[0],
+    "mean": lambda features: features.mean(dim=1),
+    "sum": lambda features: features.sum(dim=1),
+    "min": lambda features: features.min(dim=1)[0],
+    "hadamard_prod": lambda features: F.relu(features).prod(dim=1),
 }
 
 
@@ -40,7 +40,7 @@ def build_head(input_dim, hidden_dims, activation):
     return build_mlp([input_dim] + (hidden_dims or [1]), activation)
 
 
-def postprocess(output, task, volume_scale_factor):
+def to_predictions(output, task, volume_scale_factor):
     """Raw network output -> predictions: 0/1 status and/or volume in original units."""
     if task == "IntersectionStatus":
         return (output > 0).int().squeeze()
@@ -69,11 +69,11 @@ class BaseNet(nn.Module):
         """Return (feature extractor module, its output dimension)."""
         raise NotImplementedError
 
-    def extract_features(self, x):
-        return self.feature_extractor(x)
+    def extract_features(self, inputs):
+        return self.feature_extractor(inputs)
 
-    def forward(self, x):
-        features = self.extract_features(x)
+    def forward(self, inputs):
+        features = self.extract_features(inputs)
         if self.task == "IntersectionStatus":
             return self.classification_head(features)
         if self.task == "IntersectionVolume":
@@ -82,10 +82,10 @@ class BaseNet(nn.Module):
             return torch.cat([self.classification_head(features), F.relu(self.regression_head(features))], dim=1)
         raise ValueError(f"Unknown task: {self.task}")
 
-    def predict(self, x):
+    def predict(self, inputs):
         self.eval()
         with torch.no_grad():
-            return postprocess(self(x), self.task, self.volume_scale_factor)
+            return to_predictions(self(inputs), self.task, self.volume_scale_factor)
 
 
 class SimpleMLP(BaseNet):
@@ -105,39 +105,39 @@ class TetrahedronPairNet(BaseNet):
 
     def _build_features(self, config):
         vertex_layers = config["per_vertex_layers"]
-        tet_layers = config["per_tetrahedron_layers"]
+        tetrahedron_layers = config["per_tetrahedron_layers"]
         pair_layers = config["per_two_tetrahedra_layers"]
-        self.vertex_agg = config["vertices_aggregation_function"]
-        self.tet_agg = config["tetrahedra_aggregation_function"]
+        self.vertex_aggregation = config["vertices_aggregation_function"]
+        self.tetrahedron_aggregation = config["tetrahedra_aggregation_function"]
 
         self.vertex_net = build_mlp([3] + vertex_layers, nn.ReLU(), self.dropout)
         self.vertex_shortcuts = nn.ModuleList([nn.Linear(3, vertex_layers[-1]) for _ in range(8)])
-        self.tet_net = build_mlp([vertex_layers[-1]] + tet_layers, self.activation, self.dropout)
-        self.tet_shortcut_1 = nn.Linear(12, tet_layers[-1])
-        self.tet_shortcut_2 = nn.Linear(12, tet_layers[-1])
+        self.tetrahedron_net = build_mlp([vertex_layers[-1]] + tetrahedron_layers, self.activation, self.dropout)
+        self.tetrahedron_shortcuts = nn.ModuleList([nn.Linear(12, tetrahedron_layers[-1]) for _ in range(2)])
         extractor = nn.ModuleDict({
-            "pair_net": build_mlp([tet_layers[-1]] + pair_layers, self.activation, self.dropout),
+            "pair_net": build_mlp([tetrahedron_layers[-1]] + pair_layers, self.activation, self.dropout),
             "global_shortcut": nn.Linear(config["input_dim"], pair_layers[-1]),
         })
         return extractor, pair_layers[-1]
 
-    def extract_features(self, x):
-        if x.size(1) not in (12, 24):
-            raise ValueError(f"Input must be 12 or 24 dims, got {x.size(1)}")
+    def extract_features(self, inputs):
+        if inputs.size(1) not in (12, 24):
+            raise ValueError(f"Input must be 12 or 24 dims, got {inputs.size(1)}")
 
-        tets = self._tetrahedron(x[:, :12], 0)
-        if x.size(1) == 24:
-            tets = AGGREGATIONS[self.tet_agg](torch.stack([tets, self._tetrahedron(x[:, 12:], 1)], dim=1))
-        return self.feature_extractor["pair_net"](tets) + self.feature_extractor["global_shortcut"](x)
+        tetrahedra_features = self._tetrahedron_features(inputs[:, :12], 0)
+        if inputs.size(1) == 24:
+            both_tetrahedra = torch.stack([tetrahedra_features, self._tetrahedron_features(inputs[:, 12:], 1)], dim=1)
+            tetrahedra_features = AGGREGATIONS[self.tetrahedron_aggregation](both_tetrahedra)
+        return self.feature_extractor["pair_net"](tetrahedra_features) + self.feature_extractor["global_shortcut"](inputs)
 
-    def _tetrahedron(self, coords, index):
-        vertices = coords.view(-1, 4, 3)
-        features = torch.stack([
+    def _tetrahedron_features(self, coordinates, index):
+        vertices = coordinates.view(-1, 4, 3)
+        vertex_features = torch.stack([
             self.vertex_net(vertices[:, i]) + self.vertex_shortcuts[index * 4 + i](vertices[:, i])
             for i in range(4)
         ], dim=1)
-        shortcut = (self.tet_shortcut_1, self.tet_shortcut_2)[index]
-        return self.tet_net(AGGREGATIONS[self.vertex_agg](features)) + shortcut(coords)
+        aggregated = AGGREGATIONS[self.vertex_aggregation](vertex_features)
+        return self.tetrahedron_net(aggregated) + self.tetrahedron_shortcuts[index](coordinates)
 
 
 ARCHITECTURES = {"mlp": SimpleMLP, "tetrahedronpairnet": TetrahedronPairNet}
@@ -145,16 +145,16 @@ ARCHITECTURES = {"mlp": SimpleMLP, "tetrahedronpairnet": TetrahedronPairNet}
 
 def build_model(model_config):
     """Build the architecture selected in `model_config` (the config.yaml `model_config` section)."""
-    arch = model_config["architecture"]["use_model"].lower()
+    architecture = model_config["architecture"]["use_model"].lower()
     common = model_config["common_parameters"]
     train_header = pd.read_csv(processed_split_path(model_config["processed_data_path"], "train"), nrows=0)
-    return ARCHITECTURES[arch]({
+    return ARCHITECTURES[architecture]({
         "input_dim": len(train_header.columns) - 2,  # last two columns are the targets
         "task": common["task"],
         "activation": common["activation_function"],
         "volume_scale_factor": common["volume_scale_factor"],
         "dropout_rate": common.get("dropout_rate", 0.0),
-        **model_config["architecture"].get(arch, {}),
+        **model_config["architecture"].get(architecture, {}),
     })
 
 
@@ -167,10 +167,10 @@ class TorchScriptModel(nn.Module):
         self.task = task
         self.volume_scale_factor = volume_scale_factor
 
-    def forward(self, x):
-        return self.model(x)
+    def forward(self, inputs):
+        return self.model(inputs)
 
-    def predict(self, x):
+    def predict(self, inputs):
         self.model.eval()
         with torch.no_grad():
-            return postprocess(self.model(x), self.task, self.volume_scale_factor)
+            return to_predictions(self.model(inputs), self.task, self.volume_scale_factor)

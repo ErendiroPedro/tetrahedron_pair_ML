@@ -56,7 +56,7 @@ class Config:
 CONFIG = Config(
     model_path="/home/sei/tetrahedron_pair_ML/models_to_eval/model.pt",
     config_path="/home/sei/tetrahedron_pair_ML/config/config.yaml",
-    test_data_file="/home/sei/tetrahedron_pair_ML/src/evaluator/test_data/polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
+    test_data_file="/home/sei/tetrahedron_pair_ML/src/evaluation/test_data/polyhedron_intersection/tetrahedron_pair_polyhedron_intersection_p16_s100k_uniform_volums_0-0.01.csv",
     batch_size=2048,
     num_repeats=30,
     dtype="float32",  # Change to "float64" for double precision

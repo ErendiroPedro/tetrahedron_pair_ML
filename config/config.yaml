@@ -69,7 +69,7 @@ evaluator_config:
   device: cpu
   model_path: /home/sei/tetrahedron_pair_ML/artifacts/archive/fine-tunning/id0630_131414_tetrahedronpairnet_IntersectionStatus_IntersectionVolume_2000k-train_100k-val_vol1e-07-0.02_e50/model_artifacts/model.pt
   task: *task_type
-  test_data_path: src/evaluator/test_data
+  test_data_path: src/evaluation/test_data
   regression_consistency_thresholds:
     atol: 0.001
     rtol: 0.1

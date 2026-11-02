@@ -10,8 +10,8 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
-from src.training.losses import LOSSES
-from src.utils.file_management import processed_split_path
+from src.training.losses import LOSS_BY_TASK
+from src.utils.dataset_files import processed_split_path
 
 
 def _load_split(path, task, batch_size, shuffle):
@@ -41,7 +41,7 @@ def _run_epoch(loader, model, loss_fn, device, optimizer=None):
     return total / len(loader)
 
 
-def _loss_plot(history):
+def _plot_losses(history):
     """Base64 PNG of the train/val loss curves."""
     epochs = [h["epoch"] for h in history]
     plt.figure(figsize=(10, 6))
@@ -68,7 +68,7 @@ def train(model, config):
     data_path = config.get("processed_data_path", "data/processed")
 
     model = model.to(device).double()
-    loss_fn = LOSSES[task]
+    loss_fn = LOSS_BY_TASK[task]
     optimizer = optim.AdamW(model.parameters(), lr=config.get("learning_rate", 1e-3), weight_decay=1e-5, foreach=False)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
 
@@ -107,5 +107,5 @@ def train(model, config):
     return {
         "trained_model": model,
         "training_metrics": {"final_val_loss": best_val_loss},
-        "loss_plot": _loss_plot(history) if history else None,
+        "loss_plot": _plot_losses(history) if history else None,
     }
