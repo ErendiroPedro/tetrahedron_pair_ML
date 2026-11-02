@@ -19,13 +19,13 @@ class CModelTrainer:
     def __init__(self, config, device=None):
         self.config = config
         self.device = torch.device(config['device'])
-        
+
         # Training parameters
         self.epochs = config.get('epochs', 100)
         self.batch_size = config.get('batch_size', 1024)
         self.learning_rate = config.get('learning_rate', 1e-3)
         self.early_stopping_patience = config.get('early_stopping_patience', 10)
-        
+
         # Data paths
         self.processed_data_path = config.get('processed_data_path', 'data/processed')
         
@@ -72,12 +72,12 @@ class CModelTrainer:
     def train_and_validate(self, model):
         """Main training loop - loads datasets internally"""
         print("🚀 Starting training...")
-        
+
         # Setup model
         model = model.to(self.device)
         model = model.double()
 
-        
+
         task = self.config['task']
         loss_type = self.config['loss_function']
 
@@ -103,36 +103,36 @@ class CModelTrainer:
 
         # Load datasets internally
         train_loader, val_loader = self._setup_data_loaders()
-        
+
         print(f"   Training batches: {len(train_loader)}")
         print(f"   Validation batches: {len(val_loader)}")
-        
+
         # Training loop
         best_val_loss = float('inf')
         patience_counter = 0
         training_history = []
-        
+
         for epoch in range(1, self.epochs + 1):
             print(f"\n=== Epoch {epoch}/{self.epochs} ===")
             epoch_start = time.time()
-            
+
             # Training phase
             model.train()
             train_loss = self._run_epoch(train_loader, model, loss_fn, optimizer, is_training=True, epoch=epoch)
-            
+
             # Validation phase
             model.eval()
             with torch.no_grad():
                 val_loss = self._run_epoch(val_loader, model, loss_fn, None, is_training=False, epoch=epoch)
-            
+
             # Check for invalid losses
             if train_loss is None or val_loss is None or np.isnan(train_loss) or np.isnan(val_loss):
                 print(f"⚠️ Invalid losses detected, stopping training")
                 break
-            
+
             # Update scheduler
             scheduler.step(val_loss)
-            
+
             # Track metrics
             epoch_time = time.time() - epoch_start
             training_history.append({
@@ -141,9 +141,9 @@ class CModelTrainer:
                 'val_loss': val_loss,
                 'epoch_time': epoch_time
             })
-            
+
             print(f"Epoch {epoch}: Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}, Time: {epoch_time:.1f}s")
-            
+
             # Early stopping
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
@@ -151,16 +151,16 @@ class CModelTrainer:
                 best_model_state = model.state_dict().copy()
             else:
                 patience_counter += 1
-            
+
             if patience_counter >= self.early_stopping_patience:
                 print(f"🛑 Early stopping after {epoch} epochs")
                 model.load_state_dict(best_model_state)
                 break
-        
+
         # Generate results
         report = self._create_report(training_history, best_val_loss)
         loss_curve = self._create_loss_plot(training_history)
-        
+
         print(f"🎉 Training complete! Best validation loss: {best_val_loss:.6f}")
         return model, report, {'final_val_loss': best_val_loss}, loss_curve
 
@@ -196,34 +196,34 @@ class CModelTrainer:
 
         total_loss = 0.0
         batch_count = 0
-        
+
         task = self.config['task']
-        
+
         for batch_idx, (tetrahedron_features, intersection_status, intersection_volume) in enumerate(data_loader):
             tetrahedron_features = tetrahedron_features.to(device=self.device, dtype=torch.float64)
             intersection_status = intersection_status.to(device=self.device, dtype=torch.float64)
             intersection_volume = intersection_volume.to(device=self.device, dtype=torch.float64)
-            
+
             # Prepare targets based on task
             task_config = self.task_configs[task]
             targets = task_config['target_builder'](intersection_status, intersection_volume)
-            
+
             # Forward pass
             predictions = model(tetrahedron_features)
             predictions = task_config['prediction_extractor'](predictions)
-            
-            
+
+
             loss = loss_fn(predictions, targets)
-            
+
             if is_training:
                 # Backward pass
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-            
+
             total_loss += loss.item()
             batch_count += 1
-        
+
         return total_loss / batch_count if batch_count > 0 else None
 
     def _create_report(self, history, best_val_loss):
