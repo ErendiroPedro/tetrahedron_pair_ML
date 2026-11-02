@@ -59,7 +59,10 @@ def _plot_losses(history):
 
 
 def train(model, config):
-    """Train `model` with AdamW and early stopping; returns the model with its best-validation weights."""
+    """Train `model` with AdamW and early stopping; returns the model with its best-validation weights.
+
+    Needs `epochs >= 1`. Raises FloatingPointError as soon as a loss is NaN or infinite.
+    """
     task = config["task"]
     device = torch.device(config["device"])
     epochs = config.get("epochs", 100)
@@ -85,9 +88,10 @@ def train(model, config):
         train_loss = _run_epoch(train_loader, model, loss_fn, device, optimizer)
         model.eval()
         val_loss = _run_epoch(val_loader, model, loss_fn, device)
-        if math.isnan(train_loss) or math.isnan(val_loss):
-            print("NaN loss, stopping training")
-            break
+        if not (math.isfinite(train_loss) and math.isfinite(val_loss)):
+            raise FloatingPointError(
+                f"Loss is not finite in epoch {epoch} (train {train_loss}, val {val_loss}); "
+                "check the learning rate and the processed data")
 
         scheduler.step(val_loss)
         history.append({"epoch": epoch, "train_loss": train_loss, "val_loss": val_loss, "epoch_time": time.time() - start})
@@ -101,11 +105,10 @@ def train(model, config):
                 print(f"Early stopping after {epoch} epochs")
                 break
 
-    if best_state is not None:
-        model.load_state_dict(best_state)
+    model.load_state_dict(best_state)
     print(f"Training complete. Best validation loss: {best_val_loss:.6f}")
     return {
         "trained_model": model,
         "training_metrics": {"final_val_loss": best_val_loss},
-        "loss_plot": _plot_losses(history) if history else None,
+        "loss_plot": _plot_losses(history),
     }
