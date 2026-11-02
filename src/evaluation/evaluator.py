@@ -15,7 +15,6 @@ from src.utils.geometry import permute_vertices_within_tetrahedra, swap_tetrahed
 STATUS_COLUMN, VOLUME_COLUMN = "HasIntersection", "IntersectionVolume"
 PRIORITY_TYPES = {"polyhedron_intersection", "no_intersection"}
 SPEED_WARMUP_RUNS, SPEED_RUNS = 10, 50
-MAX_TETRAHEDRON_VOLUME = 1 / 6  # unit-cube bound used to validate `volume_range`
 
 
 def evaluate(model, evaluator_config, processor_config, training_metrics=None):
@@ -128,9 +127,6 @@ def _classification_performance(true_status, predicted_status):
 
 def _intersection_volume_performance(true_volume, predicted_volume, config):
     volume_range = config.get("volume_range", (0, 0.01))
-    if volume_range[0] < 0 or volume_range[1] > MAX_TETRAHEDRON_VOLUME:
-        raise ValueError(f"volume_range must lie within [0, {MAX_TETRAHEDRON_VOLUME:.8f}], got {volume_range}")
-
     mean_true_volume = np.mean(true_volume)
     kappa, bin_accuracy = _binned_agreement(true_volume, predicted_volume)
     interval_metrics = {}

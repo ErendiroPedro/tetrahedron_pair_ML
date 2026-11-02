@@ -1,85 +1,80 @@
-import torch
 import traceback
+
+import torch
 import yaml
+
 from src.artifacts import Artifacts
 from src.data_processing import DataProcessor
 from src.evaluation import evaluate
 from src.models import TorchScriptModel, build_model
+from src.pipeline.config_validation import enabled_steps, validate_config
 from src.training import train
 
+
 class PipelineOrchestrator:
+    """Runs data processing, model building, training (or loading) and evaluation for one config file."""
+
     def __init__(self, config_file="config/config.yaml"):
-        # 1. Load Config (paths in it are relative to the working directory)
         with open(config_file) as f:
-            self.config = yaml.safe_load(f)
+            self.config = yaml.safe_load(f)  # paths in it are relative to the working directory
+        validate_config(self.config)
+        self.steps = enabled_steps(self.config)
 
-        # 2. Initialize Components
         self.artifacts = Artifacts(self.config)
-        self.data_processor = DataProcessor(self.config["processor_config"])
-
-        self.state = {}
         self.experiment_id = self.artifacts.experiment_id
+        self.state = {}
         self._current_step = "init"
 
     def run(self):
         print(f"\n=== Starting Experiment {self.experiment_id} ===")
         try:
-            # Step 1: Processing
-            if not self.config['processor_config'].get('skip_processing', True):
-                self._run_step('data_processing', self._process_data_step)
-            
-            # Step 2: Architecture
-            if not self.config['model_config'].get('skip_building', True):
-                self._run_step('model_building', self._build_model_step)
-
-            # Step 3: Training / Loading Logic
-            self._run_step('model_acquisition', self._acquire_model_step)
-
-            # Step 4: Evaluation
-            if not self.config['evaluator_config'].get('skip_evaluation', False):
-                self._run_step('evaluation', self._evaluate_model_step)
-
+            if self.steps["data_processing"]:
+                self._run_step("data_processing", self._process_data_step)
+            if self.steps["model_building"]:
+                self._run_step("model_building", self._build_model_step)
+            self._run_step("model_acquisition", self._acquire_model_step)
+            if self.steps["evaluation"]:
+                self._run_step("evaluation", self._evaluate_model_step)
             print(f"\n=== Experiment {self.experiment_id} Complete ===\nArtifacts: {self.artifacts.path}")
+        except Exception as error:
+            self._record_failure(error)
+            raise
 
-        except Exception as e:
-            self._handle_failure(e)
-
-    def _run_step(self, name, func):
+    def _run_step(self, name, step):
         self._current_step = name
-        func()
+        step()
         print(f"---- {name.replace('_', ' ').title()} Complete ----")
 
     def _process_data_step(self):
-        self.data_processor.process()
+        DataProcessor(self.config["processor_config"]).process()
 
     def _build_model_step(self):
         self.state["model"] = build_model(self.config["model_config"])
 
     def _acquire_model_step(self):
-        """Either load an existing model (skip_training) or train the one built in the previous step."""
-        if self.config['trainer_config'].get('skip_training', False):
-            eval_cfg = self.config['evaluator_config']
-            path = eval_cfg.get('model_path') or self.config['model_config'].get('model_path')
-            if not path:
-                raise ValueError("skip_training=True but no model_path provided.")
-            print(f"-- Loading model from {path} --")
-            self.state["trained_model"] = TorchScriptModel(
-                torch.jit.load(path), eval_cfg['task'], eval_cfg['volume_scale_factor'])
-        else:
-            if "model" not in self.state:
-                raise ValueError("Model architecture not built. Check 'skip_building' config.")
-            results = train(self.state["model"], self.config['trainer_config'])
+        """Trains the model built in the previous step, or loads one when training is skipped."""
+        if self.steps["training"]:
+            results = train(self.state["model"], self.config["trainer_config"])
             self.state.update(results)
             self.artifacts.save_model(results["trained_model"])
-            if results["loss_plot"]:
-                self.artifacts.save_plot(results["loss_plot"])
+            self.artifacts.save_plot(results["loss_plot"])
+        else:
+            evaluator_config = self.config["evaluator_config"]
+            path = evaluator_config.get("model_path") or self.config["model_config"].get("model_path")
+            print(f"-- Loading model from {path} --")
+            self.state["trained_model"] = TorchScriptModel(
+                torch.jit.load(path), evaluator_config["task"], evaluator_config["volume_scale_factor"])
 
     def _evaluate_model_step(self):
         model = self.state.get("trained_model") or self.state.get("model")
-        report = evaluate(model, self.config["evaluator_config"], self.config["processor_config"], self.state.get("training_metrics"))
+        report = evaluate(model, self.config["evaluator_config"], self.config["processor_config"],
+                          self.state.get("training_metrics"))
         self.artifacts.save_json("evaluation_report", report)
 
-    def _handle_failure(self, e):
-        print(f"Experiment {self.experiment_id} failed at [{self._current_step}]: {e}")
-        self.artifacts.save_json("error", {'error': str(e), 'step': self._current_step, 'traceback': traceback.format_exc()})
-        raise e
+    def _record_failure(self, error):
+        print(f"Experiment {self.experiment_id} failed at [{self._current_step}]: {error}")
+        self.artifacts.save_json("error", {
+            "error": str(error),
+            "step": self._current_step,
+            "traceback": traceback.format_exc(),
+        })
