@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from src.utils.file_management.csv_files import EXPECTED_COLUMNS  # noqa: E402
+from src.utils.file_management import EXPECTED_COLUMNS  # noqa: E402
 
 CHUNK = 500_000
 

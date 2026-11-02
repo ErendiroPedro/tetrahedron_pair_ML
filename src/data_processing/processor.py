@@ -16,7 +16,7 @@ from src.data_processing.transformations import transform_data
 from src.utils.file_management import (
     INTERSECTION_TYPES,
     count_samples,
-    discover_raw_files,
+    discover_csv_files,
     processed_split_path,
 )
 
@@ -50,7 +50,7 @@ class CDataProcessor:
     def _collect_raw_files(self) -> Dict[str, List[str]]:
         raw_files = {}
         for intersection_type in INTERSECTION_TYPES:
-            files = discover_raw_files(self.config.raw_data_path, intersection_type)
+            files = discover_csv_files(os.path.join(self.config.raw_data_path, intersection_type))
             if files:
                 raw_files[intersection_type] = files
                 print(f"  Found {len(files)} file(s) for {intersection_type}")

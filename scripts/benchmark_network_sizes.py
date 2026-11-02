@@ -24,7 +24,7 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 
-from src.utils.file_management import discover_csv_files, resolve_path
+from src.utils.file_management import discover_csv_files
 
 
 # Batch sizes to test
@@ -177,8 +177,7 @@ def run_benchmark(config_id, tetra_config, base_config_path, results_dir, test_d
     with open(base_config_path, 'r') as f:
         base_config = yaml.safe_load(f)
     
-    home = base_config.get('home')
-    processed_data_path = resolve_path(base_config['processor_config']['dataset_paths']['processed_data'], home)
+    processed_data_path = base_config['processor_config']['dataset_paths']['processed_data']
     
     # Build model config
     model_config = {
