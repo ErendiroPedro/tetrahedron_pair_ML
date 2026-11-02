@@ -101,8 +101,9 @@ class SimpleMLP(BaseNet):
 class TetrahedronPairNet(BaseNet):
     """Per-vertex -> per-tetrahedron -> per-pair network with residual shortcuts.
 
-    Vertices (and the two tetrahedra) are combined with a symmetric aggregation, so the result
-    does not depend on vertex order within a tetrahedron or on tetrahedron order.
+    Vertices (and the two tetrahedra) are combined with a symmetric aggregation, which pushes the result
+    towards ignoring vertex and tetrahedron order. The positional shortcuts keep some order information,
+    so invariance is learned, not guaranteed; the evaluator measures how close it gets.
     """
 
     def _build_features(self, config):
