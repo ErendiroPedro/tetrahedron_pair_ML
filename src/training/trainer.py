@@ -103,17 +103,9 @@ def train(model, config):
 
     if best_state is not None:
         model.load_state_dict(best_state)
-    report = {
-        "total_epochs": len(history),
-        "best_val_loss": best_val_loss,
-        "final_val_loss": history[-1]["val_loss"] if history else None,
-        "total_training_time": sum(h["epoch_time"] for h in history),
-        "training_history": history,
-    }
     print(f"Training complete. Best validation loss: {best_val_loss:.6f}")
     return {
         "trained_model": model,
-        "training_report": report,
         "training_metrics": {"final_val_loss": best_val_loss},
         "loss_plot": _loss_plot(history) if history else None,
     }

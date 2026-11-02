@@ -231,8 +231,8 @@ def create_training_data(base_config_path, num_train_samples, num_val_samples, o
 
 def train_model(model_config, processed_data_path, base_config_path, device):
     """Train a model with the given configuration and data."""
-    from src.models import CArchitectureManager
-    from src.training import CModelTrainer
+    from src.models import build_model
+    from src.training import train
     
     # Load base config for common parameters
     with open(base_config_path, 'r') as f:
@@ -261,23 +261,20 @@ def train_model(model_config, processed_data_path, base_config_path, device):
         'batch_size': BATCH_SIZE,
         'learning_rate': 1e-3,
         'early_stopping_patience': 10,
-        'loss_function': 'default',
         'device': device  # Add device to config
     }
-    
+
     # Create model
-    arch_manager = CArchitectureManager(arch_config)
-    model = arch_manager.get_model()
-    
+    model = build_model(arch_config)
+
     # Count parameters
     total_params, trainable_params = count_parameters(model)
     print(f"    Model parameters: {total_params:,}")
-    
+
     # Train model
-    trainer = CModelTrainer(trainer_config)
-    trained_model, report, training_metrics, loss_curve = trainer.train_and_validate(model)
-    
-    return trained_model, total_params, training_metrics
+    results = train(model, trainer_config)
+
+    return results["trained_model"], total_params, results["training_metrics"]
 
 
 def run_single_experiment(model_config, data_size, base_config_path, results_dir, 

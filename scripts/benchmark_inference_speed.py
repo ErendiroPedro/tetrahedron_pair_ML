@@ -183,7 +183,7 @@ def load_model(config: Config, device: torch.device) -> torch.nn.Module:
         print(f"  Falling back to state_dict loading...")
         
         # Import and create model manually
-        from src.models import ArchitectureRegistry
+        from src.models.networks import ARCHITECTURES
         
         # Load config to get architecture settings
         with open(config.config_path, 'r') as f:
@@ -205,7 +205,7 @@ def load_model(config: Config, device: torch.device) -> torch.nn.Module:
         }
         
         # Create and load model
-        model = ArchitectureRegistry.create(arch_name, full_config)
+        model = ARCHITECTURES[arch_name](full_config)
         state_dict = torch.load(model_path, map_location=device)
         model.load_state_dict(state_dict)
         print(f"  Loaded state_dict model ({arch_name}) from {model_path}")

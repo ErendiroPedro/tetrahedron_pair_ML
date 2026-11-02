@@ -165,8 +165,8 @@ def get_model_size_mb(model):
 
 def run_benchmark(config_id, tetra_config, base_config_path, results_dir, test_data, train_epochs=20):
     """Run benchmark for a single configuration across all batch sizes."""
-    from src.models import CArchitectureManager
-    from src.training import CModelTrainer
+    from src.models import build_model
+    from src.training import train
     
     print(f"\n{'='*60}")
     print(f"Config {config_id}: multiplier={tetra_config['multiplier']}")
@@ -203,13 +203,11 @@ def run_benchmark(config_id, tetra_config, base_config_path, results_dir, test_d
         'batch_size': 1024,
         'learning_rate': 1e-3,
         'early_stopping_patience': 10,
-        'loss_function': 'default'
     }
     
     try:
         # Create model
-        arch_manager = CArchitectureManager(model_config)
-        model = arch_manager.get_model()
+        model = build_model(model_config)
         
         # Use GPU for training if available
         train_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -225,8 +223,8 @@ def run_benchmark(config_id, tetra_config, base_config_path, results_dir, test_d
         print(f"\n--- Training for {train_epochs} epochs on {train_device} ---")
         train_start = time.time()
         
-        trainer = CModelTrainer(trainer_config, device=train_device)
-        trained_model, report, training_metrics, loss_curve = trainer.train_and_validate(model)
+        results = train(model, {**trainer_config, 'device': str(train_device)})
+        trained_model, training_metrics = results["trained_model"], results["training_metrics"]
         
         train_time = time.time() - train_start
         print(f"Training completed in {train_time:.1f}s")
@@ -285,7 +283,6 @@ def run_benchmark(config_id, tetra_config, base_config_path, results_dir, test_d
         print(f"Results saved to: {result_file}")
         
         del model
-        del trainer
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         
