@@ -1,11 +1,10 @@
 import torch
 import traceback
-import pandas as pd
 from src.artifacts import CArtifactsManager
 from src.data_processing import CDataProcessor
 from src.evaluator.CEvaluator import CEvaluator
-from src.models import CArchitectureManager, ModelUtility
-from src.training import CModelTrainer
+from src.models import TorchScriptModel, build_model
+from src.training import train
 from src.utils.file_management import load_config
 
 class CPipelineOrchestrator:
@@ -15,9 +14,7 @@ class CPipelineOrchestrator:
 
         # 2. Initialize Components
         self.artifacts_manager = CArtifactsManager(self.config)
-        self.architecture_manager = CArchitectureManager(self.config["model_config"])
         self.data_processor = CDataProcessor(self.config["processor_config"])
-        self.model_trainer = CModelTrainer(self.config["trainer_config"])
         self.evaluator = CEvaluator(self.config["evaluator_config"], self.config["processor_config"])
         
         self.state = {}
@@ -58,7 +55,7 @@ class CPipelineOrchestrator:
         self.artifacts_manager.save_artifacts(data_processing_results=results)
 
     def _build_model_step(self):
-        model = self.architecture_manager.get_model()
+        model = build_model(self.config["model_config"])
         self.state["model"] = model
         meta = {
             'model_class': model.__class__.__name__,
@@ -67,61 +64,22 @@ class CPipelineOrchestrator:
         self.artifacts_manager.save_artifacts(model_architecture_info=meta)
 
     def _acquire_model_step(self):
-        """Determines whether to train, fine-tune, or load a model."""
-        trainer_cfg = self.config['trainer_config']
-        eval_cfg = self.config['evaluator_config']
-
-        # Case A: Fine-tuning
-        if trainer_cfg.get('fine_tune_on', False):
-            self._fine_tune_flow()
-        
-        # Case B: Skip Training (Load existing)
-        elif trainer_cfg.get('skip_training', False):
+        """Either load an existing model (skip_training) or train the one built in the previous step."""
+        if self.config['trainer_config'].get('skip_training', False):
+            eval_cfg = self.config['evaluator_config']
             path = eval_cfg.get('model_path') or self.config['model_config'].get('model_path')
             if not path:
                 raise ValueError("skip_training=True but no model_path provided.")
-            self._load_model_for_inference(path)
-        
-        # Case C: Standard Training
+            print(f"-- Loading model from {path} --")
+            self.state["trained_model"] = TorchScriptModel(
+                torch.jit.load(path), eval_cfg['task'], eval_cfg['volume_scale_factor'])
+            self.artifacts_manager.save_artifacts(loaded_model_info={'path': path})
         else:
             if "model" not in self.state:
                 raise ValueError("Model architecture not built. Check 'skip_building' config.")
-            results = self.model_trainer.train_and_validate(self.state["model"])
-            self._unpack_trainer_results(results)
-
-    def _load_model_for_inference(self, path):
-        print(f"-- Loading model from {path} --")
-        raw_model = torch.jit.load(path)
-        wrapped = ModelUtility.TorchScriptWrapper(raw_model, self.config)
-        self.state["trained_model"] = wrapped
-        self.artifacts_manager.save_artifacts(loaded_model_info={'path': path})
-
-    def _fine_tune_flow(self):
-        t_cfg = self.config['trainer_config']
-        print(f"-- Fine-tuning from {t_cfg.get('fine_tune_model_path')} --")
-        
-        # 1. Load weights into new architecture
-        ts_model = torch.jit.load(t_cfg['fine_tune_model_path'])
-        base_model = self.architecture_manager.get_model()
-        fine_tune_model = ModelUtility.map_weights(ts_model, base_model)
-        
-        # 2. Load data and train
-        data = pd.read_csv(t_cfg['fine_tune_data_path'])
-        results = self.model_trainer.fine_tune(fine_tune_model, data)
-        self._unpack_trainer_results(results, is_finetune=True)
-
-    def _unpack_trainer_results(self, results, is_finetune=False):
-        """Normalizes the messy return values from trainer/fine-tuner."""
-        keys = ["trained_model", "training_report", "training_metrics", "loss_plot"]
-        if isinstance(results, tuple):
-            res_dict = {keys[i]: results[i] for i in range(len(results))}
-        else:
-            res_dict = {"trained_model": results}
-        
-        self.state.update(res_dict)
-        prefix = "fine_tune_" if is_finetune else ""
-        labeled_artifacts = {f"{prefix}{k}": v for k, v in res_dict.items() if v is not None}
-        self.artifacts_manager.save_artifacts(**labeled_artifacts)
+            results = train(self.state["model"], self.config['trainer_config'])
+            self.state.update(results)
+            self.artifacts_manager.save_artifacts(**{k: v for k, v in results.items() if v is not None})
 
     def _evaluate_model_step(self):
         model = self.state.get("trained_model") or self.state.get("model")

@@ -1,4 +1,3 @@
-from src.training.dataset import TetrahedronDataset
-from src.training.trainer import CModelTrainer
+from src.training.trainer import train
 
-__all__ = ["CModelTrainer", "TetrahedronDataset"]
+__all__ = ["train"]
