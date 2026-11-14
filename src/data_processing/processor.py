@@ -2,8 +2,6 @@ import os
 import tempfile
 from typing import Dict, List, Tuple
 
-import pandas as pd
-
 from src.data_processing.config import ProcessorConfig
 from src.data_processing.sampling import (
     allocate_counts,
